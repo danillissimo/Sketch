@@ -50,7 +50,6 @@ namespace sketch::HeaderTool
 		// Multiple ways to remove a widget are prepared
 		// But looks like it's always by a shared ref
 		// So be it
-		check(SlotType == TEXT("FSlot"));
 		T& Widget = static_cast<T&>(InWidget);
 		Widget.RemoveSlot(Slot.GetWidget());
 	}

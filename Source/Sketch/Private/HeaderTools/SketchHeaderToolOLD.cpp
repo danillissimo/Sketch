@@ -1,13 +1,15 @@
-#include "SketchHeaderTool.h"
+#include "HeaderTool/SketchHeaderToolOLD.h"
 
-#include "SketchHeaderToolTypes.h"
+#include "SketchCore.h"
+#include "HeaderTool/SketchWidgetFactoryTools.h"
 #include "SketchTypes.h"
+#include "AttributesTraites/AttributesTraits.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSketchHeaderTool, Display, All);
 
-TMap<FName, TArray<sketch::HeaderTool::FHeaderTool::FOverride>> sketch::HeaderTool::FHeaderTool::ClassOverrides = {
+TMap<FName, TArray<sketch::HeaderTool::FHeaderTool_BASE::FOverride>> sketch::HeaderTool::FHeaderTool_BASE::ClassOverrides = {
 	{
 		TEXT("SThrobber"),
 		{
@@ -27,7 +29,8 @@ TMap<FName, TArray<sketch::HeaderTool::FHeaderTool::FOverride>> sketch::HeaderTo
 	{ TEXT("SViewport"), { FOverride::Value(TEXT("ViewportSize"), TEXT("Arguments.GetDefaultViewportSize()")) } },
 	{ TEXT("SScrollBox"), { FOverride::Value(TEXT("ScrollBarThickness"), TEXT("UE::Slate::FDeprecateVector2DParameter(FVector2f(Arguments._Style->BarThickness, Arguments._Style->BarThickness))")) } },
 	{ TEXT("SSplitter"), { FOverride::Type(TEXT("SizeRule"), TEXT("SSplitter::ESizeRule"), TEXT("FSlot")) } },
-	{ TEXT("STextBlock"), { FOverride::Value(TEXT("Text"), TEXT("INVTEXT(\"Sample text\")")) } }
+	{ TEXT("STextBlock"), { FOverride::Value(TEXT("Text"), TEXT("INVTEXT(\"Sample text\")")) } }, // Just a QOL
+	{ TEXT("SOverlay"), { FOverride::Slot(TEXT("FOverlaySlot"), SP_SlotOperatorsUsesGeneralName) } },
 };
 
 #define GET_TYPE_NAME_STRING_CHECKED(Namespace, Class) ((Namespace Class*)nullptr, TEXT(#Class))
@@ -774,7 +777,7 @@ namespace Sequence
 		if (Code[Pos] == OpeningBracket)
 		{
 			const int PairedBracket = FindPairedBracket(Code, Pos, OpeningBracket, ClosingBracket);
-			return Code.IsValidIndex(PairedBracket + 1) ? PairedBracket + 1 : INDEX_NONE;
+			return PairedBracket != INDEX_NONE && Code.IsValidIndex(PairedBracket + 1) ? PairedBracket + 1 : INDEX_NONE;
 		}
 		return Pos;
 	};
@@ -1072,6 +1075,27 @@ namespace Sequence
 
 	template <CSegment... T>
 	auto Subsequence(CFilter auto&& Filter, T&&... Segments) { return Subsequence(ST_Required, MoveTemp(Filter), MoveTemp(Segments)...); }
+
+	// template<CSegment... T>
+	// auto AnyNumberOf(ESegmentType Type, CFilter auto&& Filter, T&&Segments)
+	// {
+	// 	auto Handler = [Tup = MakeTuple(MoveTemp(Segments)), F = MoveTemp(Filter)](const FStringView& Code, int Position)-> TOptional<int>
+	// 		{
+	//
+	// 		};
+	// 	return Make(MoveTemp(Handler), Type);
+	// }
+
+	auto Typename(ESegmentType Type = ST_Required)
+	{
+		return Subsequence(
+			AlnumWord(),
+			OneOf(
+				Subscope<TCHAR('<'), TCHAR('>')>(ST_Optional), // Likely to be a template
+				Subscope<TCHAR('('), TCHAR(')')>(ST_Optional)  // But may be a "decltype" expression
+			)
+		);
+	}
 };
 
 
@@ -1269,6 +1293,49 @@ TArray<sketch::HeaderTool::FProperty> ParseArguments(const FStringView& Argument
 	return Result;
 }
 
+TArray<TPair<FStringView, sketch::HeaderTool::FProcessedString>> ParseParentList(const FStringView& Parents)
+{
+	using namespace Sequence;
+	TArray<TPair<FStringView, sketch::HeaderTool::FProcessedString>> Result;
+
+	// Locate colon
+	TVariant<int, std::array<FStringView, 1>> Colon = Match(
+		Parents,
+		MakeTuple(String<ST_Punct>(TEXT(":"))),
+		NoFilter,
+		0
+	);
+	if (Colon.IsType<int>()) return Result;
+
+	int NextArgStart = &Colon.Get<std::array<FStringView, 1>>()[0][0] - &Parents[0] + 1;
+	for (;;)
+	{
+		// Match next parent
+		auto MatchResult = Match(
+			Parents,
+			MakeTuple(
+				OneOf({ TEXT("public"), TEXT("protected"), TEXT("private"), }, ST_Optional),
+				Typename(),
+				String(TEXT(","), ST_Optional)
+			),
+			NoFilter,
+			NextArgStart
+		);
+		if (MatchResult.IsType<int>()) break;
+
+		// Gather parent data
+		const auto& Data = MatchResult.Get<std::array<FStringView, 3>>();
+		Result.Emplace(Data[0], CleanCode(Data[1]));
+
+		// Break if there are no more arguments
+		if (Data.back().IsEmpty()) break;
+
+		// Update argument position
+		NextArgStart = &Data.back()[0] - &Parents[0];
+	}
+	return Result;
+}
+
 #pragma endregion ~ Utility
 
 /*************************************************************************************************/
@@ -1277,7 +1344,7 @@ TArray<sketch::HeaderTool::FProperty> ParseArguments(const FStringView& Argument
 
 using namespace sketch::HeaderTool;
 
-TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
+TArray<FFile> FHeaderTool_BASE::Scan(const FString& Path, bool bRecursive)
 {
 	auto& FileManager = IFileManager::Get();
 	TArray<FString> Files;
@@ -1289,6 +1356,9 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 	{
 		FileManager.FindFiles(Files, *Path, TEXT(".h"));
 	}
+
+	// File gatherer is not deterministic, so fix it now
+	Files.Sort();
 
 	TArray<FFile> Result;
 	Result.Reserve(Files.Num());
@@ -1304,6 +1374,7 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 			File = Path / File;
 			FFileHelper::LoadFileToString(Code, *File);
 		}
+		FString FileName = FPaths::GetCleanFilename(File);
 		TArray<FClass> Classes;
 		if (ProcessCode(Code, Classes) && !Classes.IsEmpty())
 		{
@@ -1313,7 +1384,7 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 	return Result;
 }
 
-FFile FHeaderTool::Scan(const FString& FilePath)
+FFile FHeaderTool_BASE::Scan(const FString& FilePath)
 {
 	FString Code;
 	FFileHelper::LoadFileToString(Code, *FilePath);
@@ -1325,11 +1396,11 @@ FFile FHeaderTool::Scan(const FString& FilePath)
 	return {};
 }
 
-FString& operator<<(FString& A, const TCHAR* B) { return A.Append(B); }
-FString& operator<<(FString& A, const FStringView& B) { return A.Append(B); }
-FString& operator<<(FString& A, const FProcessedString& B) { return A << B.String; }
-FString& operator<<(FString& A, const TOptional<FProcessedString>& B) { return B.IsSet() ? A << B.GetValue().String : A; }
-FString& operator<<(FString& A, int B) { return A.AppendInt(B), A; }
+inline FString& operator<<(FString& A, const TCHAR* B) { return A.Append(B); }
+inline FString& operator<<(FString& A, const FStringView& B) { return A.Append(B); }
+inline FString& operator<<(FString& A, const FProcessedString& B) { return A << B.String; }
+inline FString& operator<<(FString& A, const TOptional<FProcessedString>& B) { return B.IsSet() ? A << B.GetValue().String : A; }
+inline FString& operator<<(FString& A, int B) { return A.AppendInt(B), A; }
 
 struct FDefaultValueHint
 {
@@ -1354,7 +1425,7 @@ FString& operator<<(FString& A, const FDefaultValueHint& B)
 	return A;
 }
 
-FString FHeaderTool::GenerateReflectionPrologue()
+FString FHeaderTool_BASE::GenerateReflectionPrologue()
 {
 	FString Prologue;
 	Prologue << TEXT("// Generated by Sketch Header Tool on ") << FDateTime::Now().ToString() << TEXT("\r\n");
@@ -1365,7 +1436,7 @@ FString FHeaderTool::GenerateReflectionPrologue()
 	return Prologue;
 }
 
-FString FHeaderTool::GenerateReflectionEpilogue(const FString& InInclusionRoot)
+FString FHeaderTool_BASE::GenerateReflectionEpilogue(const FString& InInclusionRoot)
 {
 	// Try to convert inclusion root in a sane module name
 	FString InclusionRoot = InInclusionRoot;
@@ -1397,7 +1468,7 @@ FString FHeaderTool::GenerateReflectionEpilogue(const FString& InInclusionRoot)
 	return Epilogue;
 }
 
-void FHeaderTool::GenerateReflection(
+void FHeaderTool_BASE::GenerateReflection(
 	const FString& FilePath,
 	const FString& InclusionRoot,
 	const FClass& Class,
@@ -1529,7 +1600,7 @@ void FHeaderTool::GenerateReflection(
 		Code
 			<< TEXT("\t{\r\n")
 			<< TEXT("\t\tcheck(SlotType == TEXT(\"") << Class.DynamicSlots[0].TypeName << TEXT("\"));\r\n")
-			<< TEXT("\t\t") << Class.Name << TEXT("::FSlot* Slot;\r\n")
+			<< TEXT("\t\t") << Class.Name << TEXT("::") << Class.DynamicSlots[0].TypeName << TEXT("* Slot;\r\n")
 			<< TEXT("\t\t{\r\n")
 			<< TEXT("\t\t\tdecltype(auto) SlotArgs = static_cast<") << Class.Name << TEXT("&>(Widget).AddSlot();\r\n")
 			<< TEXT("\t\t\tSlotArgs\r\n");
@@ -1595,7 +1666,7 @@ void FHeaderTool::GenerateReflection(
 	Code << TEXT("\r\n");
 }
 
-FString FHeaderTool::CombineReflection(const FString& Prologue, const FString& Code, const FString& Epilogue)
+FString FHeaderTool_BASE::CombineReflection(const FString& Prologue, const FString& Code, const FString& Epilogue)
 {
 	FString Result;
 	Result.Reserve(Prologue.Len() + Code.Len() + Epilogue.Len() + 128);
@@ -1801,7 +1872,7 @@ int FIndex::FindScope(int Position) const
 	return INDEX_NONE;
 }
 
-TOptional<FIndex> FHeaderTool::IndexCode(const FString& Code)
+TOptional<FIndex> FHeaderTool_BASE::IndexCode(const FString& Code)
 {
 	TArray<FScope> Scopes;
 	Scopes.Reserve(128);
@@ -1838,7 +1909,7 @@ TOptional<FIndex> FHeaderTool::IndexCode(const FString& Code)
 	return MoveTemp(Result);
 }
 
-bool FHeaderTool::ProcessCode(const FString& Code, TArray<FClass>& OutClasses)
+bool FHeaderTool_BASE::ProcessCode(const FString& Code, TArray<FClass>& OutClasses)
 {
 	const TOptional<FIndex> MayBeIndex = IndexCode(Code);
 	if (!MayBeIndex) [[unlikely]]
@@ -2014,32 +2085,43 @@ FPropertyAnchors::FPropertyAnchors(
 	auto&&... Args
 )
 {
-	// Find both bracket
+	// Find both brackets
 	FirstBracket = FindString(PropertyAndFurther, 0, TEXT("("));
 	if (FirstBracket == INDEX_NONE) [[unlikely]]
 	{
-		LogErr(TCHAR('('), Args...);
+		LogErr(TEXT("find '('"), Args...);
 		return;
 	}
 	SecondBracket = FindPairedBracket(PropertyAndFurther, FirstBracket, TCHAR('('), TCHAR(')'));
 	if (SecondBracket == INDEX_NONE) [[unlikely]]
 	{
-		LogErr(TCHAR(')'), Args...);
+		LogErr(TEXT("find ')'"), Args...);
 		return;
 	}
 
-	// Locate last comma within bracket - everything before it is attribute type, everything after - its name
-	FStringView PropertyData(&PropertyAndFurther[FirstBracket + 1], SecondBracket - FirstBracket - 1);
-	Comma = FindLastString(PropertyData, 0, TEXT(","));
-	if (Comma == INDEX_NONE) [[unlikely]]
+	// Determine property type and name
+	auto MatchResult = Sequence::Match(
+		FStringView(&PropertyAndFurther[FirstBracket + 1], SecondBracket - FirstBracket - 1),
+		MakeTuple(
+			Sequence::Typename(),
+			Sequence::String(TEXT(",")),
+			Sequence::AlnumWord()
+		),
+		Sequence::NoFilter,
+		0
+	);
+	if (MatchResult.IsType<int>()) [[unlikely]]
 	{
-		LogErr(TCHAR(','), Args...);
+		LogErr(TEXT("determine property structure"), Args...);
+		FirstBracket = SecondBracket = INDEX_NONE;
 		return;
 	}
-	Comma += FirstBracket + 1;
+	auto& Data = MatchResult.Get<std::array<FStringView, 3>>();
+	Type = Data[0];
+	Name = Data[2];
 }
 
-TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
+TOptional<FAnchoredProperty> FHeaderTool_BASE::ProcessSlateProperty(
 	const FIndex& Index,
 	const FString& Code,
 	const FStringView& ClassName,
@@ -2048,17 +2130,17 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 	const FStringView& SlotTypeName
 )
 {
-	auto LogErr = [&](TCHAR Char, const TCHAR* Entity = TEXT(""))
+	auto LogErr = [&](const TCHAR* What, const TCHAR* Entity = TEXT(""))
 	{
 		const FIndex::FPosition Position = Index.LocatePosition(Code, PropertyAndFurther);
-		UE_LOG(LogSketchHeaderTool, Warning, TEXT("Couldn't find '%c' for slate property%s at %i::%i"), Char, Entity, Position.Line, Position.Column);
+		UE_LOG(LogSketchHeaderTool, Warning, TEXT("Couldn't %s for slate property%s at %i::%i"), What, Entity, Position.Line, Position.Column);
 	};
 	FPropertyAnchors Anchors(PropertyAndFurther, LogErr);
 	if (!Anchors) [[unlikely]] return {};
 
 	// Gather attribute name and type
 	FProperty Result;
-	FProcessedString Name = CleanCode(FStringView(&PropertyAndFurther[Anchors.Comma + 1], Anchors.SecondBracket - Anchors.Comma - 1));
+	FProcessedString Name = CleanCode(Anchors.Name);
 	if (!Name.Container.IsEmpty())[[unlikely]]
 	{
 		const FIndex::FPosition Position = Index.LocatePosition(Code, PropertyAndFurther);
@@ -2066,7 +2148,7 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 		return {};
 	}
 	Result.Name = Name.String;
-	Result.Type = CleanCode(FStringView(&PropertyAndFurther[Anchors.FirstBracket + 1], Anchors.Comma - Anchors.FirstBracket - 1));
+	Result.Type = CleanCode(Anchors.Type);
 	Result.bSupported = IsSupportedAttributeType(Result.Type.String);
 
 	// Locate default value
@@ -2091,13 +2173,13 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 		const int First = FindString(PropertiesDefaults, InitializerPosition, TEXT("("));
 		if (First == INDEX_NONE) [[unlikely]]
 		{
-			LogErr(TCHAR('('), TEXT(" initializer"));
+			LogErr(TEXT("find '('"), TEXT(" initializer"));
 			break;
 		}
 		const int Second = FindPairedBracket(PropertiesDefaults, First, TCHAR('('), TCHAR(')'));
 		if (Second == INDEX_NONE) [[unlikely]]
 		{
-			LogErr(TCHAR(')'), TEXT(" initializer"));
+			LogErr(TEXT("find ')'"), TEXT(" initializer"));
 			break;
 		}
 		Result.DefaultValue = CleanCode(PropertiesDefaults.Mid(First + 1, Second - First - 1));
@@ -2133,21 +2215,21 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 	return FAnchoredProperty{ MoveTemp(Result), MoveTemp(Anchors) };
 }
 
-TOptional<TTuple<FSlot, FPropertyAnchors>> FHeaderTool::ProcessUniqueSlateSlot(
+TOptional<TTuple<FSlot, FPropertyAnchors>> FHeaderTool_BASE::ProcessUniqueSlateSlot(
 	const FIndex& Index,
 	const FString& Code,
 	const FStringView& PropertyAndFurther
 )
 {
-	auto LogErr = [&](TCHAR Char)
+	auto LogErr = [&](const TCHAR* What)
 	{
 		const FIndex::FPosition Position = Index.LocatePosition(Code, PropertyAndFurther);
-		UE_LOG(LogSketchHeaderTool, Warning, TEXT("Couldn't find '%c' for slate slot at %i::%i"), Char, Position.Line, Position.Column);
+		UE_LOG(LogSketchHeaderTool, Warning, TEXT("Couldn't %s for slate slot at %i::%i"), What, Position.Line, Position.Column);
 	};
 	FPropertyAnchors Anchors(PropertyAndFurther, LogErr);
 	if (!Anchors) [[unlikely]] return {};
 
-	FProcessedString Name = CleanCode(FStringView(&PropertyAndFurther[Anchors.Comma + 1], Anchors.SecondBracket - Anchors.Comma - 1));
+	FProcessedString Name = CleanCode(Anchors.Name);
 	if (!Name.Container.IsEmpty())[[unlikely]]
 	{
 		const FIndex::FPosition Position = Index.LocatePosition(Code, PropertyAndFurther);
@@ -2161,7 +2243,7 @@ TOptional<TTuple<FSlot, FPropertyAnchors>> FHeaderTool::ProcessUniqueSlateSlot(
 	return MoveTemp(Result);
 }
 
-TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
+TOptional<FSlot> FHeaderTool_BASE::ProcessDynamicSlot(
 	const FIndex& Index,
 	const FString& Code,
 	int ClassScopeIndex,
@@ -2180,7 +2262,7 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 	};
 
 	const FPropertyAnchors& Anchors = UniqueSlot->Value;
-	FProcessedString Type = CleanCode(FStringView(&PropertyAndFurther[Anchors.FirstBracket + 1], Anchors.Comma - Anchors.FirstBracket - 1));
+	FProcessedString Type = CleanCode(Anchors.Type);
 	if (!Type.Container.IsEmpty()) [[unlikely]] return None(TEXT("determine slot type"));
 	const int Namespace = UE::String::FindLast(Type.String, TEXT("::"), ESearchCase::CaseSensitive);
 	if (Namespace != INDEX_NONE)[[unlikely]]
@@ -2222,9 +2304,16 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 	// }
 
 	// Make sure class contains "ReturnType AddSlot(...)"
+	TArray<FOverride>* Overrides = ClassOverrides.Find(FName(ClassName));
+	FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Slot.TypeName; }) : nullptr;
+	if (!Override || !EnumHasAnyFlags(Override->SlotProperties, SP_ConstructorInherited))[[likely]]
 	{
 		FString MethodName = TEXT("Add");
-		MethodName.Append(Slot.TypeName.RightChop(1));
+		MethodName.Append(
+			Override && EnumHasAllFlags(Override->SlotProperties, SP_SlotOperatorsUsesGeneralName)
+				? FStringView(TEXT("Slot"))
+				: Slot.TypeName.RightChop(1)
+		);
 		auto Match = Sequence::Find(
 			ClassBody,
 			Sequence::SubscopeFilter<>,
@@ -2247,40 +2336,41 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 	}
 
 	// Make sure class contains "ReturnType RemoveSlot(...)"
+	if (!Override || !EnumHasAllFlags(Override->SlotProperties, SP_DestructorInherited)) [[likely]]
 	{
-		TArray<FOverride>* Overrides = ClassOverrides.Find(FName(ClassName));
-		FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Slot.TypeName; }) : nullptr;
-		if (!Override || !EnumHasAllFlags(Override->SlotProperties, SP_DestructorInherited)) [[likely]]
-		{
-			FString MethodName = TEXT("Remove");
-			MethodName.Append(Slot.TypeName.RightChop(1));
-			auto Match = Sequence::Find(
-				ClassBody,
-				Sequence::SubscopeFilter<>,
-				Sequence::ModuleApi(),
-				Sequence::OneOf({ TEXT("void"), TEXT("bool"), TEXT("int32"), TEXT("int") }),
-				Sequence::String(MethodName),
-				Sequence::String(TEXT("(")),
-				Sequence::String(TEXT("const"), Sequence::ST_Optional),
-				Sequence::OneOf(
-					Sequence::String(TEXT("int32")),
-					Sequence::String(TEXT("int")),
-					Sequence::Subsequence(
-						Sequence::String(TEXT("TSharedRef")),
-						Sequence::Subscope<TCHAR('<'), TCHAR('>')>(),
-						Sequence::String(TEXT("&"), Sequence::ST_Optional)
-					)
-				),
-				Sequence::AlnumWord(Sequence::ST_Optional),
-				Sequence::String(TEXT(")"))
-			);
-			if (!Match) [[unlikely]] return None(TEXT("find 'RemoveSlot'"));
-		}
+		FString MethodName = TEXT("Remove");
+		MethodName.Append(
+			Override && EnumHasAllFlags(Override->SlotProperties, SP_SlotOperatorsUsesGeneralName)
+				? FStringView(TEXT("Slot"))
+				: Slot.TypeName.RightChop(1)
+		);
+		auto Match = Sequence::Find(
+			ClassBody,
+			Sequence::SubscopeFilter<>,
+			Sequence::ModuleApi(),
+			Sequence::OneOf({ TEXT("void"), TEXT("bool"), TEXT("int32"), TEXT("int") }),
+			Sequence::String(MethodName),
+			Sequence::String(TEXT("(")),
+			Sequence::String(TEXT("const"), Sequence::ST_Optional),
+			Sequence::OneOf(
+				Sequence::String(TEXT("int32")),
+				Sequence::String(TEXT("int")),
+				Sequence::Subsequence(
+					Sequence::String(TEXT("TSharedRef")),
+					Sequence::Subscope<TCHAR('<'), TCHAR('>')>(),
+					Sequence::String(TEXT("&"), Sequence::ST_Optional)
+				)
+			),
+			Sequence::AlnumWord(Sequence::ST_Optional),
+			Sequence::String(TEXT(")"))
+		);
+		if (!Match) [[unlikely]] return None(TEXT("find 'RemoveSlot'"));
 	}
 
 	// Locate slot class within class body. Note that "SLATE_SLOT_ARGUMENT" depends on slot public interface,
 	// so full class definition have to be present before widget's properties
 	int SlotScopeIndex = INDEX_NONE;
+	FStringView SlotNameDeclaration;
 	{
 		const FStringView SlotDeclarationScope = FStringView(Code).Mid(
 			Index.Scopes[ClassScopeIndex].Start + 1,
@@ -2323,6 +2413,8 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 			}
 		}
 		if (SlotScopeIndex == INDEX_NONE) [[unlikely]] return None(TEXT("find body beginning"));
+
+		SlotNameDeclaration = Match->back();
 	}
 
 	FStringView SlotProperties;
@@ -2339,12 +2431,11 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 		if (ArgsEnd == INDEX_NONE) [[unlikely]] return None(TEXT("find 'SLATE_SLOT_END_ARGS'"));
 		SlotProperties = SlotBody.Mid(ArgsBeginning + SlateSlotBeginArgs.Len(), ArgsEnd - ArgsBeginning - SlateSlotBeginArgs.Len());
 
-		// Check if slot uses any mixins
+		// Detect number of slot mixins
+		int NumMixins = 0;
 		FStringView SuffixAndFurther = SlotBody.RightChop(ArgsBeginning + SlateSlotBeginArgs.Len());
 		if (SuffixAndFurther.StartsWith(FStringView(TEXT("_")), ESearchCase::CaseSensitive))
 		{
-			// Detect number of slot mixins
-			int NumMixins;
 			if (SuffixAndFurther.StartsWith(FStringView(TEXT("_OneMixin")), ESearchCase::CaseSensitive))
 				NumMixins = 1;
 			else if (SuffixAndFurther.StartsWith(FStringView(TEXT("_TwoMixins")), ESearchCase::CaseSensitive))
@@ -2354,35 +2445,43 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 			else if (SuffixAndFurther.StartsWith(FStringView(TEXT("_FourMixins")), ESearchCase::CaseSensitive))
 				NumMixins = 4;
 			else return None(TEXT("detect number of mixins"));
+		}
 
-			// Get next "()" scope
-			const int OpeningBracketPosition = FindString(SuffixAndFurther, 1, FStringView(TEXT("(")));
-			if (OpeningBracketPosition == INDEX_NONE) [[unlikely]] return None(TEXT("find '('"));
-			const int ClosingBracketPosition = FindPairedBracket(SuffixAndFurther, OpeningBracketPosition, TCHAR('('), TCHAR(')'));
-			if (ClosingBracketPosition == INDEX_NONE) [[unlikely]] return None(TEXT("find ')'"));
+		// Get next "()" scope
+		const int OpeningBracketPosition = FindString(SuffixAndFurther, 0, FStringView(TEXT("(")));
+		if (OpeningBracketPosition == INDEX_NONE) [[unlikely]] return None(TEXT("find '('"));
+		const int ClosingBracketPosition = FindPairedBracket(SuffixAndFurther, OpeningBracketPosition, TCHAR('('), TCHAR(')'));
+		if (ClosingBracketPosition == INDEX_NONE) [[unlikely]] return None(TEXT("find ')'"));
 
-			// Skip first argument - it's class slot name
-			const FStringView Arguments = SuffixAndFurther.Mid(OpeningBracketPosition + 1, ClosingBracketPosition - OpeningBracketPosition - 1);
-			const int FirstComma = FindString(Arguments, 0, FStringView(TEXT(",")), Sequence::SubscopeFilter<TCHAR('<'), TCHAR('>')>);
-			if (FirstComma == INDEX_NONE) [[unlikely]] return None(TEXT("find first ','"));
+		// Skip first argument - it's class slot name
+		const FStringView Arguments = SuffixAndFurther.Mid(OpeningBracketPosition + 1, ClosingBracketPosition - OpeningBracketPosition - 1);
+		const int FirstComma = FindString(Arguments, 0, FStringView(TEXT(",")), Sequence::SubscopeFilter<TCHAR('<'), TCHAR('>')>);
+		if (FirstComma == INDEX_NONE) [[unlikely]] return None(TEXT("find first ','"));
 
-			// Consider second argument - it might be BasicLayoutWidgetSlot which already contains 2 mixins
-			const int SecondComma = FindString(Arguments, FirstComma + 1, FStringView(TEXT(",")), Sequence::SubscopeFilter<TCHAR('<'), TCHAR('>')>);
-			if (SecondComma == INDEX_NONE) [[unlikely]] return None(TEXT("find second ','"));
-			FStringView ParentClass = Arguments.Mid(FirstComma + 1, SecondComma - FirstComma - 2);
-			ParentClass.TrimStartInline();
-			ParentClass.RightChopInline(1);
-			std::array<FStringView, 4> Mixins;
-			int NumPredefinedMixins = 0;
-			if (ParentClass.StartsWith(TEXT("BasicLayoutWidgetSlot")))
-			{
-				NumPredefinedMixins = 2;
-				Mixins[0] = FStringView(TEXT("TPadding"));
-				Mixins[1] = FStringView(TEXT("TAlignment"));
-			}
+		// Consider second argument - it might be BasicLayoutWidgetSlot which already contains 2 mixins
+		const int SecondComma = FindString(Arguments, FirstComma + 1, FStringView(TEXT(",")), Sequence::SubscopeFilter<TCHAR('<'), TCHAR('>')>);
+		if (SecondComma == INDEX_NONE && NumMixins > 0) [[unlikely]] return None(TEXT("find second ','"));
+		FStringView ParentClass = Arguments.Mid(
+			FirstComma + 1,
+			SecondComma == INDEX_NONE
+				? ClosingBracketPosition - FirstComma - 1
+				: SecondComma - FirstComma - 2
+		);
+		ParentClass.TrimStartInline();
+		ParentClass.RightChopInline(1);
+		std::array<FStringView, 4> Mixins;
+		int NumPredefinedMixins = 0;
+		if (ParentClass.StartsWith(TEXT("BasicLayoutWidgetSlot")))
+		{
+			NumPredefinedMixins = 2;
+			Mixins[0] = FStringView(TEXT("TPadding"));
+			Mixins[1] = FStringView(TEXT("TAlignment"));
+		}
 
-			// Gather all mixins
-			int LastComma = SecondComma;
+		// Gather all mixins
+		int LastComma = SecondComma;
+		if (NumMixins > 0)
+		{
 			for (int i = 1; i < NumMixins; ++i)
 			{
 				const int NextComma = FindString(Arguments, LastComma + 1, FStringView(TEXT(",")), Sequence::SubscopeFilter<TCHAR('<'), TCHAR('>')>);
@@ -2391,62 +2490,62 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 				LastComma = NextComma;
 			}
 			Mixins[NumPredefinedMixins + NumMixins - 1] = Arguments.RightChop(LastComma + 1);
+		}
 
-			// Add each mixin attributes
-			for (int i = 0; i < NumMixins + NumPredefinedMixins; ++i)
+		// Add each mixin attributes
+		for (int i = 0; i < NumMixins + NumPredefinedMixins; ++i)
+		{
+			if (Mixins[i].Contains(FStringView(TEXT("TAlignment")), ESearchCase::CaseSensitive))
 			{
-				if (Mixins[i].Contains(FStringView(TEXT("TAlignment")), ESearchCase::CaseSensitive))
-				{
-					// TAlignmentWidgetSlotMixin
-					constexpr FStringView HAlignmentName = GET_TYPE_NAME_VIEW_CHECKED(, EHorizontalAlignment);
-					constexpr FStringView VAlignmentName = GET_TYPE_NAME_VIEW_CHECKED(, EVerticalAlignment);
-					Slot.Properties.Emplace(
-						FProperty{
-							.Type = { .String = HAlignmentName },
-							.Name = TEXT("HAlign"),
-							.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EHorizontalAlignment, HAlign_Fill) },
-							.bSupported = IsSupportedAttributeType(HAlignmentName)
-						});
-					Slot.Properties.Emplace(
-						FProperty{
-							.Type = { .String = VAlignmentName },
-							.Name = TEXT("VAlign"),
-							.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EVerticalAlignment, VAlign_Fill) },
-							.bSupported = IsSupportedAttributeType(VAlignmentName)
-						});
-				}
-				else if (Mixins[i].Contains(FStringView(TEXT("TPadding")), ESearchCase::CaseSensitive))
-				{
-					// TPaddingWidgetSlotMixin
-					constexpr FStringView MarginName = GET_TYPE_NAME_VIEW_CHECKED(, FMargin);
-					Slot.Properties.Emplace(
-						FProperty{
-							.Type = { .String = MarginName },
-							.Name = TEXT("Padding"),
-							.bSupported = IsSupportedAttributeType(MarginName)
+				// TAlignmentWidgetSlotMixin
+				constexpr FStringView HAlignmentName = GET_TYPE_NAME_VIEW_CHECKED(, EHorizontalAlignment);
+				constexpr FStringView VAlignmentName = GET_TYPE_NAME_VIEW_CHECKED(, EVerticalAlignment);
+				Slot.Properties.Emplace(
+					FProperty{
+						.Type = { .String = HAlignmentName },
+						.Name = TEXT("HAlign"),
+						.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EHorizontalAlignment, HAlign_Fill) },
+						.bSupported = IsSupportedAttributeType(HAlignmentName)
+					});
+				Slot.Properties.Emplace(
+					FProperty{
+						.Type = { .String = VAlignmentName },
+						.Name = TEXT("VAlign"),
+						.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EVerticalAlignment, VAlign_Fill) },
+						.bSupported = IsSupportedAttributeType(VAlignmentName)
+					});
+			}
+			else if (Mixins[i].Contains(FStringView(TEXT("TPadding")), ESearchCase::CaseSensitive))
+			{
+				// TPaddingWidgetSlotMixin
+				constexpr FStringView MarginName = GET_TYPE_NAME_VIEW_CHECKED(, FMargin);
+				Slot.Properties.Emplace(
+					FProperty{
+						.Type = { .String = MarginName },
+						.Name = TEXT("Padding"),
+						.bSupported = IsSupportedAttributeType(MarginName)
+					}
+				);
+			}
+			else if (Mixins[i].Contains(FStringView(TEXT("TResizing")), ESearchCase::CaseSensitive))
+			{
+				// As of 5.6 epic uses slate attributes for this mixin, but not every widget registers its slot attributes
+				// So this mixin's attributes can't be binds, only plain values
+				// If widget explicitly registers - we can assume it registers its slot's attributes as well
+				const int WidgetDeclaration = FindString(ClassBody, 0, TEXT("SLATE_DECLARE_WIDGET"), Sequence::SubscopeFilter<>);
+				Slot.Properties.Emplace(
+					FProperty{
+						.CustomEntityInitializationCode = {
+							.String = WidgetDeclaration == INDEX_NONE
+								          ? FStringView(TEXT("HeaderTool::InitResizingMixinProperties(*Slot, false);"))
+								          : FStringView(TEXT("HeaderTool::InitResizingMixinProperties(*Slot, true);"))
 						}
-					);
-				}
-				else if (Mixins[i].Contains(FStringView(TEXT("TResizing")), ESearchCase::CaseSensitive))
-				{
-					// As of 5.6 epic uses slate attributes for this mixin, but not every widget registers its slot attributes
-					// So this mixin's attributes can't be binds, only plain values
-					// If widget explicitly registers - we can assume it registers its slot's attributes as well
-					const int WidgetDeclaration = FindString(ClassBody, 0, TEXT("SLATE_DECLARE_WIDGET"), Sequence::SubscopeFilter<>);
-					Slot.Properties.Emplace(
-						FProperty{
-							.CustomEntityInitializationCode = {
-								.String = WidgetDeclaration == INDEX_NONE
-									          ? FStringView(TEXT("HeaderTool::InitResizingMixinProperties(*Slot, false);"))
-									          : FStringView(TEXT("HeaderTool::InitResizingMixinProperties(*Slot, true);"))
-							}
-						}
-					);
-				}
-				else
-				{
-					UE_LOG(LogSketchHeaderTool, Warning, TEXT("Unknown mixin: %s"), *FString(Mixins[i]));
-				}
+					}
+				);
+			}
+			else
+			{
+				UE_LOG(LogSketchHeaderTool, Warning, TEXT("Unknown mixin: %s"), *FString(Mixins[i]));
 			}
 		}
 	}
@@ -2487,7 +2586,7 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 	return MoveTemp(Slot);
 }
 
-TOptional<FProcessedString> FHeaderTool::ProcessSlateArgumentDefaultValue(
+TOptional<FProcessedString> FHeaderTool_BASE::ProcessSlateArgumentDefaultValue(
 	const FIndex& Index,
 	const FString& Code,
 	const FStringView& PropertyAndFurther,

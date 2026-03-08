@@ -8,6 +8,12 @@
 
 // Template generator is in the end of the file
 
+#ifdef SL
+#define PUSHED_SL
+#pragma push_macro("SL")
+#undef SL
+#endif
+
 inline sketch::TAttributeInitializer<> Sketch(FName AttributeName, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<>{ AttributeName, MakeTuple(), SL, SL.line(), SL.column() }; }
 
 template <class AT0>
@@ -34,6 +40,10 @@ sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t
 template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5, class AT6, class AT7>
 sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, AT7&& A7, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6), std::forward<AT7>(A7)), SL, SL.line(), SL.column() }; }
 
+#ifdef PUSHED_SL
+#pragma pop_macro("SL")
+#undef PUSHED_SL
+#endif
 
 
 namespace sketch

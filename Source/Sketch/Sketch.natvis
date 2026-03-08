@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+  
+  <Type Name="sketch::HeaderTool::FProcessedString">
+      <DisplayString>{String}</DisplayString>
+  </Type>
+
+  <Type Name="sketch::SourceCode::FProcessedString">
+    <DisplayString>{String}</DisplayString>
+  </Type>
+
+  <Type Name="sketch::SourceCode::FLocalStringView">
+    <DisplayString>{DebugView}</DisplayString>
+  </Type>
+  
+  <Type Name="sketch::FStringView">
+    <DisplayString Condition="Size == 0">Empty</DisplayString>
+    <DisplayString Condition="Size &lt; 0">Invalid</DisplayString>
+    <DisplayString>{DataPtr,[Size]su}</DisplayString>
+    <StringView Condition="Size &gt; 0">DataPtr,[Size]su</StringView>
+    <Expand>
+      <ArrayItems>
+        <Size>(Size &lt; 0) ? 0 : (Size &gt;= 1) ? Size : 1</Size>
+        <!-- When the view is empty, point at the zero which is Size to act as a null terminator, so we can use &View[0] in expressions even when there's nothing to point at -->
+        <ValuePointer>(Size != 0) ? DataPtr : (wchar_t*)&amp;Size</ValuePointer>
+      </ArrayItems>
+    </Expand>
+  </Type>
+
+  
+  <Type Name="sketch::TTuple&lt;*&gt;">
+    <Expand>
+      <Item Name="&gt;&gt;">this->Item</Item>
+    </Expand>
+  </Type>
+  <Type Name="sketch::TTuple&lt;*,*&gt;">
+    <Expand>
+      <Item Name="&gt;&gt;">this->Item</Item>
+      <ExpandedItem>this->Next</ExpandedItem>
+    </Expand>
+  </Type>
+
+  <Type Name="TBuildDependent&lt;*&gt;">
+    <DisplayString>{Value}</DisplayString>
+  </Type>
+  
+  <Type Name="sketch::SourceCode::TMatch&lt;*&gt;">
+    <DisplayString Condition="MatchResult == MR_Skipped &amp;&amp; Tag == -1">Skipped</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Skipped &amp;&amp; Tag != -1">Skipped {Tag}</DisplayString>
+    <DisplayString Condition="MatchResult != MR_Success">...</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Success &amp;&amp; Tag == -1">{Value}</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Success &amp;&amp; Tag != -1">{Value} {Tag}</DisplayString>
+    <Expand>
+      <Item Name="Tag" Condition="Tag != -1">Tag</Item>
+      <Item Name="DebugSource" Condition="DebugSource.Value != nullptr">DebugSource</Item>
+      <Item Name="DebugName" Condition="DebugName.Value.DataPtr != nullptr">DebugName</Item>
+      <Item Name="MatchResult">MatchResult</Item>
+      <Item Name="Value">Value</Item>
+    </Expand>
+  </Type>
+  <Type Name="sketch::SourceCode::TMatch&lt;*,*&gt;">
+    <DisplayString Condition="MatchResult == MR_Skipped &amp;&amp; Tag == -1">Skipped</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Skipped &amp;&amp; Tag != -1">Skipped {Tag}</DisplayString>
+    <DisplayString Condition="MatchResult != MR_Success">...</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Success &amp;&amp; Tag == -1">{Value}</DisplayString>
+    <DisplayString Condition="MatchResult == MR_Success &amp;&amp; Tag != -1">{Value} {Tag}</DisplayString>
+    <Expand>
+      <Item Name="Tag" Condition="Tag != -1">Tag</Item>
+      <Item Name="DebugSource" Condition="DebugSource.Value != nullptr">DebugSource</Item>
+      <Item Name="MatchResult">MatchResult</Item>
+      <Item Name="Value">Value</Item>
+      <Item Name="Components">Components</Item>
+    </Expand>
+  </Type>
+  
+</AutoVisualizer>

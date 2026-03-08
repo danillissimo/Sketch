@@ -1,7 +1,9 @@
 #pragma once
+#include "HeaderTool/SketchHeaderTool.h"
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SSearchBox.h"
 
+class SSketchLog;
 class SSearchBox;
 class SMultiLineEditableTextBox;
 class SSuggestionTextBox;
@@ -32,7 +34,10 @@ private:
 	TSharedPtr<SScrollBox> ScrollBox;
 	TSharedPtr<STextBlock> Lines;
 	TSharedPtr<SMultiLineEditableTextBox> GeneratedCode;
+	TSharedPtr<SSketchLog> LogViewer;
 	TSharedPtr<SEditableTextBox> PathEdit;
 	TSharedPtr<SEditableTextBox> InclusionRootEdit;
 	bool bWorking = false;
+
+	sketch::HeaderTool::FLog Log;
 };

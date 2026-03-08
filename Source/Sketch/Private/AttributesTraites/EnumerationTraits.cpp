@@ -6,7 +6,16 @@
 
 static sketch::FHeaderToolAttributeFilter GEnumerationFilter([](FStringView Attribute)
 {
-	return Attribute.StartsWith(TCHAR('E'));
+	if (Attribute.StartsWith(TCHAR('E')))
+	{
+		return true;
+	}
+	int ColonIndex;
+	if (Attribute.FindLastChar(TCHAR(':'), ColonIndex))
+	{
+		return Attribute.RightChop(ColonIndex + 1).StartsWith(TCHAR('E'));
+	}
+	return false;
 });
 
 int sketch::Private::FEnum::GetMemberByValue(uint64 Value) const

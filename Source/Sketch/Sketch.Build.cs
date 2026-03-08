@@ -24,12 +24,15 @@ public class Sketch : ModuleRules
 			"Slate",
 			"ToolMenus",
 			"Projects",
+
+			"BlueprintGraph",
+			"KismetCompiler"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
 			"AppFramework",
-			"ApplicationCore",
+			"ApplicationCore", "GoogleTest",
         });
 
 		if (Target.bBuildEditor)

@@ -89,20 +89,20 @@ namespace sketch
 	///
 	/// Header tool runtime attribute traits
 	///
-	SKETCH_API TArray<TFunction<bool(FStringView Type)>>& GetSupportedAttributeFilters();
+	SKETCH_API TArray<TFunction<bool(::FStringView Type)>>& GetSupportedAttributeFilters();
 
 	struct FHeaderToolAttributeFilter
 	{
-		FHeaderToolAttributeFilter(TFunction<bool(FStringView Type)>&& Filter)
+		FHeaderToolAttributeFilter(TFunction<bool(::FStringView Type)>&& Filter)
 		{
 			GetSupportedAttributeFilters().Add(MoveTemp(Filter));
 		}
 	};
 
-	inline bool IsSupportedAttributeType(FStringView Type)
+	inline bool IsSupportedAttributeType(::FStringView Type)
 	{
 		return GetSupportedAttributeFilters().ContainsByPredicate(
-			[&](const TFunction<bool(FStringView Type)>& Filter)
+			[&](const TFunction<bool(::FStringView Type)>& Filter)
 			{
 				return Filter(Type);
 			}

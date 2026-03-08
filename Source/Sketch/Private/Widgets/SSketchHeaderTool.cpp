@@ -1,6 +1,8 @@
 #include "Widgets/SSketchHeaderTool.h"
 
-#include "SketchHeaderTool.h"
+#include "Sketch.h"
+#include "HeaderTool/SketchHeaderTool.h"
+#include "Widgets/SSketchLog.h"
 #include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -30,26 +32,39 @@ void SSketchHeaderTool::Construct(const FArguments& InArgs)
 			+ SVerticalBox::Slot()
 			.FillHeight(1)
 			[
-				SAssignNew(ScrollBox, SScrollBox)
-				+ SScrollBox::Slot()
-				.FillSize(1)
+				SNew(SSplitter)
+				.Orientation(Orient_Vertical)
+
+				+ SSplitter::Slot()
+				.Value(6)
 				[
-					SNew(SHorizontalBox)
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(8., 4., 8., 0)
+					SAssignNew(ScrollBox, SScrollBox)
+					+ SScrollBox::Slot()
+					.FillSize(1)
 					[
-						SAssignNew(Lines, STextBlock)
-						.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Mono"), 8))
-						.Justification(ETextJustify::Center)
-					]
+						SNew(SHorizontalBox)
 
-					+ SHorizontalBox::Slot()
-					.FillWidth(1)
-					[
-						GeneratedCode.ToSharedRef()
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.Padding(8., 4., 8., 0)
+						[
+							SAssignNew(Lines, STextBlock)
+							.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Mono"), 8))
+							.Justification(ETextJustify::Center)
+						]
+
+						+ SHorizontalBox::Slot()
+						.FillWidth(1)
+						[
+							GeneratedCode.ToSharedRef()
+						]
 					]
+				]
+
+				+ SSplitter::Slot()
+				.Value(1)
+				[
+					SAssignNew(LogViewer, SSketchLog)
 				]
 			]
 
@@ -163,8 +178,6 @@ FSlateEditableTextLayout* SSketchHeaderTool::GetTextLayout()
 	public:
 		using SMultiLineEditableText::EditableTextLayout;
 	};
-
-	// Make sure it succeeded
 	FSlateEditableTextLayout* Layout =
 		static_cast<SMultiLineEditableTextContents*>(
 			static_cast<SMultiLineEditableTextBoxContents*>(GeneratedCode.Get())->EditableText.Get()
@@ -267,6 +280,7 @@ FReply SSketchHeaderTool::GenerateCode()
 	bWorking = true;
 	GeneratedCode->SetText(FText());
 	Lines->SetText(FText());
+	LogViewer->Reset();
 	auto Job = [
 			WeakThis = SharedThis(this).ToWeakPtr(),
 			PathValue = PathEdit->GetText().ToString(),
@@ -280,33 +294,59 @@ FReply SSketchHeaderTool::GenerateCode()
 			return;
 
 		// Parse files
+		This->Log.Reset();
 		TArray<FFile> Files;
 		{
 			const FString Extension = FPaths::GetExtension(PathValue);
 			if (Extension.IsEmpty())
 			{
 				FPaths::NormalizeDirectoryName(PathValue);
-				Files = FHeaderTool::Scan(PathValue, true);
+				Files = Scan(This->Log, PathValue, true);
 			}
 			else
 			{
 				FPaths::NormalizeFilename(PathValue);
-				Files.Emplace(FHeaderTool::Scan(PathValue));
+				Files.Emplace(FFileBuilder(CopyTemp(PathValue), This->Log));
 			}
 		}
 
 		// Generate code
-		FString Prologue = FHeaderTool::GenerateReflectionPrologue();
-		FString Code;
-		FString Epilogue = FHeaderTool::GenerateReflectionEpilogue(InclusionRootValue);
+		FReflectionGenerator ReflectionBuilder(TryGetModuleName(PathValue));
 		for (const FFile& File : Files)
 		{
-			for (const FClass& Class : File.Classes)
-			{
-				FHeaderTool::GenerateReflection(File.Path, InclusionRootValue, Class, Prologue, Code, Epilogue);
-			}
+			ReflectionBuilder.Add(File, InclusionRootValue);
 		}
-		FString Reflection = FHeaderTool::CombineReflection(Prologue, Code, Epilogue);
+		FString Reflection = ReflectionBuilder.GenerateReflection();
+
+
+		// // Parse files
+		// TArray<FFile> Files;
+		// {
+		// 	const FString Extension = FPaths::GetExtension(PathValue);
+		// 	if (Extension.IsEmpty())
+		// 	{
+		// 		FPaths::NormalizeDirectoryName(PathValue);
+		// 		Files = FHeaderTool_BASE::Scan(PathValue, true);
+		// 	}
+		// 	else
+		// 	{
+		// 		FPaths::NormalizeFilename(PathValue);
+		// 		Files.Emplace(FHeaderTool_BASE::Scan(PathValue));
+		// 	}
+		// }
+		//
+		// // Generate code
+		// FString Prologue = FHeaderTool_BASE::GenerateReflectionPrologue();
+		// FString Code;
+		// FString Epilogue = FHeaderTool_BASE::GenerateReflectionEpilogue(InclusionRootValue);
+		// for (const FFile& File : Files)
+		// {
+		// 	for (const FClass& Class : File.Classes)
+		// 	{
+		// 		FHeaderTool_BASE::GenerateReflection(File.Path, InclusionRootValue, Class, Prologue, Code, Epilogue);
+		// 	}
+		// }
+		// FString Reflection = FHeaderTool_BASE::CombineReflection(Prologue, Code, Epilogue);
 
 		// Generate line index
 		int NumLines = 0;
@@ -333,6 +373,7 @@ FReply SSketchHeaderTool::GenerateCode()
 			This->Lines->SetText(MoveTemp(Indices));
 			This->GeneratedCode->SetText(MoveTemp(Reflection));
 			This->bWorking = false;
+			This->LogViewer->Rebuild(This->Log);
 		};
 		AsyncTask(ENamedThreads::Type::GameThread, MoveTemp(Callback));
 	};

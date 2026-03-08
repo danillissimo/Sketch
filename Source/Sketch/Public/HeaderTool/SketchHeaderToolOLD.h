@@ -2,6 +2,7 @@
 
 class SSketchWidget;
 
+/** @note Totally real unlike the regular one! */
 namespace sketch::HeaderTool
 {
 	struct FProcessedString
@@ -44,7 +45,10 @@ namespace sketch::HeaderTool
 
 	struct FIndex
 	{
-		// TArray<FExpression> Expressions;
+		/** @todo Remove */
+		FIndex() = default;
+		FIndex(const FStringView& Code);
+
 		TArray<FScope> Scopes;
 		TArray<int> Lines;
 
@@ -100,13 +104,14 @@ namespace sketch::HeaderTool
 	struct FPropertyAnchors
 	{
 		int FirstBracket = INDEX_NONE;
+		FStringView Type;
+		FStringView Name;
 		int SecondBracket = INDEX_NONE;
-		int Comma = INDEX_NONE;
 
 		FPropertyAnchors() = default;
 		FPropertyAnchors(const FStringView& PropertyAndFurther, const auto& LogErr, auto&&... Args);
 
-		bool IsValid() const { return FirstBracket != INDEX_NONE && SecondBracket != INDEX_NONE && Comma != INDEX_NONE; }
+		bool IsValid() const { return FirstBracket != INDEX_NONE && SecondBracket != INDEX_NONE && !Type.IsEmpty() && !Name.IsEmpty(); }
 		operator bool() const { return IsValid(); }
 	};
 	struct FAnchoredProperty
@@ -118,26 +123,27 @@ namespace sketch::HeaderTool
 
 
 	/** @note Totally real unlike the regular one! */
-	class SKETCH_API FHeaderTool
+	class SKETCH_API FHeaderTool_BASE
 	{
 	public:
 		enum ESlotProperties
 		{
-			SP_None                 = 0,
-			SP_ConstructorInherited = 1 << 0,
-			SP_DestructorInherited  = 1 << 1,
+			SP_None                         = 0,
+			SP_ConstructorInherited         = 1 << 0,
+			SP_DestructorInherited          = 1 << 1,
+			SP_SlotOperatorsUsesGeneralName = 1 << 2,
 		};
 		struct FOverride
 		{
 			FStringView Property;
 			FStringView ValueOverride;
 			FStringView TypeOverride;
-			FStringView SlotType;
 
+			FStringView SlotType;
 			ESlotProperties SlotProperties = SP_None;
 
 			static constexpr FOverride Value(FStringView Property, FStringView Value, FStringView SlotType = {}) { return FOverride{ .Property = Property, .ValueOverride = Value, .SlotType = SlotType }; }
-			static constexpr FOverride Type(FStringView Property, FStringView Type, FStringView SlotType = {}) { return FOverride{ .Property = Property, .ValueOverride = Type, .SlotType = SlotType }; }
+			static constexpr FOverride Type(FStringView Property, FStringView Type, FStringView SlotType = {}) { return FOverride{ .Property = Property, .TypeOverride = Type, .SlotType = SlotType }; }
 			static constexpr FOverride Slot(FStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
 		};
 		static TMap<FName, TArray<FOverride>> ClassOverrides;

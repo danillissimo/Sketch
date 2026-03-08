@@ -6,6 +6,7 @@
 #include "ToolMenus.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
+#include "HeaderTool/SourceCodeUtility.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderTool.h"
 #include "Widgets/SSketchSanbox.h"
@@ -20,7 +21,6 @@ static const FName HeaderToolTabName("SketchHeaderTool");
 
 
 
-#include "SketchHeaderToolTypes.h"
 using namespace sketch;
 
 TAttribute<FSlateFontInfo> Private::DefaultFont()
@@ -32,6 +32,54 @@ TAttribute<FSlateFontInfo> Private::DefaultFont()
 
 void FSketchModule::StartupModule()
 {
+	using namespace sketch::SourceCode;
+	enum { root, simple_text, complex_text, complex_text_a, complex_text_brackets, complex_text_b };
+	auto ses = Match(
+		TEXT("q"),
+		0,
+		&NoFilter,
+		Matcher::String(TEXT("ab"), ST_Optional),
+		Matcher::String(TEXT("q"))
+	);
+	// static_assert(ses.MatchResult == MR_Success);
+	auto lal = sketch::MakeTuple(123, "a", 1.23);
+	__nop();
+	static constexpr auto quack = Match(
+		TEXT("q"),
+		0,
+		&NoFilter,
+		Matcher::String<0>(TEXT("a")),
+		Matcher::Subsequence(
+			ST_Optional,
+			Matcher::String<1>(TEXT("q"))
+			// Matcher::Subsequence(
+			// 	ST_Optional,
+			// 	Matcher::String<2>(TEXT("q")),
+			// 	Matcher::Subsequence(
+			// 		ST_Optional,
+			// 		Matcher::String<3>(TEXT("q"))
+			// 	)
+			// )
+		)
+	);
+	constexpr int qwe = []() constexpr
+	{
+		int a = 0, b = 0;
+		auto tie = sketch::Tie(a, b);
+		// auto tie = std::tie(a, b);
+		return tie.Get<0>() + tie.Get<1>();
+		// return 0;
+		// return std::get<0>(tie) + std::get<1>(tie);
+	}();
+	constexpr auto aaq = quack.Get<1>()/*.View(TEXT("q"))*/;
+	// static constexpr TMatcher m(
+	// 	TEXT("q"),
+	// 	Matcher::ClassDeclaration<{}>()
+	// );
+	// static_assert(m.Match.MatchResult == MR_Success);
+	// constexpr auto& lal = ses.Get<root>();
+	// ses.Components
+
 	// Core
 	FSketchCore::Initialize();
 
@@ -86,6 +134,7 @@ void FSketchModule::StartupModule()
 				FOnSpawnTab::CreateStatic([](const FSpawnTabArgs& Args)
 				{
 					TSharedRef<SDockTab> Tab = SNew(SDockTab).TabRole(NomadTab);
+					UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>();
 					TSharedRef<SWidget> Content =
 						SNew(SVerticalBox)
 
@@ -99,7 +148,7 @@ void FSketchModule::StartupModule()
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->MakeStatusBarWidget(TEXT("Sketch.HeaderToolStatusBar"), Tab)
+							StatusBarSubsystem ? StatusBarSubsystem->MakeStatusBarWidget(TEXT("Sketch.HeaderToolStatusBar"), Tab) : SNullWidget::NullWidget
 						];
 					Tab->SetContent(Content);
 					return Tab;

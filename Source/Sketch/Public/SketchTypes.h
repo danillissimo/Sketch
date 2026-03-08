@@ -155,7 +155,7 @@ namespace sketch
 	{
 		FName AttributeName;
 		[[no_unique_address]] // 'Cause it may be empty
-		TTuple<ConstructorArgTypes...> ConstructorArgs;
+		::TTuple<ConstructorArgTypes...> ConstructorArgs;
 		FSourceLocation SourceLocation = { NoInit };
 		uint32 Line = 0;
 		uint32 Column = 0;
