@@ -1,0 +1,10 @@
+#pragma once
+#include "BrushTraits.h"
+#include "ColorTraits.h"
+#include "FontTraits.h"
+#include "FractionalTraits.h"
+#include "IntegerTraits.h"
+#include "MarginTraits.h"
+#include "OptionalSizeTraits.h"
+#include "TextTraits.h"
+#include "UnknownTraits.h"
