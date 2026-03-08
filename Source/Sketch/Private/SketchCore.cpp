@@ -36,7 +36,7 @@ void FSketchCore::ClearStaleAttributes()
 	{
 		for (auto Attribute = Context->Value->CreateIterator(); Attribute; ++Attribute)
 		{
-			if (Attribute->Get()->StaleCountdown == 0)
+			if (Attribute->Get()->NumUsers == 0)
 			{
 				Attribute.RemoveCurrentSwap();
 				bRemovedAnything = true;
