@@ -318,36 +318,6 @@ FReply SSketchHeaderTool::GenerateCode()
 		}
 		FString Reflection = ReflectionBuilder.GenerateReflection();
 
-
-		// // Parse files
-		// TArray<FFile> Files;
-		// {
-		// 	const FString Extension = FPaths::GetExtension(PathValue);
-		// 	if (Extension.IsEmpty())
-		// 	{
-		// 		FPaths::NormalizeDirectoryName(PathValue);
-		// 		Files = FHeaderTool_BASE::Scan(PathValue, true);
-		// 	}
-		// 	else
-		// 	{
-		// 		FPaths::NormalizeFilename(PathValue);
-		// 		Files.Emplace(FHeaderTool_BASE::Scan(PathValue));
-		// 	}
-		// }
-		//
-		// // Generate code
-		// FString Prologue = FHeaderTool_BASE::GenerateReflectionPrologue();
-		// FString Code;
-		// FString Epilogue = FHeaderTool_BASE::GenerateReflectionEpilogue(InclusionRootValue);
-		// for (const FFile& File : Files)
-		// {
-		// 	for (const FClass& Class : File.Classes)
-		// 	{
-		// 		FHeaderTool_BASE::GenerateReflection(File.Path, InclusionRootValue, Class, Prologue, Code, Epilogue);
-		// 	}
-		// }
-		// FString Reflection = FHeaderTool_BASE::CombineReflection(Prologue, Code, Epilogue);
-
 		// Generate line index
 		int NumLines = 0;
 		for (int i = 0; i < Reflection.Len(); ++i)
