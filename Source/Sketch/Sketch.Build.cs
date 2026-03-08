@@ -30,7 +30,7 @@ public class Sketch : ModuleRules
 		{
 			"AppFramework",
 			"ApplicationCore",
-		});
+        });
 
 		if (Target.bBuildEditor)
 		{
@@ -38,7 +38,9 @@ public class Sketch : ModuleRules
 			{
 				"PropertyEditor", // Used literally for a single button template
 				"UnrealEd", // Used for source code navigation, can be potentially replaced with direct access to SourceCodeAccess module
-			});
+				"WorkspaceMenuStructure", // Used to add submenu to the "Tools" menu
+				"StatusBar",
+            });
 		}
 
 		// Uncomment if you are using Slate UI

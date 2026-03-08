@@ -3,17 +3,22 @@
 
 namespace sketch
 {
-	template <>
-	struct TAttributeTraits<float> : public TCommonAttributesTraits<float>
+	template <class T>
+	struct TFractionalAttribute : public TCommonAttributeImplementation<T>
 	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const float& Float);
+		using Super = TCommonAttributeImplementation<T>;
+		using Super::Super;
+		using Super::Value;
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
 	};
 
+	extern template struct TFractionalAttribute<float>;
+	extern template struct TFractionalAttribute<double>;
+
 	template <>
-	struct TAttributeTraits<double> : public TCommonAttributesTraits<double>
-	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const double& Double);
-	};
+	struct TAttributeTraits<float> : public TCommonAttributeTraits<TFractionalAttribute<float>> {};
+
+	template <>
+	struct TAttributeTraits<double> : public TCommonAttributeTraits<TFractionalAttribute<double>> {};
 }

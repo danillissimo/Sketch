@@ -4,14 +4,30 @@
 #include "SketchTypes.h"
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
-#include "Widgets/SSketchWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSketchHeaderTool, Display, All);
 
 TMap<FName, TArray<sketch::HeaderTool::FHeaderTool::FOverride>> sketch::HeaderTool::FHeaderTool::ClassOverrides = {
-	{ TEXT("SThrobber"), { { TEXT("NumPieces"), TEXT("3") } } }, // Default value is private, so nothing to do there except copying it
-	{ TEXT("STextComboBox"), { { TEXT("ContentPadding"),TEXT("FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >(\"ComboBox\").ContentPadding") } } },
-	{ TEXT("SScrollBar"), { { TEXT("Padding"), TEXT("SScrollBar::DefaultUniformPadding") } } }
+	{
+		TEXT("SThrobber"),
+		{
+			FOverride::Value(TEXT("NumPieces"), TEXT("3")), // Default value is private, so nothing to do there except copying it
+			FOverride::Type(TEXT("Animate"), TEXT("SThrobber::EAnimation")),
+		}
+	},
+	{ TEXT("STextComboBox"), { FOverride::Value(TEXT("ContentPadding"),TEXT("FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >(\"ComboBox\").ContentPadding")) } },
+	{ TEXT("SScrollBar"), { FOverride::Value(TEXT("Padding"), TEXT("SScrollBar::DefaultUniformPadding")) } },
+	{
+		TEXT("SWindow"),
+		{
+			FOverride::Value(TEXT("LayoutBorder"), TEXT("Arguments._Style->BorderPadding")),
+			// FOverride::Type(TEXT("SupportsTransparency"), TEXT("EWindowTransparency")),
+		}
+	},
+	{ TEXT("SViewport"), { FOverride::Value(TEXT("ViewportSize"), TEXT("Arguments.GetDefaultViewportSize()")) } },
+	{ TEXT("SScrollBox"), { FOverride::Value(TEXT("ScrollBarThickness"), TEXT("UE::Slate::FDeprecateVector2DParameter(FVector2f(Arguments._Style->BarThickness, Arguments._Style->BarThickness))")) } },
+	{ TEXT("SSplitter"), { FOverride::Type(TEXT("SizeRule"), TEXT("SSplitter::ESizeRule"), TEXT("FSlot")) } },
+	{ TEXT("STextBlock"), { FOverride::Value(TEXT("Text"), TEXT("INVTEXT(\"Sample text\")")) } }
 };
 
 #define GET_TYPE_NAME_STRING_CHECKED(Namespace, Class) ((Namespace Class*)nullptr, TEXT(#Class))
@@ -57,7 +73,7 @@ enum ECommentType
 
 ECommentType DetectCommentType(const FStringView& Code, int Position)
 {
-	if (Code[Position] == TCHAR('/'))[[unlikely]]
+	if (Code[Position] == TCHAR('/') && Code.IsValidIndex(Position + 1))[[unlikely]]
 	{
 		if (Code[Position + 1] == TCHAR('/')) return CT_SingleLine;
 		if (Code[Position + 1] == TCHAR('*')) return CT_MultiLine;
@@ -786,7 +802,7 @@ namespace Sequence
 			return [&]<size_t... Indices>(std::index_sequence<Indices...>)
 			{
 				check(i < sizeof...(T));
-				ESegmentType Result;
+				ESegmentType Result = ESegmentType(0); // Any value to suppress uninitialized warning 
 				((i == Indices ? void(Result = Sequence.template Get<Indices>().Type) : void()), ...);
 				return Result;
 			}(std::make_index_sequence<sizeof...(T)>{});
@@ -1274,20 +1290,6 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 		FileManager.FindFiles(Files, *Path, TEXT(".h"));
 	}
 
-	TSet<FName> SupportedTypes = {
-		TEXT("const FSlateBrush*"),
-		TEXT("FLinearColor"),
-		TEXT("FSlateColor"),
-		TEXT("FSlateFontInfo"),
-		TEXT("bool"),
-		TEXT("float"),
-		TEXT("double"),
-		TEXT("int"),
-		TEXT("int32"),
-		TEXT("FMargin"),
-		TEXT("FOptionalSize"),
-		TEXT("FText")
-	};
 	TArray<FFile> Result;
 	Result.Reserve(Files.Num());
 	for (auto& File : Files)
@@ -1303,7 +1305,7 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 			FFileHelper::LoadFileToString(Code, *File);
 		}
 		TArray<FClass> Classes;
-		if (ProcessCode(Code, SupportedTypes, Classes) && !Classes.IsEmpty())
+		if (ProcessCode(Code, Classes) && !Classes.IsEmpty())
 		{
 			Result.Emplace(MoveTemp(File), MoveTemp(Code), MoveTemp(Classes));
 		}
@@ -1313,25 +1315,10 @@ TArray<FFile> FHeaderTool::Scan(const FString& Path, bool bRecursive)
 
 FFile FHeaderTool::Scan(const FString& FilePath)
 {
-	TSet<FName> SupportedTypes = {
-		TEXT("const FSlateBrush*"),
-		TEXT("FLinearColor"),
-		TEXT("FSlateColor"),
-		TEXT("FSlateFontInfo"),
-		TEXT("bool"),
-		TEXT("float"),
-		TEXT("double"),
-		TEXT("int"),
-		TEXT("int32"),
-		TEXT("FMargin"),
-		TEXT("FOptionalSize"),
-		TEXT("FText")
-	};
-
 	FString Code;
 	FFileHelper::LoadFileToString(Code, *FilePath);
 	TArray<FClass> Classes;
-	if (ProcessCode(Code, SupportedTypes, Classes) && !Classes.IsEmpty())
+	if (ProcessCode(Code, Classes) && !Classes.IsEmpty())
 	{
 		return { FilePath, MoveTemp(Code), MoveTemp(Classes) };
 	}
@@ -1378,13 +1365,35 @@ FString FHeaderTool::GenerateReflectionPrologue()
 	return Prologue;
 }
 
-FString FHeaderTool::GenerateReflectionEpilogue()
+FString FHeaderTool::GenerateReflectionEpilogue(const FString& InInclusionRoot)
 {
+	// Try to convert inclusion root in a sane module name
+	FString InclusionRoot = InInclusionRoot;
+	FPaths::NormalizeDirectoryName(InclusionRoot);
+	constexpr TCHAR Public[]{ TEXT("/Public") };
+	constexpr TCHAR Private[]{ TEXT("/Private") };
+	if (InclusionRoot.EndsWith(Public, ESearchCase::IgnoreCase))
+	{
+		InclusionRoot.LeftChopInline(UE_ARRAY_COUNT(Public) - 1, EAllowShrinking::No);
+	}
+	else if (InclusionRoot.EndsWith(Private, ESearchCase::IgnoreCase))
+	{
+		InclusionRoot.LeftChopInline(UE_ARRAY_COUNT(Private) - 1, EAllowShrinking::No);
+	}
+	FStringView FolderName = TEXT("All");
+	for (int i = InclusionRoot.Len() - 1; i >= 0; --i)
+	{
+		if (InclusionRoot[i] == TCHAR('/'))
+		{
+			FolderName = FStringView(&InclusionRoot[i + 1], InclusionRoot.Len() - i - 1);
+			break;
+		}
+	}
+
 	FString Epilogue;
 	Epilogue
-		<< TEXT("void RegisterAll()\r\n")
-		<< TEXT("{\r\n")
-		<< TEXT("\tFSketchModule& Host = FSketchModule::Get();\r\n");
+		<< TEXT("void Register") << FolderName << TEXT("Factories()\r\n")
+		<< TEXT("{\r\n");
 	return Epilogue;
 }
 
@@ -1403,10 +1412,10 @@ void FHeaderTool::GenerateReflection(
 
 	// Epilogue
 	FStringView ClassName = Class.Name.RightChop(1);
-	Epilogue << TEXT("\tRegister") << ClassName << TEXT("(Host);\r\n");
+	Epilogue << TEXT("\tRegister") << ClassName << TEXT("();\r\n");
 
 	// Registrar beginning
-	Code << TEXT("void Register") << ClassName << TEXT("(FSketchModule& Host)\r\n{\r\n");
+	Code << TEXT("void Register") << ClassName << TEXT("()\r\n{\r\n");
 	Code << TEXT("\tusing namespace sketch;\r\n");
 
 	// Widget factory, including named slots
@@ -1414,7 +1423,7 @@ void FHeaderTool::GenerateReflection(
 		Code
 			<< TEXT("\tFFactory Factory;\r\n")
 			<< TEXT("\tFactory.") << GET_MEMBER_NAME_STRING_VIEW_CHECKED(sketch::FFactory, Name) << TEXT(" = TEXT(\"") << Class.Name.RightChop(1) << TEXT("\");\r\n")
-			<< TEXT("\tFactory.") << GET_MEMBER_NAME_STRING_VIEW_CHECKED(sketch::FFactory, ConstructWidget) << TEXT(" = []\r\n")
+			<< TEXT("\tFactory.") << GET_MEMBER_NAME_STRING_VIEW_CHECKED(sketch::FFactory, ConstructWidget) << TEXT(" = [](SWidget* WidgetToTakeUniqueSlotsFrom)\r\n")
 			<< TEXT("\t{\r\n");
 		if (!Class.NamedSlots.IsEmpty())
 		{
@@ -1438,15 +1447,13 @@ void FHeaderTool::GenerateReflection(
 		}
 		for (const FSlot& UniqueSlot : Class.NamedSlots)
 		{
-			// .SlotName()[ SAssignNew(Meta->Slots.Emplace(FName(TEXT("SlotName"))), SSketchWidget).SetupAsUniqueSlotContainer(TEXT("SlotName"))
+			// .SlotName()[ Meta->Slots.Emplace(FName(TEXT("SlotName")), HeaderTool::FindOrMakeUniqueSlot(WidgetToTakeUniqueSlotsFrom, FName(TEXT("SlotName"))))]
 			Code
 				<< TEXT("\t\t\t.")
 				<< UniqueSlot.Name
-				<< TEXT("()[ SAssignNew(Meta->Slots.Emplace(FName(TEXT(\"")
+				<< TEXT("()[ Meta->AddSlot(WidgetToTakeUniqueSlotsFrom, FName(TEXT(\"")
 				<< UniqueSlot.Name
-				<< TEXT("\"))), SSketchWidget).")
-				<< GET_FUNCTION_NAME_STRING_VIEW_CHECKED(SSketchWidget::FArguments, SetupAsUniqueSlotContainer)
-				<< TEXT("(TEXT(\"") << UniqueSlot.Name << TEXT("\")) ]\r\n");
+				<< TEXT("\"))) ]\r\n");
 		}
 		if (!Class.NamedSlots.IsEmpty())
 			Code << TEXT("\t\t\t.AddMetaData(MoveTemp(Meta))\r\n");
@@ -1494,24 +1501,20 @@ void FHeaderTool::GenerateReflection(
 			<< TEXT("\tFactory.")
 			<< GET_MEMBER_NAME_STRING_VIEW_CHECKED(FFactory, EnumerateDynamicSlotTypes)
 			<< TEXT("= [](const SWidget& Widget) -> ")
-			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::, FFactory)
-			<< TEXT("::")
-			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::FFactory::, FDynamicSlotTypes)
+			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::, FFactory::FDynamicSlotTypes)
 			<< TEXT("\r\n");
 		Code
 			<< TEXT("\t{\r\n");
 		Code
 			<< TEXT("\t\t")
-			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::, FFactory)
-			<< TEXT("::")
-			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::FFactory::, FDynamicSlotTypes)
+			<< GET_TYPE_NAME_VIEW_CHECKED(sketch::, FFactory::FDynamicSlotTypes)
 			<< TEXT(" Result;\r\n");
 		Code
 			<< TEXT("\t\tResult.Reserve(") << Class.DynamicSlots.Num() << TEXT(");\r\n")
 			<< TEXT("\t\tResult = { ");
 		for (const FSlot& Slot : Class.DynamicSlots)
 		{
-			Code << TEXT("TEXT(\"") << Slot.Name << TEXT("\"), ");
+			Code << TEXT("TEXT(\"") << Slot.TypeName << TEXT("\"), ");
 		}
 		Code
 			<< TEXT(" };\r\n")
@@ -1522,11 +1525,10 @@ void FHeaderTool::GenerateReflection(
 		Code
 			<< TEXT("\tFactory.")
 			<< GET_MEMBER_NAME_STRING_VIEW_CHECKED(FFactory, ConstructDynamicSlot)
-			<< TEXT(" = [](SWidget& Widget, const FName& SlotType) -> ")
-			<< TEXT("::FSlotBase&\r\n");
+			<< TEXT(" = [](SWidget& Widget, const FName& SlotType) -> ::FSlotBase&\r\n");
 		Code
 			<< TEXT("\t{\r\n")
-			<< TEXT("\t\tcheck(SlotType == TEXT(\"") << Class.DynamicSlots[0].Name << TEXT("\"));\r\n")
+			<< TEXT("\t\tcheck(SlotType == TEXT(\"") << Class.DynamicSlots[0].TypeName << TEXT("\"));\r\n")
 			<< TEXT("\t\t") << Class.Name << TEXT("::FSlot* Slot;\r\n")
 			<< TEXT("\t\t{\r\n")
 			<< TEXT("\t\t\tdecltype(auto) SlotArgs = static_cast<") << Class.Name << TEXT("&>(Widget).AddSlot();\r\n")
@@ -1561,6 +1563,14 @@ void FHeaderTool::GenerateReflection(
 		Code
 			<< TEXT("\t\treturn *Slot;\r\n")
 			<< TEXT("\t};\r\n");
+
+		// Destructor
+		Code
+			<< TEXT("\tFactory.")
+			<< GET_MEMBER_NAME_STRING_VIEW_CHECKED(FFactory, DestroyDynamicSlot)
+			<< TEXT(" = &HeaderTool::DestroyDynamicSlot<")
+			<< Class.Name
+			<< TEXT(">;\r\n");
 	}
 
 	// Registrar ending
@@ -1568,10 +1578,10 @@ void FHeaderTool::GenerateReflection(
 	{
 		FStringView MayBeCategoryView = FilePath;
 		int LastSlash = INDEX_NONE;
-		if (MayBeCategoryView.FindLastChar(TCHAR('/'), LastSlash))[[likely]]
+		if (MayBeCategoryView.FindLastChar(TCHAR('/'), LastSlash)) [[likely]]
 		{
 			MayBeCategoryView.LeftChopInline(MayBeCategoryView.Len() - LastSlash);
-			if (MayBeCategoryView.FindLastChar(TCHAR('/'), LastSlash))[[likely]]
+			if (MayBeCategoryView.FindLastChar(TCHAR('/'), LastSlash)) [[likely]]
 			{
 				MayBeCategoryView.RightChopInline(LastSlash + 1);
 				CategoryView = MayBeCategoryView;
@@ -1579,7 +1589,8 @@ void FHeaderTool::GenerateReflection(
 		}
 	}
 	// Host.RegisterFactory(TEXT("Containers"), MoveTemp(Factory));
-	Code << TEXT("\tHost.RegisterFactory(TEXT(\"") << CategoryView << TEXT("\"), MoveTemp(Factory));\r\n");
+	Code << TEXT("\t") << GET_TYPE_NAME_VIEW_CHECKED(, FSketchCore) << TEXT("& Core = ") << GET_TYPE_NAME_VIEW_CHECKED(, FSketchCore) << TEXT("::") << GET_FUNCTION_NAME_STRING_CHECKED(FSketchCore, Get) << TEXT("();\r\n");
+	Code << TEXT("\tCore.RegisterFactory(TEXT(\"") << CategoryView << TEXT("\"), MoveTemp(Factory));\r\n");
 	Code << TEXT("}\r\n");
 	Code << TEXT("\r\n");
 }
@@ -1827,11 +1838,7 @@ TOptional<FIndex> FHeaderTool::IndexCode(const FString& Code)
 	return MoveTemp(Result);
 }
 
-bool FHeaderTool::ProcessCode(
-	const FString& Code,
-	const TSet<FName>& SupportedAttributes,
-	TArray<FClass>& OutClasses
-)
+bool FHeaderTool::ProcessCode(const FString& Code, TArray<FClass>& OutClasses)
 {
 	const TOptional<FIndex> MayBeIndex = IndexCode(Code);
 	if (!MayBeIndex) [[unlikely]]
@@ -1950,11 +1957,11 @@ bool FHeaderTool::ProcessCode(
 			TOptional<FSlot> DynamicSlot;
 			if (PropertyAndFurther.StartsWith(TEXT("ARGUMENT")))
 			{
-				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, SupportedAttributes);
+				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, {});
 			}
 			else if (PropertyAndFurther.StartsWith(TEXT("ARGUMENT_DEFAULT")))
 			{
-				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, SupportedAttributes);
+				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, {});
 
 				// Only use default value if default constructor doesn't have one, 'cause default constructor has a higher priority
 				if (Property && !Property->Property.DefaultValue)
@@ -1965,7 +1972,7 @@ bool FHeaderTool::ProcessCode(
 			}
 			else if (PropertyAndFurther.StartsWith(TEXT("ATTRIBUTE")))
 			{
-				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, SupportedAttributes);
+				Property = ProcessSlateProperty(Index, Code, ClassName, PropertiesInitializers, PropertyAndFurther, {});
 			}
 			else if (PropertyAndFurther.StartsWith(TEXT("DEFAULT_SLOT")))
 			{
@@ -1977,7 +1984,7 @@ bool FHeaderTool::ProcessCode(
 			}
 			else if (PropertyAndFurther.StartsWith(TEXT("SLOT_ARGUMENT")))
 			{
-				DynamicSlot = ProcessDynamicSlot(Index, Code, ScopeIndex, ClassName, PropertyAndFurther, SupportedAttributes);
+				DynamicSlot = ProcessDynamicSlot(Index, Code, ScopeIndex, ClassName, PropertyAndFurther);
 			}
 			else if (PropertyAndFurther.StartsWith(TEXT("EVENT")))
 			{
@@ -2038,7 +2045,7 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 	const FStringView& ClassName,
 	const FStringView& PropertiesDefaults,
 	const FStringView& PropertyAndFurther,
-	const TSet<FName>& SupportedAttributes
+	const FStringView& SlotTypeName
 )
 {
 	auto LogErr = [&](TCHAR Char, const TCHAR* Entity = TEXT(""))
@@ -2060,26 +2067,7 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 	}
 	Result.Name = Name.String;
 	Result.Type = CleanCode(FStringView(&PropertyAndFurther[Anchors.FirstBracket + 1], Anchors.Comma - Anchors.FirstBracket - 1));
-	Result.bSupported = false;
-	FName PropertyTypeName = FName(Result.Type.String, FNAME_Find);
-	if (!PropertyTypeName.IsNone())
-	{
-		Result.bSupported = SupportedAttributes.Contains(PropertyTypeName);
-	}
-
-	// Consider predefined override
-	if (TArray<FOverride>* Overrides = ClassOverrides.FindByHash(GetTypeHash(ClassName), ClassName))
-	[[unlikely]]
-	{
-		const FOverride* Override = Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.Property == Result.Name; });
-		if (Override)[[unlikely]]
-		{
-			Result.DefaultValue.Emplace();
-			Result.DefaultValue->Container = Override->ValueOverride;
-			Result.DefaultValue->String = Result.DefaultValue->Container;
-			return FAnchoredProperty{ MoveTemp(Result), MoveTemp(Anchors) };
-		}
-	}
+	Result.bSupported = IsSupportedAttributeType(Result.Type.String);
 
 	// Locate default value
 	TStringBuilder<128> InitializerName;
@@ -2114,6 +2102,32 @@ TOptional<FAnchoredProperty> FHeaderTool::ProcessSlateProperty(
 		}
 		Result.DefaultValue = CleanCode(PropertiesDefaults.Mid(First + 1, Second - First - 1));
 		break;
+	}
+
+	// Consider predefined override
+	const FName ClassNameName = FName(ClassName, FNAME_Find);
+	if (TArray<FOverride>* Overrides = ClassOverrides.Find(ClassNameName))
+	[[unlikely]]
+	{
+		const FOverride* Override = Overrides->FindByPredicate([&](const FOverride& SomeOverride)
+		{
+			return SomeOverride.Property == Result.Name && SomeOverride.SlotType == SlotTypeName;
+		});
+		if (Override)[[unlikely]]
+		{
+			Result.bSupported = true;
+			if (Override->TypeOverride.GetData())
+			{
+				Result.Type.Container.Empty();
+				Result.Type.String = Override->TypeOverride;
+			}
+			if (Override->ValueOverride.GetData())
+			{
+				Result.DefaultValue.Emplace();
+				Result.DefaultValue->String = Override->ValueOverride;
+			}
+			return FAnchoredProperty{ MoveTemp(Result), MoveTemp(Anchors) };
+		}
 	}
 
 	return FAnchoredProperty{ MoveTemp(Result), MoveTemp(Anchors) };
@@ -2152,8 +2166,7 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 	const FString& Code,
 	int ClassScopeIndex,
 	const FStringView& ClassName,
-	const FStringView& PropertyAndFurther,
-	const TSet<FName>& SupportedAttributes
+	const FStringView& PropertyAndFurther
 )
 {
 	TOptional UniqueSlot = ProcessUniqueSlateSlot(Index, Code, PropertyAndFurther);
@@ -2235,29 +2248,34 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 
 	// Make sure class contains "ReturnType RemoveSlot(...)"
 	{
-		FString MethodName = TEXT("Remove");
-		MethodName.Append(Slot.TypeName.RightChop(1));
-		auto Match = Sequence::Find(
-			ClassBody,
-			Sequence::SubscopeFilter<>,
-			Sequence::ModuleApi(),
-			Sequence::OneOf({ TEXT("void"), TEXT("bool"), TEXT("int32"), TEXT("int") }),
-			Sequence::String(MethodName),
-			Sequence::String(TEXT("(")),
-			Sequence::String(TEXT("const"), Sequence::ST_Optional),
-			Sequence::OneOf(
-				Sequence::String(TEXT("int32")),
-				Sequence::String(TEXT("int")),
-				Sequence::Subsequence(
-					Sequence::String(TEXT("TSharedRef")),
-					Sequence::Subscope<TCHAR('<'), TCHAR('>')>(),
-					Sequence::String(TEXT("&"), Sequence::ST_Optional)
-				)
-			),
-			Sequence::AlnumWord(Sequence::ST_Optional),
-			Sequence::String(TEXT(")"))
-		);
-		if (!Match) [[unlikely]] return None(TEXT("find 'RemoveSlot'"));
+		TArray<FOverride>* Overrides = ClassOverrides.Find(FName(ClassName));
+		FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Slot.TypeName; }) : nullptr;
+		if (!Override || !EnumHasAllFlags(Override->SlotProperties, SP_DestructorInherited)) [[likely]]
+		{
+			FString MethodName = TEXT("Remove");
+			MethodName.Append(Slot.TypeName.RightChop(1));
+			auto Match = Sequence::Find(
+				ClassBody,
+				Sequence::SubscopeFilter<>,
+				Sequence::ModuleApi(),
+				Sequence::OneOf({ TEXT("void"), TEXT("bool"), TEXT("int32"), TEXT("int") }),
+				Sequence::String(MethodName),
+				Sequence::String(TEXT("(")),
+				Sequence::String(TEXT("const"), Sequence::ST_Optional),
+				Sequence::OneOf(
+					Sequence::String(TEXT("int32")),
+					Sequence::String(TEXT("int")),
+					Sequence::Subsequence(
+						Sequence::String(TEXT("TSharedRef")),
+						Sequence::Subscope<TCHAR('<'), TCHAR('>')>(),
+						Sequence::String(TEXT("&"), Sequence::ST_Optional)
+					)
+				),
+				Sequence::AlnumWord(Sequence::ST_Optional),
+				Sequence::String(TEXT(")"))
+			);
+			if (!Match) [[unlikely]] return None(TEXT("find 'RemoveSlot'"));
+		}
 	}
 
 	// Locate slot class within class body. Note that "SLATE_SLOT_ARGUMENT" depends on slot public interface,
@@ -2387,14 +2405,14 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 							.Type = { .String = HAlignmentName },
 							.Name = TEXT("HAlign"),
 							.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EHorizontalAlignment, HAlign_Fill) },
-							.bSupported = SupportedAttributes.ContainsByHash(GetTypeHash(HAlignmentName), HAlignmentName)
+							.bSupported = IsSupportedAttributeType(HAlignmentName)
 						});
 					Slot.Properties.Emplace(
 						FProperty{
 							.Type = { .String = VAlignmentName },
 							.Name = TEXT("VAlign"),
 							.DefaultValue = FProcessedString{ .String = GET_ENUMERATOR_NAME_STRING_VIEW_CHECKED(EVerticalAlignment, VAlign_Fill) },
-							.bSupported = SupportedAttributes.ContainsByHash(GetTypeHash(VAlignmentName), VAlignmentName)
+							.bSupported = IsSupportedAttributeType(VAlignmentName)
 						});
 				}
 				else if (Mixins[i].Contains(FStringView(TEXT("TPadding")), ESearchCase::CaseSensitive))
@@ -2405,7 +2423,7 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 						FProperty{
 							.Type = { .String = MarginName },
 							.Name = TEXT("Padding"),
-							.bSupported = SupportedAttributes.ContainsByHash(GetTypeHash(MarginName), MarginName)
+							.bSupported = IsSupportedAttributeType(MarginName)
 						}
 					);
 				}
@@ -2448,11 +2466,11 @@ TOptional<FSlot> FHeaderTool::ProcessDynamicSlot(
 		TOptional<FAnchoredProperty> Property;
 		if (SlotPropertyAndFurther.StartsWith(TEXT("ARGUMENT")))
 		{
-			Property = ProcessSlateProperty(Index, Code, ClassName, {}, SlotPropertyAndFurther, SupportedAttributes);
+			Property = ProcessSlateProperty(Index, Code, ClassName, {}, SlotPropertyAndFurther, Slot.TypeName);
 		}
 		else if (SlotPropertyAndFurther.StartsWith(TEXT("ATTRIBUTE")))
 		{
-			Property = ProcessSlateProperty(Index, Code, ClassName, {}, SlotPropertyAndFurther, SupportedAttributes);
+			Property = ProcessSlateProperty(Index, Code, ClassName, {}, SlotPropertyAndFurther, Slot.TypeName);
 		}
 		else [[unlikely]]
 		{
@@ -2532,3 +2550,4 @@ class alignas(0) alignas(123) SKETCH_API qwe /*: TArray<class lal>*/
 };
 
 #undef GET_TYPE_NAME_STRING_CHECKED
+#undef GET_TYPE_NAME_VIEW_CHECKED

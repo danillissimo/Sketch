@@ -3,17 +3,17 @@
 
 namespace sketch
 {
-	struct FFont
+	struct FFontAttribute : public IAttributeImplementation
 	{
-		FFont() = default;
-		SKETCH_API FFont(const FSlateFontInfo& Info);
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
+		virtual bool Equals(const IAttributeImplementation& Other) const override;
+		virtual void Reinitialize(const IAttributeImplementation& From) override;
 
-		FFont(const FSlateFontInfo& FontInfo, const FName& StyleName, const FName& FontName)
-			: FontInfo(FontInfo)
-			  , StyleName(StyleName)
-			  , FontName(FontName)
-		{
-		}
+		SKETCH_API FFontAttribute(FSlateFontInfo&& Info = FSlateFontInfo());
+		FFontAttribute(const FFontAttribute&) = default;
+		FFontAttribute(FFontAttribute&&) = default;
+		const FSlateFontInfo& GetValue() const { return FontInfo; }
 
 		FSlateFontInfo FontInfo;
 		FName StyleName;
@@ -21,18 +21,5 @@ namespace sketch
 	};
 
 	template <>
-	struct TWrappedType<FFont>
-	{
-		using Type = FSlateFontInfo;
-	};
-
-	template <>
-	struct TAttributeTraits<FSlateFontInfo>
-	{
-		using FStorage = FFont;
-
-		static const FSlateFontInfo& GetValue(const FFont& Font) { return Font.FontInfo; }
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FFont& Font);
-	};
+	struct TAttributeTraits<FSlateFontInfo> : public TCommonAttributeTraits<FFontAttribute> {};
 }

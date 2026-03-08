@@ -5,15 +5,16 @@
 #include "SketchTypes.h"
 #include "SourceCodeNavigation.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Widgets/SSketchHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SSketchAttribute"
 
 #define Require(Condition) { if(!(Condition)) [[unlikely]] return; }
 
-void PatchCode(const sketch::FAttributeHandle& Handle)
+void PatchCode(const TWeakPtr<sketch::FAttribute>& WeakAttribute)
 {
-	const auto& Host = FSketchModule::Get();
-	const sketch::FAttribute* Attribute = Handle.Get();
+	const auto& Core = FSketchCore::Get();
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
 	Require(Attribute);
 
 	TArray<FString> File;
@@ -37,7 +38,7 @@ void PatchCode(const sketch::FAttributeHandle& Handle)
 	Require(CommaAfterNameIndex != INDEX_NONE);
 	const int ParenthesisAfterArgsIndex = Line.Find(TEXT(")"), ESearchCase::CaseSensitive, ESearchDir::FromStart, CommaAfterNameIndex);
 	Require(ParenthesisAfterArgsIndex != INDEX_NONE);
-	const FString GeneratedCode = Attribute->Apply([]<typename T>(const T& Value) { return sketch::TWrappedAttributeTraits<T>::GenerateCode(Value); });
+	const FString GeneratedCode = Attribute->GetValue()->GenerateCode();
 	Line = Line.Left(CommaAfterNameIndex + 1) + TEXT(" ") + GeneratedCode + Line.RightChop(ParenthesisAfterArgsIndex);
 	UE_LOG(LogTemp, Warning, TEXT("%s"), *Line);
 	if (bAnsi)
@@ -55,14 +56,57 @@ void PatchCode(const sketch::FAttributeHandle& Handle)
 
 void SSketchAttribute::Construct(
 	const FArguments& InArgs,
-	const sketch::FAttributeHandle& AttributeHandle
+	sketch::FAttribute& Attribute
 )
 {
 	// Cache stuff
-	Handle = AttributeHandle;
+	WeakAttribute = Attribute.AsWeak();
+	WeakHeader = InArgs._HeaderRow;
+
+	// Prepare helpers
+	TSharedPtr<SSketchHeaderRow> Header = WeakHeader.Pin();
+	std::array<SSketchHeaderRow::FColumnProperties, 7> Columns = SSketchHeaderRow::GetColumnsProperties();
+	auto MakeSlot = [&](int Index, EHorizontalAlignment HorizontalAlignment = HAlign_Fill)-> SHorizontalBox::FSlot::FSlotArguments
+	{
+		switch (Columns[Index].SizeMode)
+		{
+		default:
+			{
+				TAttribute<float> Width = Columns[Index].Size;
+				if (Header && Header->GetColumns().IsValidIndex(Index) && Header->GetColumns()[Index].ColumnId == Columns[Index].Id)
+				{
+					Width = TAttribute<float>::CreateSPLambda(Header.Get(), [H = Header.Get(), Index, DefaultSize = Columns[Index].Size]() -> float
+					{
+						if (H->GetColumns().IsValidIndex(Index)) return H->GetColumns()[Index].Width.Get();
+						return DefaultSize;
+					});
+				}
+				return MoveTemp(
+					SHorizontalBox::Slot()
+					.HAlign(HorizontalAlignment)
+					.VAlign(VAlign_Center)
+					.FillWidth(MoveTemp(Width))
+				);
+			}
+		case EColumnSizeMode::Fixed:
+			return MoveTemp(
+				SHorizontalBox::Slot()
+				.HAlign(HorizontalAlignment)
+				.VAlign(VAlign_Center)
+				.AutoWidth() // This excludes slot from free space distribution algorithm
+				.MinWidth(Columns[Index].Size)
+				.MaxWidth(Columns[Index].Size)
+			);
+		}
+	};
+	auto GetSlotVisibility = [&](int Index, const TOptional<bool>& Controller) -> TAttribute<EVisibility>
+	{
+		if (!Header || !Header->GetColumns().IsValidIndex(Index))
+			return Controller.Get(true) ? EVisibility::Visible : EVisibility::Collapsed;
+		return !Header->GetColumns()[Index].bIsVisible ? EVisibility::Collapsed : Controller.Get(true) ? EVisibility::Visible : EVisibility::Hidden;
+	};
 
 	// Create reset button
-	sketch::FAttribute* Attribute = Handle.Get();
 	TSharedRef<SWidget> ResetButton = PropertyCustomizationHelpers::MakeResetButton(
 		FSimpleDelegate::CreateSP(this, &SSketchAttribute::Reset)
 	);
@@ -71,130 +115,135 @@ void SSketchAttribute::Construct(
 	// Make content
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.HAlign(HAlign_Center)
-		.VAlign(VAlign_Center)
+		SNew(SBorder)
+		.BorderImage(FSlateIcon("CoreStyle", "WhiteBrush").GetIcon())
+		.BorderBackgroundColor(this, &SSketchAttribute::GetBackgroundColor)
+		.Padding(0, 3)
 		[
-			SNew(SBox)
-			.Visibility(InArgs._ShowLine ? EVisibility::Visible : EVisibility::Collapsed)
-			.WidthOverride(60)
+			SNew(SHorizontalBox)
+
+			+ MakeSlot(0, HAlign_Center)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromString(FString::FromInt(Attribute->GetLine()) + TEXT("::") + FString::FromInt(Attribute->GetColumn())))
-				.Font(sketch::Private::DefaultFont())
-				.Justification(ETextJustify::Center)
-				.OverflowPolicy(ETextOverflowPolicy::Clip)
-				.OnDoubleClicked(this, &SSketchAttribute::OnBrowseSourceCode)
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+				.OnClicked(this, &SSketchAttribute::OnBrowseSourceCode)
+				.ToolTipText(LOCTEXT("ViewSourceCodeInIDE", "View source code in IDE"))
+				.Visibility(GetSlotVisibility(0, InArgs._ShowLine))
+				[
+					SNew(STextBlock)
+					.Text(FText::FromString(FString::FromInt(Attribute.GetLine()) + TEXT("::") + FString::FromInt(Attribute.GetColumn())))
+					.Font(sketch::Private::DefaultFont())
+					.Justification(ETextJustify::Center)
+					.OverflowPolicy(ETextOverflowPolicy::Clip)
+				]
 			]
-		]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBox)
-			.Visibility(InArgs._ShowName ? EVisibility::Visible : EVisibility::Collapsed)
-			.WidthOverride(150)
+			+ MakeSlot(1)
 			[
-				SNew(STextBlock)
-				.Text(FText::FromName(Attribute->GetName()))
-				.Font(sketch::Private::DefaultFont())
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot().AutoWidth().MinSize(8)
+				+ SHorizontalBox::Slot().FillWidth(1)
+				[
+					SNew(STextBlock)
+					.Text(FText::FromName(Attribute.GetName()))
+					.Font(sketch::Private::DefaultFont())
+					.Visibility(GetSlotVisibility(1, InArgs._ShowName))
+				]
+
 			]
-		]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SImage)
-			.Visibility(InArgs._ShowInteractivity ? Attribute->IsDynamic() ? EVisibility::Visible : EVisibility::Hidden : EVisibility::Collapsed)
-			.DesiredSizeOverride(FVector2D(16, 16))
-			.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.ExpandHotPath16").GetIcon())
-		]
+			+ MakeSlot(2, HAlign_Center)
+			[
+				SNew(SBox)
+				.WidthOverride(16)
+				.HeightOverride(16)
+				[
+					SNew(SImage)
+					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.ExpandHotPath16").GetIcon())
+					.Visibility(GetSlotVisibility(2, InArgs._ShowInteractivity))
+				]
+			]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SBox)
-			.Visibility(InArgs._ShowNumUsers ? EVisibility::Visible : EVisibility::Collapsed)
-			.WidthOverride(30)
+			+ MakeSlot(3)
 			[
 				SNew(STextBlock)
 				.Text(this, &SSketchAttribute::GetNumUsers)
 				.Font(sketch::Private::DefaultFont())
 				.Justification(ETextJustify::Center)
 				.OverflowPolicy(ETextOverflowPolicy::Clip)
-				.Visibility(Attribute->IsDynamic() ? EVisibility::Visible : EVisibility::Hidden)
+				.Visibility(GetSlotVisibility(3, InArgs._ShowNumUsers))
 			]
-		]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.Visibility(InArgs._AllowCodePatching ? EVisibility::Visible : EVisibility::Collapsed)
-			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("PatchCode", "Patch code"))
-			.OnClicked(this, &SSketchAttribute::PatchCode)
+			+ MakeSlot(4, HAlign_Center)
 			[
-				SNew(SImage)
-				.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Import").GetIcon())
+				SNew(SButton)
+				.Visibility(GetSlotVisibility(4, InArgs._AllowCodePatching))
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("PatchCode", "Patch code"))
+				.OnClicked(this, &SSketchAttribute::PatchCode)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Import").GetIcon())
+				]
 			]
-		]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("CopyToClipboard", "Copy to clipboard"))
-			.OnClicked(this, &SSketchAttribute::CopyCode)
+			+ MakeSlot(5, HAlign_Center)
 			[
-				SNew(SImage)
-				.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())
+				SNew(SButton)
+				.Visibility(GetSlotVisibility(5, true))
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("CopyToClipboard", "Copy to clipboard"))
+				.OnClicked(this, &SSketchAttribute::CopyCode)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())
+				]
 			]
-		]
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			SAssignNew(EditorContainer, SBox)
+			+ MakeSlot(6)
 			[
-				Attribute <<= [&]<class T>(const T&) { return sketch::TWrappedAttributeTraits<T>::MakeEditor(Handle); }
-			]
-		]
+				SNew(SHorizontalBox)
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
-		.VAlign(VAlign_Center)
-		[
-			ResetButton
+				+ SHorizontalBox::Slot()
+				.FillWidth(1)
+				[
+					SAssignNew(EditorContainer, SBox)
+					[
+						Attribute.GetValue()->MakeEditor()
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					ResetButton
+				]
+			]
 		]
 	];
 }
 
+FSlateColor SSketchAttribute::GetBackgroundColor() const
+{
+	return IsHovered() ? FSlateColor(EStyleColor::Header) : FSlateColor(EStyleColor::Panel);
+}
+
 FText SSketchAttribute::GetNumUsers() const
 {
-	const sketch::FAttribute* Attribute = Handle.Get();
-	if (!Attribute)
-		[[unlikely]]
-			return LOCTEXT("Err", "Err");
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
+	if (!Attribute) [[unlikely]] return LOCTEXT("Err", "Err");
 
-	if (NumDisplayedUsers != Attribute->GetNumUsers())
+	if (NumDisplayedUsers != Attribute->NumUsers)
 	[[unlikely]]
 	{
-		NumDisplayedUsers = Attribute->GetNumUsers();
+		NumDisplayedUsers = Attribute->NumUsers;
 		FString Result;
 		Result.Reserve(8);
 		Result += TEXT("x");
-		Result.AppendInt(Attribute->GetNumUsers());
+		Result.AppendInt(Attribute->NumUsers);
 		NumDisplayedUsersText = FText::FromString(Result);
 	}
 	return NumDisplayedUsersText;
@@ -202,70 +251,42 @@ FText SSketchAttribute::GetNumUsers() const
 
 FReply SSketchAttribute::PatchCode()
 {
-	::PatchCode(Handle);
+	::PatchCode(WeakAttribute);
 	return FReply::Handled();
 }
 
 FReply SSketchAttribute::CopyCode()
 {
-	const sketch::FAttribute* Attribute = Handle.Get();
-	if (!Attribute)
-		[[unlikely]]
-			return FReply::Handled();
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
+	if (!Attribute) [[unlikely]] return FReply::Handled();
 
-	(*Attribute) <= []<typename T>(const T& Value)
-	{
-		FString Code = sketch::TWrappedAttributeTraits<T>::GenerateCode(Value);
-		FPlatformApplicationMisc::ClipboardCopy(*Code);
-	};
+	const FString Code = Attribute->GetValue()->GenerateCode();
+	FPlatformApplicationMisc::ClipboardCopy(*Code);
 	return FReply::Handled();
 }
 
 void SSketchAttribute::Reset()
 {
-	sketch::FAttribute* Attribute = Handle.Get();
-	if (!Attribute)
-		[[unlikely]]
-			return;
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
+	if (!Attribute) [[unlikely]] return;
 
-	(*Attribute) <<= [&]<class T>(const T&)
-	{
-		Attribute->GetValueChecked<T>() = Attribute->GetDefaultValueChecked<T>();
-	};
-	EditorContainer->SetContent(
-		Attribute <<= [&]<class T>(T&) { return sketch::TWrappedAttributeTraits<T>::MakeEditor(Handle); }
-	);
+	Attribute->GetValue()->Reinitialize(*Attribute->GetDefaultValue());
+	EditorContainer->SetContent(Attribute->GetValue()->MakeEditor());
+	Attribute->GetValue()->OnValueChanged.Broadcast();
 }
 
 EVisibility SSketchAttribute::GetResetButtonVisibility() const
 {
-	const sketch::FAttribute* Attribute = Handle.Get();
-	if (!Attribute)
-		[[unlikely]]
-			return EVisibility::Hidden;
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
+	if (!Attribute) [[unlikely]] return EVisibility::Hidden;
 
-	bool bEqual = (*Attribute) <<= [&]<class T>(const T&)
-	{
-		if constexpr (requires { std::declval<T>() == std::declval<T>(); })
-		{
-			return Attribute->GetValueChecked<T>() == Attribute->GetDefaultValueChecked<T>();
-		}
-		else
-		{
-			return FMemory::Memcmp(
-				&Attribute->GetValueChecked<T>(),
-				&Attribute->GetDefaultValueChecked<T>(),
-				sizeof(T)
-			) == 0;
-		}
-	};
+	const bool bEqual = Attribute->GetDefaultValue()->Equals(*Attribute->GetValue().Get());
 	return bEqual ? EVisibility::Hidden : EVisibility::Visible;
 }
 
-FReply SSketchAttribute::OnBrowseSourceCode(const FGeometry& Geometry, const FPointerEvent& PointerEvent) const
+FReply SSketchAttribute::OnBrowseSourceCode() const
 {
-	if (const sketch::FAttribute* Attribute = Handle.Get())
-	[[likely]]
+	if (const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
 	{
 		FSourceCodeNavigation::OpenSourceFile(
 			Attribute->GetSourceLocation().FileName.ToString(),

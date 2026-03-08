@@ -66,18 +66,24 @@ void SSketchWindow::Construct(const FArguments& InArgs)
 					[
 						SNew(SSketch)
 					]
-
-					+ SVerticalBox::Slot()
-					[
-						SNew(SImage)
-						.Image(Sketch("IconTest", FCoreStyle::Get().GetDefaultBrush()))
-					]
 				]
 			]
 
 			+ SWidgetSwitcher::Slot()
 			[
-				SNew(STextBlock).Text(INVTEXT("TBD"))
+				SNew(SSplitter)
+				+ SSplitter::Slot()
+				[
+					SNew(STextBlock).Text(INVTEXT("TBD"))
+				]
+				+ SSplitter::Slot()
+				[
+					SNew(STextBlock).Text(INVTEXT("2"))
+				]
+				+ SSplitter::Slot()
+				[
+					SNew(STextBlock).Text(INVTEXT("3"))
+				]
 			]
 
 			+ SWidgetSwitcher::Slot()

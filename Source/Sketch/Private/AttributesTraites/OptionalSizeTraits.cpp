@@ -5,6 +5,11 @@
 
 using namespace sketch;
 
+static sketch::FHeaderToolAttributeFilter GOptionalSizeFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("FOptionalSize");
+});
+
 class SOptionalSizeEditor : public SCompoundWidget
 {
 public:
@@ -14,10 +19,10 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FAttributeHandle& InHandle)
+	void Construct(const FArguments& InArgs, FOptionalSizeAttribute& Attribute)
 	{
-		Handle = InHandle;
-		const bool bIsSet = Handle.GetValue<FOptionalSize>().IsSet();
+		WeakAttribute = Attribute.AsWeakSubobject(&Attribute);
+		const bool bIsSet = Attribute.Value.IsSet();
 		ChildSlot
 		[
 			SNew(SHorizontalBox)
@@ -47,28 +52,38 @@ public:
 private:
 	float GetValue() const
 	{
-		return Handle.GetValue<FOptionalSize>().Get();
+		if (const TSharedPtr<FOptionalSizeAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
+		{
+			return Attribute->Value.Get();
+		}
+		return 0.f;
 	}
 
 	void OnValueChanged(float NewValue)
 	{
-		Handle.SetValue<FOptionalSize>({NewValue});
+		if (const TSharedPtr<FOptionalSizeAttribute> Attribute = WeakAttribute.Pin())[[likely]]
+		{
+			Attribute->SetValue({ NewValue });
+		}
 	}
 
 	void OnCheckBoxSwitched(ECheckBoxState NewState)
 	{
-		const FOptionalSize NewValue = NewState == ECheckBoxState::Checked ? FOptionalSize{8.f} : FOptionalSize{};
+		const FOptionalSize NewValue = NewState == ECheckBoxState::Checked ? FOptionalSize{ 8.f } : FOptionalSize{};
 		const bool bEnabled = NewState == ECheckBoxState::Checked;
-		Handle.SetValue<FOptionalSize>({NewValue});
 		SpinBox->SetValue(NewValue.Get());
 		SpinBox->SetEnabled(bEnabled);
+		if (const TSharedPtr<FOptionalSizeAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
+		{
+			Attribute->SetValue(NewValue);
+		}
 	}
 
-	FAttributeHandle Handle;
+	TWeakPtr<FOptionalSizeAttribute> WeakAttribute;
 	TSharedPtr<SSpinBox<float>> SpinBox;
 };
 
-TSharedRef<SWidget> TAttributeTraits<FOptionalSize>::MakeEditor(const FAttributeHandle& Handle)
+TSharedRef<SWidget> FOptionalSizeAttribute::MakeEditor()
 {
-	return SNew(SOptionalSizeEditor, Handle);
+	return SNew(SOptionalSizeEditor, *this);
 }

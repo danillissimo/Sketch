@@ -3,10 +3,15 @@
 
 namespace sketch
 {
-	template <>
-	struct TAttributeTraits<FText> : public TCommonAttributesTraits<FText>
+	struct FTextAttribute : public TCommonAttributeImplementation<FText>
 	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FText& Text);
+		using Super = TCommonAttributeImplementation<FText>;
+		using Super::Super;
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
+		virtual bool Equals(const IAttributeImplementation& Other) const override;
 	};
+
+	template <>
+	struct TAttributeTraits<FText> : public TCommonAttributeTraits<FTextAttribute> {};
 }

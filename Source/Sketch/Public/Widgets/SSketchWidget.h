@@ -11,13 +11,13 @@ public:
 	///
 	bool IsRoot() const { return bRoot; }
 	SWidget& GetContent() const { return Overlay->GetChildren()->GetChildAt(0).Get(); }
-	const TArray<sketch::FAttribute>& GetAttributes() const { return Attributes; }
+	const TArray<TSharedPtr<sketch::FAttribute>>& GetAttributes() const { return Attributes; }
 	const sketch::FFactoryHandle& GetContentFactory() const { return ContentFactory; }
 	const auto& GetDynamicSlots() const { return Slots; }
 
 	FSimpleMulticastDelegate OnModification;
 
-	sketch::FFactory::FUniqueSlots CollectUniqueSlots() const;
+	sketch::FFactory::FUniqueSlots CollectUniqueSlots() const { return CollectUniqueSlots(GetContent()); }
 	struct FSlot;
 	FSlot* FindSlotFor(SSketchWidget* Widget);
 	/** @return First owning SSketchWidget, or this if is a root, nullptr on failure */
@@ -35,13 +35,17 @@ public:
 	void Highlight() { bHighlighted = true; }
 	void Unhighlight() { bHighlighted = false; }
 
+	FString GenerateCode() const;
+
+
+
 	///
 	/// Slate
 	///
 	SLATE_BEGIN_ARGS(SSketchWidget) : _bRoot(false) {}
 		SLATE_ARGUMENT(bool, bRoot)
 
-		SKETCH_API WidgetArgsType& SetupAsUniqueSlotContainer(const FStringView& SlotName);
+		SKETCH_API WidgetArgsType& SetupAsUniqueSlotContainer(const FName& SlotName);
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -58,13 +62,18 @@ public:
 		FSlotBase* Slot = nullptr;
 		TSharedPtr<SSketchWidget> Widget;
 		/** @note Shared ptr so it doesn't move during outer container reallocations */
-		TSharedPtr<TArray<sketch::FAttribute>> Attributes;
+		TSharedPtr<TArray<TSharedPtr<sketch::FAttribute>>> Attributes;
 	};
 
 private:
+	sketch::FFactory::FUniqueSlots CollectUniqueSlots(SWidget& Content) const;
+
 	void BroadcastModification(bool bSuppress);
 
 	void UnassignFactory();
+	void RebuildWidget();
+
+	void OnSlotNonDynamicAttributeChanged(FName Type, int Index);
 
 	void OnConstructSlot(FName Name);
 	void OnDestroySlot(FName Type, int Index);
@@ -82,12 +91,10 @@ private:
 	///
 	bool bRoot = false;
 	sketch::FFactoryHandle ContentFactory;
-	TArray<sketch::FAttribute> Attributes;
+	TArray<TSharedPtr<sketch::FAttribute>> Attributes;
 	TMap<FName, TArray<FSlot, TInlineAllocator<1>>, TInlineSetAllocator<1>> Slots;
 
 	TSharedPtr<SOverlay> Overlay;
 	TSharedPtr<SBorder> Border;
-	uint8 bHighlighted : 1= false;
-	uint8 bUnderCursor : 1 = false;
-
+	uint8 bHighlighted : 1 = false;
 };

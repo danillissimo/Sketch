@@ -1,8 +1,9 @@
 #include "Widgets/SSketchOutliner.h"
 
-#include "SketchModule.h"
+#include "SketchCore.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchWidget.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #define LOCTEXT_NAMESPACE "SSketchOutliner"
 
@@ -56,7 +57,13 @@ TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InI
 	TSharedPtr<SSketchWidget> Item = InItem.Pin();
 	if (!Item) [[unlikely]] return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
 		[
-			SNew(STextBlock).Text(INVTEXT("ERROR"))
+			SNew(SBox)
+			.VAlign(VAlign_Center)
+			.Content()
+			[
+				SNew(STextBlock)
+				.Text(INVTEXT("ERROR"))
+			]
 		];
 
 	const sketch::FFactoryHandle& Factory = Item->GetContentFactory();
@@ -71,9 +78,41 @@ TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InI
 	Factory.Name.AppendString(Name);
 	return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
 		[
-			SNew(STextBlock)
-			.Text(FText::FromString(MoveTemp(Name)))
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(MoveTemp(Name)))
+			]
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+				.ToolTipText(LOCTEXT("CopyToClipboard", "Copy to clipboard"))
+				.OnClicked_Static(&SSketchOutliner::OnExportRow, InItem)
+				[
+					SNew(SImage)
+					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())
+				]
+			]
 		];
+}
+
+FReply SSketchOutliner::OnExportRow(TWeakPtr<SSketchWidget> InItem)
+{
+	TSharedPtr<SSketchWidget> Item = InItem.Pin();
+	if (Item) [[likely]]
+	{
+		FString Code = Item->GenerateCode();
+		FPlatformApplicationMisc::ClipboardCopy(*Code);
+	}
+	return FReply::Handled();
 }
 
 void SSketchOutliner::OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelectInfo::Type SelectionType)
@@ -101,18 +140,18 @@ void SSketchOutliner::OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelect
 		auto DisplaySlotAttributes = [&]
 		{
 			if (Item->IsRoot()) return false;
-			SSketchWidget* SlotContainer = Item->FindRoot();
+			SSketchWidget* SlotContainer = Item->GetParent();
 			if (!SlotContainer) return false;
 			SSketchWidget::FSlot* Slot = SlotContainer->FindSlotFor(Item.Get());
 			if (!Slot) return false;
-			Collection->SetSlotAttributes(sketch::FAttributeCollectionHandle(Slot->Attributes, *Slot->Attributes));
+			Collection->SetSlotAttributes(Slot->Attributes);
 			return true;
 		};
 		if (!DisplaySlotAttributes())[[unlikely]]
 			Collection->SetSlotAttributes({});
 
 		// Update widget attributes
-		Collection->SetAttributes(sketch::FAttributeCollectionHandle(InItem, Item->GetAttributes()));
+		Collection->SetAttributes(Item->AsSharedSubobject(&Item->GetAttributes()));
 	}
 
 	Item->Highlight();
@@ -160,6 +199,9 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 				Entry.LabelOverride = FText::FromString(Caption);
 				Entry.EntryBuilder.BindSP(this, &SSketchOutliner::MakeExistingSlotMenu, SelectedItems[0], Type, Slot.GetIndex());
 				Entry.bIsSubMenu = true;
+				Entry.bIsRecursivelySearchable = false;
+
+				Menu.AddMenuEntry(Entry);
 			}
 		}
 
@@ -218,8 +260,8 @@ void SSketchOutliner::ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> 
 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearWidget, WeakWidget);
 		Menu.AddMenuEntry(Entry);
 	}
-	const auto& Host = FSketchModule::Get();
-	for (const auto& [Type, Factory] : Host.Factories)
+	const auto& Core = FSketchCore::Get();
+	for (const auto& [Type, Factory] : Core.Factories)
 	{
 		Menu.AddSubMenu(
 			FText::FromName(Type),
@@ -237,8 +279,8 @@ void SSketchOutliner::ListFactoriesOfType(
 	int SlotIndex
 )
 {
-	const auto& Host = FSketchModule::Get();
-	for (auto Factory = Host.Factories[FactoriesType].CreateConstIterator(); Factory; ++Factory)
+	const auto& Core = FSketchCore::Get();
+	for (auto Factory = Core.Factories[FactoriesType].CreateConstIterator(); Factory; ++Factory)
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = FText::FromName(Factory->Name);

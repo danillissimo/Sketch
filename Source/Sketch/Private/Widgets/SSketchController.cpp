@@ -1,6 +1,6 @@
 #include "Widgets/SSketchController.h"
 
-#include "SketchModule.h"
+#include "SketchCore.h"
 #include "Widgets/SSketchAttribute.h"
 
 using namespace sketch;
@@ -8,32 +8,27 @@ using namespace sketch;
 void SSketchController::Construct(const FArguments& InArgs)
 {
 	SetCanTick(false);
-	auto& Host = FSketchModule::Get();
-	Host.OnAttributesChanged.AddSP(this, &SSketchController::OnAttributesChanged);
+	auto& Core = FSketchCore::Get();
+	Core.OnAttributesChanged.AddSP(this, &SSketchController::OnAttributesChanged);
 	Update();
 }
 
 void SSketchController::Update()
 {
-	auto& Host = FSketchModule::Get();
+	auto& Core = FSketchCore::Get();
 
 restart:
 	{
 		SVerticalBox::FArguments Files;
-		for (auto& [Source, Attributes] : Host.Attributes)
+		for (auto& [Source, Attributes] : Core.GetNomadAttributes())
 		{
-			FAttributeHandle Handle;
-			Handle.CollectionHandle.Owner = StaticCastSharedPtr<const void>(Attributes);
-			Handle.CollectionHandle.Container.Set<TSparseArray<FAttribute>*>(Attributes.Get());
-
 			SVerticalBox::FArguments Widgets;
-			for (int j = 0; j < Attributes->Num(); ++j)
+			for (const TSharedPtr<FAttribute>& Attribute : *Attributes)
 			{
-				Handle.Index = j;
 				Widgets + SVerticalBox::Slot()
 					.AutoHeight()
 					[
-						SNew(SSketchAttribute, Handle)
+						SNew(SSketchAttribute, *Attribute.Get())
 					];
 				if (GetCanTick())
 				{

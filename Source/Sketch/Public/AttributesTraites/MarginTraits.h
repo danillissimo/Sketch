@@ -3,10 +3,13 @@
 
 namespace sketch
 {
-	template <>
-	struct TAttributeTraits<FMargin> : public TCommonAttributesTraits<FMargin>
+	struct FMarginAttribute : public TCommonAttributeImplementation<FMargin>
 	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FMargin& Margin);
+		using TCommonAttributeImplementation::TCommonAttributeImplementation;
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
 	};
+
+	template <>
+	struct TAttributeTraits<FMargin> : public TCommonAttributeTraits<FMarginAttribute> {};
 }

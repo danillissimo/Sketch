@@ -1,11 +1,6 @@
 #pragma once
-#include "SketchTypes.h"
-
-namespace sketch
-{
-	template <class... ConstructorArgTypes>
-	struct TAttributeInitializer;
-}
+#include "SketchCore.h"
+#include "AttributesTraites/AllTraits.h"
 
 /*
  * Sketch logic and modules
@@ -13,35 +8,34 @@ namespace sketch
 
 // Template generator is in the end of the file
 
-template <class ArgType0>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>> Sketch(const FName AttributeName, ArgType0&& Arg0, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+inline sketch::TAttributeInitializer<> Sketch(FName AttributeName, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<>{ AttributeName, MakeTuple(), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0>
+sketch::TAttributeInitializer<std::decay_t<AT0>> Sketch(FName AttributeName, AT0&& A0, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>>{ AttributeName, MakeTuple(std::forward<AT0>(A0)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2, class ArgType3>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, ArgType3&& Arg3, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2), std::forward<ArgType3>(Arg3)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1, class AT2>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2, class ArgType3, class ArgType4>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, ArgType3&& Arg3, ArgType4&& Arg4, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2), std::forward<ArgType3>(Arg3), std::forward<ArgType4>(Arg4)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1, class AT2, class AT3>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2, class ArgType3, class ArgType4, class ArgType5>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, ArgType3&& Arg3, ArgType4&& Arg4, ArgType5&& Arg5, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2), std::forward<ArgType3>(Arg3), std::forward<ArgType4>(Arg4), std::forward<ArgType5>(Arg5)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1, class AT2, class AT3, class AT4>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2, class ArgType3, class ArgType4, class ArgType5, class ArgType6>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>, std::remove_const_t<std::remove_reference_t<ArgType6>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, ArgType3&& Arg3, ArgType4&& Arg4, ArgType5&& Arg5, ArgType6&& Arg6, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>, std::remove_const_t<std::remove_reference_t<ArgType6>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2), std::forward<ArgType3>(Arg3), std::forward<ArgType4>(Arg4), std::forward<ArgType5>(Arg5), std::forward<ArgType6>(Arg6)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5)), SL, SL.line(), SL.column() }; }
 
-template <class ArgType0, class ArgType1, class ArgType2, class ArgType3, class ArgType4, class ArgType5, class ArgType6, class ArgType7>
-sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>, std::remove_const_t<std::remove_reference_t<ArgType6>>, std::remove_const_t<std::remove_reference_t<ArgType7>>> Sketch(const FName AttributeName, ArgType0&& Arg0, ArgType1&& Arg1, ArgType2&& Arg2, ArgType3&& Arg3, ArgType4&& Arg4, ArgType5&& Arg5, ArgType6&& Arg6, ArgType7&& Arg7, const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<std::remove_const_t<std::remove_reference_t<ArgType0>>, std::remove_const_t<std::remove_reference_t<ArgType1>>, std::remove_const_t<std::remove_reference_t<ArgType2>>, std::remove_const_t<std::remove_reference_t<ArgType3>>, std::remove_const_t<std::remove_reference_t<ArgType4>>, std::remove_const_t<std::remove_reference_t<ArgType5>>, std::remove_const_t<std::remove_reference_t<ArgType6>>, std::remove_const_t<std::remove_reference_t<ArgType7>>>{AttributeName, MakeTuple(std::forward<ArgType0>(Arg0), std::forward<ArgType1>(Arg1), std::forward<ArgType2>(Arg2), std::forward<ArgType3>(Arg3), std::forward<ArgType4>(Arg4), std::forward<ArgType5>(Arg5), std::forward<ArgType6>(Arg6), std::forward<ArgType7>(Arg7)), SourceLocation, SourceLocation.line(), SourceLocation.column()}; }
+template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5, class AT6>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6)), SL, SL.line(), SL.column() }; }
 
-/**
- * Primary module function - Sketch - is normally more important for a dev than namespace with internal stuff.
- * So "Sketch" is reserved for it, and namespace name begins from a lower case letter to avoid collision.
- * No, I didn't like any kinds of underscores and couldn't come up with a prefix/suffix I'd like.
- */
+template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5, class AT6, class AT7>
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, AT7&& A7, const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6), std::forward<AT7>(A7)), SL, SL.line(), SL.column() }; }
+
+
+
 namespace sketch
 {
 	namespace Private
@@ -50,306 +44,153 @@ namespace sketch
 	}
 }
 
-#include "SketchModule.h"
-
 template <class T, class... ConstructorArgTypes>
-TTuple<sketch::FAttribute&, int> FSketchModule::FindOrCreateSketchAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
-{
-	// Consider custom attributes
-	if (CustomAttributesOwner.IsValid() && CustomAttributes)
-	{
-		return FindOrCreateSketchAttributeImplementation<T>(*CustomAttributes, Initializer);
-	}
-
-	// Use global attributes
-	using namespace sketch;
-	TSharedPtr<TSparseArray<FAttribute>>* Context = Attributes.Find(Initializer.SourceLocation);
-	if (!Context)
-	{
-		Context = &Attributes.Add(Initializer.SourceLocation, MakeShared<TSparseArray<FAttribute>>());
-	}
-	return FindOrCreateSketchAttributeImplementation<T>(*Context->Get(), Initializer);
-}
-
-template <class T, class ContainerType, class... ConstructorArgTypes>
-TTuple<sketch::FAttribute&, int> FSketchModule::FindOrCreateSketchAttributeImplementation(ContainerType& Container, sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
-{
-	using namespace sketch;
-	using StorageType = typename TAttributeTraits<T>::FStorage;
-
-	// Find existing attribute or create a new one
-	int Index = Container.IndexOfByPredicate(
-		[&](const FAttribute& Attribute)
-		{
-			return Attribute.Line == Initializer.Line
-				&& Attribute.Column == Initializer.Column;
-		}
-	);
-	if (Index == INDEX_NONE)
-	{
-		auto MakeValue = []<class... ArgTypes>(ArgTypes&&... Args)
-		{
-			return StorageType(std::forward<ArgTypes>(Args)...);
-		};
-		FAttribute Attribute;
-		Attribute.SourceLocation = Initializer.SourceLocation;
-		Attribute.Line = Initializer.Line;
-		Attribute.Column = Initializer.Column;
-		Attribute.Data.Emplace<TOption<StorageType>>();
-		Attribute.GetValueChecked<StorageType>() = Initializer.ConstructorArgs.ApplyAfter(MakeValue);
-		Attribute.GetDefaultValueChecked<StorageType>() = Attribute.GetValueChecked<StorageType>();
-		Attribute.Name = Initializer.AttributeName;
-		Attribute.StaleCountdown = 2;
-		Index = Container.Add(MoveTemp(Attribute));
-		OnAttributesChanged.Broadcast();
-	}
-	return {Container[Index], Index};
-}
-
-template <class T, class... ConstructorArgTypes>
-TAttribute<T> FSketchModule::MakeSlateAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
+TAttribute<T> FSketchCore::MakeSlateAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
 {
 	using namespace sketch;
 
 	// Retrieve context
-	auto [Attribute, Index] = FindOrCreateSketchAttribute<T, ConstructorArgTypes...>(Initializer);
-
-	// Finalize attribute configuration
-	++Attribute.NumUsers;
-	Attribute.bDynamic = true;
+	auto AttributeAndIndex = FindOrCreateSketchAttribute<T, ConstructorArgTypes...>(Initializer);
+	FAttribute& Attribute = AttributeAndIndex.template Get<FAttribute&>();
 
 	// Construct attribute
-	if (CustomAttributesOwner.IsValid() && CustomAttributes)
-	{
-		return TAttribute<T>::CreateLambda(TAttributeReader<T, void, TArray<FAttribute>>(CustomAttributesOwner, *CustomAttributes, Index));
-	}
-	else
-	{
-		const TSharedPtr<TSparseArray<FAttribute>>& Context = Attributes.FindChecked(Initializer.SourceLocation);
-		return TAttribute<T>::CreateLambda(TAttributeReader<T, TSparseArray<FAttribute>, TSparseArray<FAttribute>>(Context.ToWeakPtr(), *Context.Get(), Index));
-	}
+	return TAttribute<T>::CreateLambda(TAttributeReader<T>(Attribute));
 }
 
-template <class ThisType, class FunctorType>
-decltype(auto) sketch::FAttribute::ApplyImpl(ThisType& This, FunctorType&& Functor)
+template <class T, class... ConstructorArgTypes>
+T FSketchCore::ReadAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
 {
-	return [&]<class... Type>(const TVariantBase<Type...>&)
+	auto Context = FindOrCreateSketchAttribute<T, ConstructorArgTypes...>(Initializer); // TTuple arg deduction crashes compiler, hence auto
+	sketch::FAttribute& Attribute = Context.template Get<sketch::FAttribute&>();
+	Attribute.StaleCountdown += Attribute.StaleCountdown == 0 ? 2 : 1;
+
+	decltype(auto) Value = sketch::TAttributeTraits<T>::GetValue(*Attribute.GetValue()); // GetValue returns a value rather than a reference facing an unsupported type, hence decltype(auto)
+	static_assert(std::is_same_v<T, std::decay_t<decltype(Value)>>);
+	return Value;
+}
+
+template <class T, class... ConstructorArgTypes>
+TTuple<sketch::FAttribute&, int> FSketchCore::FindOrCreateSketchAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
+{
+	// Consider custom attributes
+	if (!CustomAttributes.IsEmpty())
 	{
-		auto SelectArg = [&](auto& Value) -> decltype(auto)
+		return FindOrCreateSketchAttributeImplementation<T>(*CustomAttributes.Last(), Initializer);
+	}
+
+	// Use global attributes
+	using namespace sketch;
+	FAttributeCollection* Context = Attributes.Find(Initializer.SourceLocation);
+	if (!Context)
+	{
+		Context = &Attributes.Emplace(Initializer.SourceLocation, InPlace);
+	}
+	return FindOrCreateSketchAttributeImplementation<T>(**Context, Initializer);
+}
+
+template <class T, class... ConstructorArgTypes>
+TTuple<sketch::FAttribute&, int> FSketchCore::FindOrCreateSketchAttributeImplementation(
+	TArray<TSharedPtr<sketch::FAttribute>>& Container,
+	sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer
+)
+{
+	using namespace sketch;
+
+	// Find existing attribute
+	int Index = Container.IndexOfByPredicate(
+		[&](const TSharedPtr<FAttribute>& Attribute)
 		{
-			if constexpr (
-				std::is_same_v<
-					FUnsupported,
-					std::remove_const_t<
-						std::remove_reference_t<
-							typename Private::TArgType<TFunctionType<FunctorType>>::Type
-						>
-					>
-				>
+			return Attribute->GetLine() == Initializer.Line
+				&& Attribute->GetColumn() == Initializer.Column
+				// Surprisingly multiple attributes CAN share the same line and the same column when they come from a macro
+				&& Attribute->GetName() == Initializer.AttributeName;
+		}
+	);
+
+	// Or create a new one
+	if (Index == INDEX_NONE)
+	{
+		auto MakeValue = [&](ConstructorArgTypes&... Args)
+		{
+			using FValue = decltype(TAttributeTraits<T>::ConstructValue(MoveTemp(Args)...));
+			FValue* Value = new FValue(TAttributeTraits<T>::ConstructValue(MoveTemp(Args)...));
+			return Value;
+		};
+		Index = Container.Emplace(
+			MakeShared<FAttribute>(
+				Initializer.SourceLocation,
+				Initializer.Line,
+				Initializer.Column,
+				Initializer.AttributeName,
+				Initializer.ConstructorArgs.ApplyAfter(MakeValue)
 			)
-			{
-				return Value;
-			}
-			else
-			{
-				return This;
-			}
-		};
-		using ReturnType = TReturnType<FunctorType>;
-		enum { bReturnsVoid = std::is_void_v<ReturnType> };
-		using StorageType = std::conditional_t<bReturnsVoid, uint8, ReturnType>;
-		TTypeCompatibleBytes<StorageType> Result;
-		auto Invoke = [&]<class T>(T& Value)
-		{
-			// Argument may come by const reference, but lambda should always receive pure type
-			using CleanType = std::remove_const_t<T>;
-			if constexpr (bReturnsVoid)
-			{
-				Functor.template operator()<CleanType>(SelectArg(Value));
-			}
-			else
-			{
-				new((ReturnType*)&Result) ReturnType(Functor.template operator()<CleanType>(SelectArg(Value)));
-			}
-		};
-		((This.Data.template IsType<TOption<Type>>() ? void(Invoke(This.template GetValueChecked<Type>())) : void()), ...);
-		if constexpr (!bReturnsVoid)
-		{
-			return (ReturnType&)Result;
-		}
-	}(This.Data);
+		);
+		Container[Index]->Meta = MoveTemp(Initializer.Meta);
+		OnAttributesChanged.Broadcast();
+	}
+	return { *Container[Index], Index };
 }
 
-template <class ThisType, class FunctorType>
-decltype(auto) sketch::FAttribute::ApplySafeImpl(ThisType* This, FunctorType&& Functor, TDefaultValueType<FunctorType> DefaultValue)
+inline bool sketch::FAttribute::IsSetToDefault() const
 {
-	if (!This)
-	[[unlikely]]
-	{
-		if constexpr (std::is_void_v<TReturnType<FunctorType>>)
-		{
-			return;
-		}
-		else
-		{
-			return DefaultValue;
-		}
-	}
-	return ApplyImpl(*This, std::forward<FunctorType>(Functor));
-}
-
-decltype(auto) sketch::FAttributeCollectionHandle::operator<<(const auto& Callable) const
-{
-	if (auto* Array = Container.Get<TArray<FAttribute>*>(nullptr))
-	{
-		for (auto It = Array->CreateIterator(); It; ++It)
-			Callable(*It, It);
-	}
-	else
-	{
-		for (auto It = Container.Get<TSparseArray<FAttribute>*>()->CreateIterator(); It; ++It)
-			Callable(*It, It);
-	}
-}
-
-inline sketch::FAttribute* sketch::FAttributeHandle::Get() const
-{
-	if (!CollectionHandle.Owner.IsValid())
-		[[unlikely]]
-			return nullptr;
-
-	if (auto* Array = CollectionHandle.Container.TryGet<TArray<FAttribute>*>())
-	{
-		if (*Array && (*Array)->IsValidIndex(Index))
-			[[likely]]
-				return &(**Array)[Index];
-		return nullptr;
-	}
-	else
-	{
-		auto& SparseArray = CollectionHandle.Container.Get<TSparseArray<FAttribute>*>();
-		return SparseArray && SparseArray->IsValidIndex(Index) ? &(*SparseArray)[Index] : nullptr;
-	}
-}
-
-template <class T>
-T sketch::FAttributeHandle::GetValue(const T& DefaultValue) const
-{
-	if (FAttribute* Attribute = Get())
-	[[likely]]
-	{
-		return Attribute->GetValueChecked<T>();
-	}
-	return DefaultValue;
-}
-
-template <class T>
-bool sketch::FAttributeHandle::SetValue(const T& Value) const
-{
-	if (FAttribute* Attribute = Get())
-	[[likely]]
-	{
-		Attribute->GetValueChecked<T>() = Value;
-		return true;
-	}
-	return false;
+	return Value->Equals(*DefaultValue.Get());
 }
 
 template <class... ConstructorArgTypes>
 template <class T>
-	requires std::is_constructible_v<
-		std::conditional_t<sketch::TIsSlateAttribute<T>::Value, typename sketch::TSlateAttributeType<T>::Type, T>,
-		ConstructorArgTypes...
-	>
+	requires std::is_constructible_v<sketch::TInitializedType<T>, ConstructorArgTypes...>
 sketch::TAttributeInitializer<ConstructorArgTypes...>::operator T()
 {
-	constexpr bool bAttribute = TIsSlateAttribute<T>::Value;
-	using Type = std::conditional_t<bAttribute, typename TSlateAttributeType<T>::Type, T>;
-
-	FSketchModule& Host = FSketchModule::Get();
-	if constexpr (bAttribute)
+	FSketchCore& Core = FSketchCore::Get();
+	if constexpr (TIsSlateAttribute<T>)
 	{
-		TAttribute<Type> Attribute = Host.MakeSlateAttribute<Type>(*this);
-		return Attribute;
+		return Core.MakeSlateAttribute<TInitializedType<T>, ConstructorArgTypes...>(*this);
 	}
 	else
 	{
-		auto Context = Host.FindOrCreateSketchAttribute<T, ConstructorArgTypes...>(*this); // TTuple arg deduction crashes compiler, hence auto
-		FAttribute& Attribute = Context.template Get<FAttribute&>();
-		Attribute.StaleCountdown += Attribute.StaleCountdown == 0 ? 2 : 1;
-
-		using StorageType = typename TAttributeTraits<T>::FStorage;
-		const StorageType& Storage = Attribute.GetValueChecked<StorageType>();
-		decltype(auto) Value = TAttributeTraits<T>::GetValue(Storage); // GetValue returns a value rather than a reference facing an unsupported type, hence decltype(auto)
-		return Value;
+		return Core.ReadAttribute<T, ConstructorArgTypes...>(*this);
 	}
 }
 
-template <class T, class OwnerType, class ContainerType>
-sketch::TAttributeReader<T, OwnerType, ContainerType>::TAttributeReader(const TWeakPtr<const OwnerType>& Owner, ContainerType& Container, int Index)
-	: Container(Container)
-	  , Index(Index)
-	  , Owner(Owner)
+template <class T>
+sketch::TAttributeReader<T>::TAttributeReader(FAttribute& Attribute)
+	: WeakAttribute(Attribute.AsWeak())
 {
+	++Attribute.NumUsers;
 }
 
-template <class T, class OwnerType, class ContainerType>
-sketch::TAttributeReader<T, OwnerType, ContainerType>::TAttributeReader(const TAttributeReader& Other)
-	: Container(Other.Container)
-	  , Index(Other.Index)
-	  , Owner(Other.Owner)
+template <class T>
+sketch::TAttributeReader<T>::TAttributeReader(const TAttributeReader& Other)
+	: WeakAttribute(Other.WeakAttribute)
 {
-	if (Owner.IsValid() && Container.IsValidIndex(Index))
-	[[likely]]
+	if (TSharedPtr<FAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
 	{
-		FAttribute& Attribute = Container[Index];
-		++Attribute.NumUsers;
+		Attribute->NumUsers++;
 	}
 }
 
-template <class T, class OwnerType, class ContainerType>
-sketch::TAttributeReader<T, OwnerType, ContainerType>::TAttributeReader(TAttributeReader&& Other)
-	: Container(Other.Container)
-	  , Index(Other.Index)
-	  , Owner(Other.Owner)
+template <class T>
+sketch::TAttributeReader<T>::TAttributeReader(TAttributeReader&& Other)
+	: WeakAttribute(MoveTemp(Other.WeakAttribute))
 {
-	const_cast<int&>(Other.Index) = INDEX_NONE;
 }
 
-template <class T, class OwnerType, class ContainerType>
-T sketch::TAttributeReader<T, OwnerType, ContainerType>::operator()() const
+template <class T>
+T sketch::TAttributeReader<T>::operator()() const
 {
-	if (Owner.IsValid() && Container.IsValidIndex(Index))
-	[[likely]]
+	if (TSharedPtr<FAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
 	{
-		FAttribute& Attribute = Container[Index];
-		using StorageType = typename TAttributeTraits<T>::FStorage;
-		if (const auto* Storage = Attribute.GetValue<StorageType>())
-		[[likely]]
-		{
-			Attribute.StaleCountdown = 2;
-			return TAttributeTraits<T>::GetValue(*Storage);
-		}
+		return TAttributeTraits<T>::GetValue(*Attribute->GetValue());
 	}
-	return {};
+	return T{};
 }
 
-template <class T, class OwnerType, class ContainerType>
-sketch::TAttributeReader<T, OwnerType, ContainerType>::~TAttributeReader()
+template <class T>
+sketch::TAttributeReader<T>::~TAttributeReader()
 {
-	if (Index == INDEX_NONE)
-		return; // Already moved
-
-	if (Owner.IsValid() && Container.IsValidIndex(Index))
-	[[likely]]
+	if (TSharedPtr<FAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
 	{
-		FAttribute& Attribute = Container[Index];
-		--Attribute.NumUsers;
-		// if (Attribute->NumUsers == 0)
-		// {
-		// 	Context->RemoveAt(Index);
-		// 	Host.OnAttributesChanged.Broadcast();
-		// }
+		Attribute->NumUsers--;
 	}
 }
 
@@ -357,7 +198,7 @@ inline sketch::FFactory* sketch::FFactoryHandle::Resolve() const
 {
 	if (IsValid())[[likely]]
 	{
-		FSketchModule& Host = FSketchModule::Get();
+		FSketchCore& Host = FSketchCore::Get();
 		if (TArray<FFactory>* Factories = Host.Factories.Find(Type))
 		{
 			return Factories->FindByPredicate([this](const FFactory& Factory) { return Factory.Name == Name; });
@@ -372,45 +213,51 @@ inline sketch::FFactory* sketch::FFactoryHandle::Resolve() const
 // {
 // 	for (int j = 0; j < i; ++j)
 // 	{
-// 		std::cout << prefix << "ArgType" << j << suffix << ", ";
+// 		std::cout << prefix << "AT" << j << suffix << ", ";
 // 	}
-// 	std::cout << prefix << "ArgType" << i << suffix;
+// 	std::cout << prefix << "AT" << i << suffix;
 // }
 //
 // void printArgs(int i)
 // {
 // 	for (int j = 0; j < i; ++j)
 // 	{
-// 		std::cout << "ArgType" << j << "&& Arg" << j << ", ";
+// 		std::cout << "AT" << j << "&& A" << j << ", ";
 // 	}
-// 	std::cout << "ArgType" << i << "&& Arg" << i << ", ";
+// 	std::cout << "AT" << i << "&& A" << i << ", ";
 // }
 //
 // void printTupleArgs(int i)
 // {
 // 	for (int j = 0; j < i; ++j)
 // 	{
-// 		std::cout << "std::forward<ArgType" << j << ">(" << "Arg" << j << ")" << ", ";
+// 		std::cout << "std::forward<AT" << j << ">(" << "A" << j << ")" << ", ";
 // 	}
-// 	std::cout << "std::forward<ArgType" << i << ">(" << "Arg" << i << ")";
+// 	std::cout << "std::forward<AT" << i << ">(" << "A" << i << ")";
 // }
 //
 // int main()
 // {
+//  std::cout << "inline ";
+// 	std::cout << "sketch::TAttributeInitializer<";
+// 	std::cout << "> Sketch(FName AttributeName, ";
+// 	std::cout << "const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<";
+// 	std::cout << ">{ AttributeName, MakeTuple(";
+// 	std::cout << "), SL, SL.line(), SL.column() }; }\n";
 // 	for (int i = 0; i < 8; ++i)
 // 	{
 // 		std::cout << "template <";
 // 		printArgTypes("class ", i, "");
 // 		std::cout << ">\n";
 // 		std::cout << "sketch::TAttributeInitializer<";
-// 		printArgTypes("std::remove_const_t<std::remove_reference_t<", i, ">>");
-// 		std::cout << "> Sketch(const FName AttributeName, ";
+// 		printArgTypes("std::decay_t<", i, ">");
+// 		std::cout << "> Sketch(FName AttributeName, ";
 // 		printArgs(i);
-// 		std::cout << "const std::source_location& SourceLocation = std::source_location::current()) { return sketch::TAttributeInitializer<";
-// 		printArgTypes("std::remove_const_t<std::remove_reference_t<", i, ">>");
+// 		std::cout << "const std::source_location& SL = std::source_location::current()) { return sketch::TAttributeInitializer<";
+// 		printArgTypes("std::decay_t<", i, ">");
 // 		std::cout << ">{ AttributeName, MakeTuple(";
 // 		printTupleArgs(i);
-// 		std::cout << "), SourceLocation, SourceLocation.line(), SourceLocation.column() }; }\n";
+// 		std::cout << "), SL, SL.line(), SL.column() }; }\n";
 // 	}
 // 	return 0;
 // }

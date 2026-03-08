@@ -1,10 +1,18 @@
 #include "AttributesTraites/BrushTraits.h"
 
 #include "Sketch.h"
+#include "SketchSandbox.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SBrushEditor"
+
+static sketch::FHeaderToolAttributeFilter GBrushFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("const FSlateBrush*") || Attribute == TEXT("FSlateIcon");
+});
+
+static sketch::Sandbox::TItemInitializer<FSlateIcon> GSandboxBrush(TEXT("Brush"));
 
 struct FBrushId
 {
@@ -16,7 +24,7 @@ struct FBrushId
 
 	FBrushId(const ISlateStyle* InStyle, FName InName)
 		: Style(InStyle)
-		  , Name(InName)
+		, Name(InName)
 	{
 		FString Result = Style ? Style->GetStyleSetName().ToString() : LOCTEXT("Invalid", "Invalid").ToString();
 		Result += TEXT("::");
@@ -33,15 +41,6 @@ struct FBrushId
 
 	friend uint32 GetTypeHash(const FBrushId& Id) { return HashCombineFast(GetTypeHash(Id.Style), GetTypeHash(Id.Name)); }
 	bool operator==(const FBrushId& Other) const { return Style == Other.Style && Name == Other.Name; }
-};
-
-template <>
-struct TIsValidListItem<FBrushId>
-{
-	enum
-	{
-		Value = true
-	};
 };
 
 template <>
@@ -96,6 +95,15 @@ public:
 	};
 };
 
+template <>
+struct TIsValidListItem<FBrushId>
+{
+	enum
+	{
+		Value = true
+	};
+};
+
 const TArray<FBrushId>& GetBrushes()
 {
 	static TArray<FBrushId> Brushes;
@@ -121,22 +129,6 @@ const TArray<FBrushId>& GetBrushes()
 	}
 	return Brushes;
 }
-
-sketch::FBrush::FBrush(const FSlateBrush* InBrush)
-	: Brush(InBrush)
-{
-	for (const FBrushId& SomeBrush : GetBrushes())
-	{
-		if (SomeBrush.GetBrush() == Brush)
-		[[unlikely]]
-		{
-			StyleName = SomeBrush.Style->GetStyleSetName();
-			BrushName = SomeBrush.Name;
-			break;
-		}
-	}
-}
-
 
 template <class T>
 class SIdList : public SCompoundWidget
@@ -184,7 +176,15 @@ public:
 				]
 			]
 		];
-		RegisterActiveTimer(0., FWidgetActiveTimerDelegate::CreateSP(this, &SIdList::GetFocus));
+	}
+
+	void SetUserFocus()
+	{
+		RegisterActiveTimer(0., FWidgetActiveTimerDelegate::CreateSPLambda(this, [this](double, float)
+		{
+			FSlateApplication::Get().SetAllUserFocus(SearchBox, EFocusCause::WindowActivate);
+			return EActiveTimerReturnType::Stop;
+		}));
 	}
 
 private:
@@ -205,13 +205,14 @@ private:
 				}
 			}
 			List->SetItemsSource(&FilteredItems);
+			List->RequestListRefresh();
 		}
 	}
 
 	TSharedRef<ITableRow> GenerateRow(T Item, const TSharedRef<STableViewBase>& Owner)
 	{
 		return SNew(STableRow<T>, Owner)
-			.Padding(FMargin{8.f, 4.f})
+			.Padding(FMargin{ 8.f, 4.f })
 			[
 				OnGenerateRow.Execute(Item, TAttribute<FText>::CreateSP(SearchBox.Get(), &SSearchBox::GetText))
 			];
@@ -224,12 +225,6 @@ private:
 
 		OnIdSelected.Execute(Item);
 		FSlateApplication::Get().DismissAllMenus();
-	}
-
-	EActiveTimerReturnType GetFocus(double CurrentTime, float DeltaTime)
-	{
-		FSlateApplication::Get().SetAllUserFocus(SearchBox, EFocusCause::WindowActivate);
-		return EActiveTimerReturnType::Stop;
 	}
 
 	const TArray<T>* Items = nullptr;
@@ -251,25 +246,10 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const sketch::FAttributeHandle& InHandle)
+	void Construct(const FArguments& InArgs, sketch::FBrushAttribute& Attribute)
 	{
-		Handle = InHandle;
-		ChildSlot
-		[
-			SNew(SComboButton)
-			.OnGetMenuContent(this, &SBrushEditor::ListBrushes)
-			.ButtonContent()
-			[
-				SAssignNew(TitleIcon, SImage)
-				.Image(Handle.GetValue<sketch::FBrush>().Brush)
-			]
-		];
-	}
-
-private:
-	TSharedRef<SWidget> ListBrushes()
-	{
-		return SNew(SIdList<FBrushId>)
+		WeakAttribute = Attribute.AsWeakSubobject(&Attribute);
+		auto Menu = SNew(SIdList<FBrushId>)
 			.Items(&GetBrushes())
 			.OnIdSelected(this, &SBrushEditor::OnBrushSelected)
 			.OnGenerateRow_Static(
@@ -323,37 +303,150 @@ private:
 						];
 				}
 			);
+		ChildSlot
+		[
+			SNew(SComboButton)
+			.ButtonContent()
+			[
+				SNew(SHorizontalBox)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SAssignNew(ImagePreview, SImage)
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					// Use SBox instead of slot padding 'cause slot padding space is, somewhy, taken from other slots
+					SNew(SBox)
+					.Padding(4.f, 0.f)
+					[
+						SAssignNew(ImageSizePreview, STextBlock)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 7))
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				[
+					SNew(SBox)
+					.WidthOverride(16.f)
+					.HeightOverride(16.f)
+					[
+						SAssignNew(BrushPreview, SBorder)
+					]
+				]
+			]
+			.OnComboBoxOpened(Menu, &SIdList<FBrushId>::SetUserFocus)
+			.MenuContent()
+			[
+				Menu
+			]
+		];
+		UpdateBrushPreview(Attribute.Brush);
+	}
+
+private:
+	void UpdateBrushPreview(const FSlateBrush* Brush)
+	{
+		const bool bImage = Brush && Brush->GetImageSize().X > 0;
+		ImagePreview->SetVisibility(bImage ? EVisibility::Visible : EVisibility::Collapsed);
+		ImageSizePreview->SetVisibility(bImage ? EVisibility::Visible : EVisibility::Collapsed);
+		BrushPreview->SetVisibility(bImage ? EVisibility::Collapsed : EVisibility::Visible);
+		if (bImage)
+		{
+			ImagePreview->SetImage(Brush);
+			ImageSizePreview->SetText(FText::FromString(FString::FromInt(Brush->GetImageSize().X) + TEXT("x") + FString::FromInt(Brush->GetImageSize().Y)));
+		}
+		else
+		{
+			BrushPreview->SetBorderImage(Brush);
+		}
 	}
 
 	void OnBrushSelected(const FBrushId& Brush)
 	{
-		Handle.SetValue<sketch::FBrush>(
-			sketch::FBrush(
-				Brush.GetBrush(),
-				Brush.Style->GetStyleSetName(),
-				Brush.Name
-			)
-		);
-		TitleIcon->SetImage(Brush.GetBrush());
+		if (TSharedPtr<sketch::FBrushAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
+		{
+			Attribute->Brush = Brush.GetBrush();
+			Attribute->StyleName = Brush.Style ? Brush.Style->GetStyleSetName() : NAME_None;
+			Attribute->BrushName = Brush.Name;
+			Attribute->OnValueChanged.Broadcast();
+		}
+		UpdateBrushPreview(Brush.GetBrush());
 	}
 
-	sketch::FAttributeHandle Handle;
-	TSharedPtr<SImage> TitleIcon;
+	TWeakPtr<sketch::FBrushAttribute> WeakAttribute;
+	TSharedPtr<SImage> ImagePreview;
+	TSharedPtr<SBorder> BrushPreview;
+	TSharedPtr<STextBlock> ImageSizePreview;
 };
 
-TSharedRef<SWidget> sketch::TAttributeTraits<const FSlateBrush*>::MakeEditor(const FAttributeHandle& Handle)
+TSharedRef<SWidget> sketch::FBrushAttribute::MakeEditor()
 {
-	return SNew(SBrushEditor, Handle);
+	return SNew(SBrushEditor, *this);
 }
 
-FString sketch::TAttributeTraits<const FSlateBrush*>::GenerateCode(const FBrush& Brush)
+FString sketch::FBrushAttribute::GenerateCode() const
 {
-	if (Brush.StyleName == FAppStyle::GetAppStyleSetName())
+	return GenerateBaseCode() + TEXT(".GetBrush()");
+}
+
+bool sketch::FBrushAttribute::Equals(const IAttributeImplementation& InOther) const
+{
+	const FBrushAttribute& Other = static_cast<const FBrushAttribute&>(InOther);
+	return StyleName == Other.StyleName && BrushName == Other.BrushName && Brush == Other.Brush;
+}
+
+void sketch::FBrushAttribute::Reinitialize(const IAttributeImplementation& From)
+{
+	const FBrushAttribute& Other = static_cast<const FBrushAttribute&>(From);
+	Brush = Other.Brush;
+	StyleName = Other.StyleName;
+	BrushName = Other.BrushName;
+}
+
+sketch::FBrushAttribute::FBrushAttribute(const FSlateBrush* InBrush)
+	: Brush(InBrush)
+{
+	if (Brush)
 	{
-		return FString::Printf(TEXT("FSlateIcon(FAppStyle::GetAppStyleSetName(), \"%s\").GetIcon()"), *Brush.BrushName.ToString());
+		for (const FBrushId& SomeBrush : GetBrushes())
+		{
+			if (SomeBrush.GetBrush() == Brush)
+			[[unlikely]]
+			{
+				StyleName = SomeBrush.Style->GetStyleSetName();
+				BrushName = SomeBrush.Name;
+				break;
+			}
+		}
+	}
+}
+
+FString sketch::FBrushAttribute::GenerateBaseCode() const
+{
+	FString Result = TEXT("FSlateIcon(");
+	if (StyleName == FAppStyle::GetAppStyleSetName())
+	{
+		Result += TEXT("FAppStyle::GetAppStyleSetName()");
 	}
 	else
 	{
-		return FString::Printf(TEXT("FSlateIcon(\"%s\", \"%s\").GetIcon()"), *Brush.StyleName.ToString(), *Brush.BrushName.ToString());
+		Result += TEXT("\"");
+		Result += StyleName.ToString();
+		Result += TEXT("\"");
 	}
+	Result += TEXT(", \"");
+	Result += BrushName.ToString();
+	Result += TEXT("\")");
+	return Result;
+}
+
+FString sketch::FIconAttribute::GenerateCode() const
+{
+	return GenerateBaseCode();
 }

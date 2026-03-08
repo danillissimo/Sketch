@@ -5,6 +5,11 @@
 
 #define LOCTEXT_NAMESPACE "Sketch.SMarginEditor"
 
+static sketch::FHeaderToolAttributeFilter GMarginFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("FMargin");
+});
+
 class SMarginEditor : public SCompoundWidget
 {
 	enum ECheckBoxID { X2, X4 };
@@ -16,11 +21,11 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const sketch::FAttributeHandle& InHandle)
+	void Construct(const FArguments& InArgs, sketch::FMarginAttribute& Attribute)
 	{
-		Handle = InHandle;
+		WeakAttribute = Attribute.AsSharedSubobject(&Attribute);
 
-		const FMargin Margin = Handle.GetValue<FMargin>();
+		const FMargin Margin = Attribute.Value;
 		const bool bUniform = Margin.Left == Margin.Top && Margin.Left == Margin.Bottom && Margin.Left == Margin.Right;
 		const bool bHorizontalVertical = Margin.Left == Margin.Right && Margin.Top == Margin.Bottom;
 		ChildSlot
@@ -28,7 +33,7 @@ public:
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			[
 				SAssignNew(x1, SSpinBox<float>)
 				.Font(sketch::Private::DefaultFont())
@@ -46,11 +51,10 @@ public:
 				.OnCheckStateChanged(this, &SMarginEditor::OnXChanged, X2)
 				.IsChecked(!bUniform ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
 				.ToolTipText(LOCTEXT("DissociateHorizontalAndVerticalMargins", "Dissociate horizontal/vertical margins"))
-				.ForegroundColor(Sketch("ForegroundColor", FLinearColor::White))
 			]
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			[
 				SAssignNew(x2, SSpinBox<float>)
 				.Font(sketch::Private::DefaultFont())
@@ -72,7 +76,7 @@ public:
 			]
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			[
 				SAssignNew(x3, SSpinBox<float>)
 				.Font(sketch::Private::DefaultFont())
@@ -85,7 +89,7 @@ public:
 			]
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			[
 				SAssignNew(x4, SSpinBox<float>)
 				.Font(sketch::Private::DefaultFont())
@@ -127,8 +131,7 @@ private:
 			return;
 		TGuardValue Guard(bUpdating, true);
 
-		auto& Host = FSketchModule::Get();
-		sketch::FAttribute* Attribute = Handle.Get();
+		TSharedPtr<sketch::FMarginAttribute> Attribute = WeakAttribute.Pin();
 		if (!Attribute)
 		[[unlikely]]
 		{
@@ -146,7 +149,7 @@ private:
 		}
 
 		// Uniform margin
-		FMargin& Value = Attribute->GetValueChecked<FMargin>();
+		FMargin& Value = Attribute->Value;
 		if (!bX2->IsChecked())
 		{
 			x2->SetValue(x1->GetValue());
@@ -156,7 +159,7 @@ private:
 			x2->SetEnabled(false);
 			x3->SetEnabled(false);
 			x4->SetEnabled(false);
-			Value = FMargin{x1->GetValue()};
+			Value = FMargin{ x1->GetValue() };
 			return;
 		}
 
@@ -169,7 +172,7 @@ private:
 			x2->SetEnabled(true);
 			x3->SetEnabled(false);
 			x4->SetEnabled(false);
-			Value = FMargin{x1->GetValue(), x2->GetValue()};
+			Value = FMargin{ x1->GetValue(), x2->GetValue() };
 			return;
 		}
 
@@ -178,11 +181,11 @@ private:
 		x2->SetEnabled(true);
 		x3->SetEnabled(true);
 		x4->SetEnabled(true);
-		Value = FMargin{x1->GetValue(), x2->GetValue(), x3->GetValue(), x4->GetValue()};
+		Value = FMargin{ x1->GetValue(), x2->GetValue(), x3->GetValue(), x4->GetValue() };
 	}
 
 	bool bUpdating = false;
-	sketch::FAttributeHandle Handle;
+	TWeakPtr<sketch::FMarginAttribute> WeakAttribute;
 	TSharedPtr<SSpinBox<float>> x1;
 	TSharedPtr<SSpinBox<float>> x2;
 	TSharedPtr<SSpinBox<float>> x3;
@@ -191,30 +194,30 @@ private:
 	TSharedPtr<SCheckBox> bX4;
 };
 
-TSharedRef<SWidget> sketch::TAttributeTraits<FMargin>::MakeEditor(const FAttributeHandle& Handle)
+TSharedRef<SWidget> sketch::FMarginAttribute::MakeEditor()
 {
-	return SNew(SMarginEditor, Handle);
+	return SNew(SMarginEditor, *this);
 }
 
-FString sketch::TAttributeTraits<FMargin>::GenerateCode(const FMargin& Margin)
+FString sketch::FMarginAttribute::GenerateCode() const
 {
 	FString Result;
 	Result.Reserve(32);
-	Result += FString::SanitizeFloat(Margin.Left, 0);
-	if (Margin.Left == Margin.Top && Margin.Left == Margin.Right && Margin.Left == Margin.Bottom)
+	Result += FString::SanitizeFloat(Value.Left, 0);
+	if (Value.Left == Value.Top && Value.Left == Value.Right && Value.Left == Value.Bottom)
 	{
 		return Result;
 	}
 	Result += TEXT(", ");
-	Result += FString::SanitizeFloat(Margin.Top, 0);
-	if (Margin.Left == Margin.Right && Margin.Top == Margin.Bottom)
+	Result += FString::SanitizeFloat(Value.Top, 0);
+	if (Value.Left == Value.Right && Value.Top == Value.Bottom)
 	{
 		return Result;
 	}
 	Result += TEXT(", ");
-	Result += FString::SanitizeFloat(Margin.Right, 0);
+	Result += FString::SanitizeFloat(Value.Right, 0);
 	Result += TEXT(", ");
-	Result += FString::SanitizeFloat(Margin.Bottom, 0);
+	Result += FString::SanitizeFloat(Value.Bottom, 0);
 	return Result;
 }
 

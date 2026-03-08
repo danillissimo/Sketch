@@ -2,12 +2,20 @@
 
 #include "Widgets/Text/STextBlock.h"
 
-TSharedRef<SWidget> sketch::Private::MakeNoEditor(const FAttributeHandle& Handle)
+TSharedRef<SWidget> sketch::IAttributeImplementation::MakeEditor()
 {
-	return SNew(STextBlock).Text(INVTEXT("sketch::TAttributeTraits::MakeEditor has no overload for this type"));
+	return SNew(STextBlock)
+		.Text(INVTEXT("sketch::IAttributeImplementation::MakeEditor has no overload for this type"))
+		.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8));
 }
 
-FString sketch::Private::GenerateNoCode()
+FString sketch::IAttributeImplementation::GenerateCode() const
 {
-	return TEXT("sketch::TAttributeTraits::GenerateCode has no overload for this type");
+	return TEXT("sketch::IAttributeImplementation::GenerateCode has no overload for this type");
+}
+
+TArray<TFunction<bool(FStringView Type)>>& sketch::GetSupportedAttributeFilters()
+{
+	static TArray<TFunction<bool(FStringView Type)>> Filters;
+	return Filters;
 }

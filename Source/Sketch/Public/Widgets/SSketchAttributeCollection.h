@@ -2,43 +2,48 @@
 #include "SketchTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SSketchHeaderRow;
+
 class SKETCH_API SSketchAttributeCollection : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSketchAttributeCollection) {}
-		SLATE_ARGUMENT_DEFAULT(sketch::FAttributeCollectionHandle*, SlotAttributes) = nullptr;
-		SLATE_ARGUMENT_DEFAULT(sketch::FAttributeCollectionHandle*, Attributes) = nullptr;
-		SLATE_ARGUMENT_DEFAULT(bool, ShowLine) = true;
-		SLATE_ARGUMENT_DEFAULT(bool, ShowName) = true;
-		SLATE_ARGUMENT_DEFAULT(bool, ShowInteractivity) = true;
-		SLATE_ARGUMENT_DEFAULT(bool, ShowNumUsers) = true;
-		SLATE_ARGUMENT_DEFAULT(bool, AllowCodePatching) = false;
+		SLATE_ARGUMENT(sketch::FConstAttributeCollection, SlotAttributes)
+		SLATE_ARGUMENT(sketch::FConstAttributeCollection, Attributes)
+		SLATE_ARGUMENT_DEFAULT(TWeakPtr<SSketchHeaderRow>, HeaderRow) = nullptr;
+		/** Following settings prevail over HeaderRow state when provided, though doesn't change general column visibility */
+		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, ShowLine);
+		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, ShowName);
+		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, ShowInteractivity);
+		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, ShowNumUsers);
+		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, AllowCodePatching) = false;
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 
-	void SetSlotAttributes(const sketch::FAttributeCollectionHandle& Attributes);
-	void SetAttributes(const sketch::FAttributeCollectionHandle& Attributes);
+	void SetSlotAttributes(const sketch::FConstAttributeCollection& Attributes);
+	void SetAttributes(const sketch::FConstAttributeCollection& Attributes);
 	void Update();
 
 private:
 	EVisibility GetAttributeGroupSpacerVisibility() const;
 	void SetAttributes(
-		sketch::FAttributeCollectionHandle& AttributesToSet,
-		const sketch::FAttributeCollectionHandle& NewAttributes,
+		TWeakPtr<const TArray<const TSharedPtr<sketch::FAttribute>>>& WeakAttributesToSet,
+		const sketch::FConstAttributeCollection& NewAttributes,
 		const TSharedPtr<SVerticalBox>& Box,
-		bool bActuallyAllowCodePatching
+		const TOptional<bool>& bActuallyAllowCodePatching
 	);
 
-	sketch::FAttributeCollectionHandle SlotAttributes;
-	sketch::FAttributeCollectionHandle Attributes;
+	TWeakPtr<const TArray<const TSharedPtr<sketch::FAttribute>>> SlotAttributes;
+	TWeakPtr<const TArray<const TSharedPtr<sketch::FAttribute>>> Attributes;
 
 	TSharedPtr<SVerticalBox> SlotAttributesBox;
 	TSharedPtr<SVerticalBox> AttributesBox;
 
-	uint8 bShowLine : 1 = false;
-	uint8 bShowName : 1 = false;
-	uint8 bShowInteractivity : 1 = false;
-	uint8 bShowNumUsers : 1 = false;
-	uint8 bAllowCodePatching : 1 = false;
+	TWeakPtr<SSketchHeaderRow> WeakHeader;
+	TOptional<bool> bShowLine;
+	TOptional<bool> bShowName;
+	TOptional<bool> bShowInteractivity;
+	TOptional<bool> bShowNumUsers;
+	TOptional<bool> bAllowCodePatching;
 };

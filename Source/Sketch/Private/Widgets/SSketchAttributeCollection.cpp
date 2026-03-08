@@ -3,8 +3,11 @@
 #include "Widgets/SSketchAttribute.h"
 #include "Sketch.h"
 
+#define LOCTEXT_NAMESPACE "SSketchAttributeCollection"
+
 void SSketchAttributeCollection::Construct(const FArguments& InArgs)
 {
+	WeakHeader = InArgs._HeaderRow;
 	bShowLine = InArgs._ShowLine;
 	bShowName = InArgs._ShowName;
 	bShowInteractivity = InArgs._ShowInteractivity;
@@ -13,51 +16,48 @@ void SSketchAttributeCollection::Construct(const FArguments& InArgs)
 
 	ChildSlot
 	[
-		SNew(SScrollBox)
+		SNew(SVerticalBox)
 
-		+ SScrollBox::Slot()
-		.FillSize(1)
+		+ SVerticalBox::Slot()
+		.AutoHeight()
 		[
-			SNew(SVerticalBox)
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				SAssignNew(SlotAttributesBox, SVerticalBox)
-			]
+			SAssignNew(SlotAttributesBox, SVerticalBox)
+		]
 
-			+ SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SNew(SSpacer)
-				.Size(8)
-				.Visibility(this, &SSketchAttributeCollection::GetAttributeGroupSpacerVisibility)
-			]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SSpacer)
+			.Size(8)
+			.Visibility(this, &SSketchAttributeCollection::GetAttributeGroupSpacerVisibility)
+		]
 
-			+ SVerticalBox::Slot().AutoHeight()
-			[
-				SAssignNew(AttributesBox, SVerticalBox).Clipping(EWidgetClipping::ClipToBounds)
-			]
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(AttributesBox, SVerticalBox)
 		]
 	];
 	if (InArgs._SlotAttributes)
-		SetSlotAttributes(*InArgs._SlotAttributes);
+		SetSlotAttributes(InArgs._SlotAttributes);
 	if (InArgs._Attributes)
-		SetAttributes(*InArgs._Attributes);
+		SetAttributes(InArgs._Attributes);
 }
 
-void SSketchAttributeCollection::SetSlotAttributes(const sketch::FAttributeCollectionHandle& InAttributes)
+void SSketchAttributeCollection::SetSlotAttributes(const sketch::FConstAttributeCollection& InAttributes)
 {
 	SetAttributes(SlotAttributes, InAttributes, SlotAttributesBox, false);
 }
 
-void SSketchAttributeCollection::SetAttributes(const sketch::FAttributeCollectionHandle& InAttributes)
+void SSketchAttributeCollection::SetAttributes(const sketch::FConstAttributeCollection& InAttributes)
 {
 	SetAttributes(Attributes, InAttributes, AttributesBox, bAllowCodePatching);
 }
 
 void SSketchAttributeCollection::Update()
 {
-	SetSlotAttributes(SlotAttributes);
-	SetAttributes(Attributes);
+	SetSlotAttributes({ SlotAttributes.Pin() });
+	SetAttributes({ Attributes.Pin() });
 }
 
 EVisibility SSketchAttributeCollection::GetAttributeGroupSpacerVisibility() const
@@ -68,27 +68,32 @@ EVisibility SSketchAttributeCollection::GetAttributeGroupSpacerVisibility() cons
 }
 
 void SSketchAttributeCollection::SetAttributes(
-	sketch::FAttributeCollectionHandle& AttributesToSet,
-	const sketch::FAttributeCollectionHandle& NewAttributes,
+	TWeakPtr<const TArray<const TSharedPtr<sketch::FAttribute>>>& WeakAttributesToSet,
+	const sketch::FConstAttributeCollection& NewAttributes,
 	const TSharedPtr<SVerticalBox>& Box,
-	bool bActuallyAllowCodePatching
+	const TOptional<bool>& bActuallyAllowCodePatching
 )
 {
 	Box->ClearChildren();
 
-	AttributesToSet = NewAttributes;
-	if (!AttributesToSet.IsValid()) return;
+	WeakAttributesToSet = NewAttributes.Attributes;
+	if (!WeakAttributesToSet.IsValid()) return;
 
-	AttributesToSet << [&](sketch::FAttribute& Attribute, const auto& It)
+	for (const TSharedPtr<sketch::FAttribute>& Attribute : *NewAttributes)
 	{
-		Box->AddSlot().AutoHeight()
+		Box->AddSlot()
+		   .AutoHeight()
+		   .Padding(0, 0, 0, 1)
 		[
-			SNew(SSketchAttribute, sketch::FAttributeHandle{ .CollectionHandle = AttributesToSet, .Index = It.GetIndex() })
+			SNew(SSketchAttribute, *Attribute)
+			.HeaderRow(WeakHeader)
 			.ShowLine(bShowLine)
 			.ShowName(bShowName)
 			.ShowInteractivity(bShowInteractivity)
 			.ShowNumUsers(bShowNumUsers)
 			.AllowCodePatching(bActuallyAllowCodePatching)
 		];
-	};
+	}
 }
+
+#undef LOCTEXT_NAMESPACE

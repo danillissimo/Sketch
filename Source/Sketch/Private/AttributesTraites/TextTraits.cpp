@@ -2,14 +2,24 @@
 
 #include "Sketch.h"
 
-TSharedRef<SWidget> sketch::TAttributeTraits<FText>::MakeEditor(const FAttributeHandle& Handle)
+static sketch::FHeaderToolAttributeFilter GTextFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("FText");
+});
+
+TSharedRef<SWidget> sketch::FTextAttribute::MakeEditor()
 {
 	return SNew(SEditableTextBox)
-		.Text_Lambda([Handle] { return Handle.GetValue<FText>({}); })
-		.OnTextChanged_Lambda([Handle](const FText& NewText) { Handle.SetValue<FText>(NewText); });
+		.Text(TAttribute<FText>::CreateSP(this, &FTextAttribute::CopyValue))
+		.OnTextChanged(FOnTextChanged::CreateSP(this, &FTextAttribute::SetValue));
 }
 
-FString sketch::TAttributeTraits<FText>::GenerateCode(const FText& Text)
+FString sketch::FTextAttribute::GenerateCode() const
 {
-	return FString::Printf(TEXT("INVTEXT(\"%s\")"), *Text.ToString());
+	return FString::Printf(TEXT("INVTEXT(\"%s\")"), *Value.ToString());
+}
+
+bool sketch::FTextAttribute::Equals(const IAttributeImplementation& Other) const
+{
+	return static_cast<const FTextAttribute&>(Other).Value.EqualTo(Value);
 }

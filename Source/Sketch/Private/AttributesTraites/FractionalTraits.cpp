@@ -3,30 +3,30 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "Sketch.h"
 
-TSharedRef<SWidget> sketch::TAttributeTraits<float>::MakeEditor(const FAttributeHandle& Handle)
+static sketch::FHeaderToolAttributeFilter GFractionalFilter([](FStringView Attribute)
 {
-	return SNew(SSpinBox<float>)
-		.Font(Private::DefaultFont())
+	return Attribute == TEXT("float") || Attribute == TEXT("double");
+});
+
+template <class T>
+TSharedRef<SWidget> sketch::TFractionalAttribute<T>::MakeEditor()
+{
+	return SNew(SSpinBox<T>)
 		.Delta(0.0001)
-		.Value_Lambda([Handle] { return Handle.GetValue<float>(0.f); })
-		.OnValueChanged_Lambda([Handle](float NewValue) { Handle.SetValue<float>(NewValue); });
+		.Value(static_cast<Super*>(this), &Super::CopyValue)
+		.OnValueChanged(static_cast<Super*>(this), &Super::ReceiveValue);
 }
 
-FString sketch::TAttributeTraits<float>::GenerateCode(const float& Float)
+template <class T>
+FString sketch::TFractionalAttribute<T>::GenerateCode() const
 {
-	return FString::SanitizeFloat(Float);
+	FString Result = FString::SanitizeFloat(Value);
+	if constexpr (std::is_same_v<T, float>)
+	{
+		Result += TEXT("f");
+	}
+	return Result;
 }
 
-TSharedRef<SWidget> sketch::TAttributeTraits<double>::MakeEditor(const FAttributeHandle& Handle)
-{
-	return SNew(SSpinBox<double>)
-		.Font(Private::DefaultFont())
-		.Delta(0.0001)
-		.Value_Lambda([Handle] { return Handle.GetValue<double>(0.f); })
-		.OnValueChanged_Lambda([Handle](double NewValue) { Handle.SetValue<double>(NewValue); });
-}
-
-FString sketch::TAttributeTraits<double>::GenerateCode(const double& Double)
-{
-	return FString::SanitizeFloat(Double);
-}
+template struct sketch::TFractionalAttribute<float>;
+template struct sketch::TFractionalAttribute<double>;

@@ -3,10 +3,12 @@
 
 namespace sketch
 {
-	template <>
-	struct TAttributeTraits<FOptionalSize> : public TCommonAttributesTraits<FOptionalSize>
+	struct FOptionalSizeAttribute : public TCommonAttributeImplementation<FOptionalSize>
 	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		// SKETCH_API static FString GenerateCode(const FMargin& Margin);
+		using TCommonAttributeImplementation::TCommonAttributeImplementation;
+		virtual TSharedRef<SWidget> MakeEditor() override;
 	};
+
+	template <>
+	struct TAttributeTraits<FOptionalSize> : public TCommonAttributeTraits<FOptionalSizeAttribute> {};
 }

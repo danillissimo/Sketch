@@ -1,17 +1,41 @@
 #include "AttributesTraites/ColorTraits.h"
 
 #include "Sketch.h"
+#include "SketchSandbox.h"
 #include "Runtime/AppFramework/Public/Widgets/Colors/SColorPicker.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/Colors/SColorBlock.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SColorEditor"
 
+static sketch::FHeaderToolAttributeFilter GColorFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("FSlateColor") || Attribute == TEXT("FLinearColor");
+});
+
+static sketch::Sandbox::TItemInitializer<FSlateColor> GSandboxColor(TEXT("Color"));
+
+struct FAccessibleSlateColorFields : FSlateColor
+{
+public:
+	using FSlateColor::SpecifiedColor;
+	using FSlateColor::ColorUseRule;
+};
+struct FAllSlateColorFields
+{
+	FLinearColor SpecifiedColor;
+	ESlateColorStylingMode ColorUseRule;
+	EStyleColor ColorTableId;
+};
+static_assert(sizeof(FAllSlateColorFields) == sizeof(FSlateColor));
+static_assert(alignof(FAllSlateColorFields) == alignof(FSlateColor));
+static_assert(offsetof(FAllSlateColorFields, SpecifiedColor) == offsetof(FAccessibleSlateColorFields, SpecifiedColor));
+static_assert(offsetof(FAllSlateColorFields, ColorUseRule) == offsetof(FAccessibleSlateColorFields, ColorUseRule));
+
 template <class T>
 class SColorEditor : public SCompoundWidget
 {
 	static constexpr bool bSlateColor = std::is_same_v<T, FSlateColor>;
-	enum ESlateColor { SC_GlobalStyle, SC_Style, SC_Foreground, SC_SubduedForeground };
 
 public:
 	SLATE_BEGIN_ARGS(SColorEditor)
@@ -20,19 +44,20 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const sketch::FAttributeHandle& InHandle)
+	void Construct(const FArguments& InArgs, sketch::TColorAttribute<T>& Attribute)
 	{
-		Handle = InHandle;
-		Color = bSlateColor ? Handle.GetValue<FSlateColor>().GetSpecifiedColor() : Handle.GetValue<FLinearColor>();
+		WeakAttribute = Attribute.AsSharedSubobject(&Attribute);
+		Color = Attribute.Value;
 
 		SHorizontalBox::FArguments Box;
-		Box + SHorizontalBox::Slot().AutoWidth()
+		Box + SHorizontalBox::Slot()
+		.FillContentWidth(1,1)
 		[
 			SNew(SBorder)
 			.Padding(1)
 			[
 				SNew(SColorBlock)
-				.Size(FVector2D{64, 16})
+				.Size(FVector2D{ 64, 16 })
 				.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
 				.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
 				.ShowBackgroundForAlpha(true)
@@ -44,14 +69,16 @@ public:
 
 		if constexpr (bSlateColor)
 		{
-			Box + SHorizontalBox::Slot().AutoWidth()
+			Box + SHorizontalBox::Slot()
+			.FillContentWidth(1,1)
 			[
 				SAssignNew(ComboButton, SComboButton)
 				.OnGetMenuContent(this, &SColorEditor::ListSlateColors)
-				.IsEnabled(false)
 				.ButtonContent()
 				[
-					SNew(STextBlock).Text(LOCTEXT("SlateColor", "Slate Color"))
+					SNew(STextBlock)
+					.Text(this, &SColorEditor::GetSlateColorName)
+					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
 				]
 			];
 		}
@@ -63,14 +90,14 @@ public:
 	}
 
 private:
-	FLinearColor GetColor() const { return Color; }
+	FLinearColor GetColor() const { return Color.GetSpecifiedColor(); }
 
 	FReply OpenColorPicker(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 	{
 		FColorPickerArgs Args;
 		Args.bUseAlpha = true;
 		Args.bClampValue = true;
-		Args.InitialColor = Color;
+		Args.InitialColor = Color.GetSpecifiedColor();
 		Args.OnColorCommitted.BindSP(this, &SColorEditor::OnColorChanged);
 		Args.OnColorPickerCancelled.BindSP(this, &SColorEditor::OnColorChanged);
 		::OpenColorPicker(Args);
@@ -79,28 +106,32 @@ private:
 
 	void OnColorChanged(FLinearColor NewColor)
 	{
-		Color = Handle.SetValue(T(NewColor)) ? NewColor : FLinearColor::Black;
+		Color = NewColor;
+		if (TSharedPtr<sketch::TColorAttribute<T>> Attribute = WeakAttribute.Pin())[[likely]]
+		{
+			Attribute->SetValue(NewColor);
+		}
 	}
 
 	TSharedRef<SWidget> ListSlateColors()
 	{
 		FMenuBuilder Menu(true, nullptr);
-		for (const auto& [SpecialSlateColor, Label, Type] : {
-			     MakeTuple(FSlateColor::UseStyle(),LOCTEXT("SlateColor.UseStyle", "Use Style"), SC_Style),
-			     MakeTuple(FSlateColor::UseForeground(),LOCTEXT("SlateColor.UseForeground", "Use Foreground"), SC_Foreground),
-			     MakeTuple(FSlateColor::UseSubduedForeground(),LOCTEXT("SlateColor.UseSubduedForeground", "Use Subdued Foreground"), SC_SubduedForeground),
+		for (const auto& [SpecialSlateColor, Label] : {
+			     MakeTuple(FSlateColor::UseStyle(),LOCTEXT("SlateColor.UseStyle", "Style")),
+			     MakeTuple(FSlateColor::UseForeground(),LOCTEXT("SlateColor.UseForeground", "Foreground")),
+			     MakeTuple(FSlateColor::UseSubduedForeground(),LOCTEXT("SlateColor.UseSubduedForeground", "Subdued Foreground")),
 		     })
 		{
 			FMenuEntryParams Entry;
 			Entry.LabelOverride = Label;
-			Entry.DirectActions.ExecuteAction.BindSP(this, &SColorEditor::OnSlateColorSelected, SpecialSlateColor, Type);
+			Entry.DirectActions.ExecuteAction.BindSP(this, &SColorEditor::OnSlateColorSelected, SpecialSlateColor);
 			Menu.AddMenuEntry(Entry);
 		}
 
 		for (EStyleColor StyleColor = EStyleColor(0); StyleColor < EStyleColor::MAX; ++(std::underlying_type_t<EStyleColor>&)(StyleColor))
 		{
 			FMenuEntryParams Entry;
-			Entry.DirectActions.ExecuteAction.BindSP(this, &SColorEditor::OnSlateColorSelected, FSlateColor(StyleColor), SC_GlobalStyle);
+			Entry.DirectActions.ExecuteAction.BindSP(this, &SColorEditor::OnSlateColorSelected, FSlateColor(StyleColor));
 			Entry.EntryWidget = SNew(SHorizontalBox)
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -110,7 +141,7 @@ private:
 					.Padding(0.9)
 					[
 						SNew(SColorBlock)
-						.Size(FVector2D{32, 16})
+						.Size(FVector2D{ 32, 16 })
 						.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
 						.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
 						.ShowBackgroundForAlpha(true)
@@ -124,37 +155,94 @@ private:
 				.Padding(4., 0.)
 				[
 					SNew(STextBlock)
-					.Text(StaticEnum<EStyleColor>()->GetDisplayNameTextByIndex(static_cast<int>(StyleColor)))
+					.Text(StaticEnum<EStyleColor>()->GetDisplayNameTextByValue(static_cast<int>(StyleColor)))
 				];
 			Menu.AddMenuEntry(Entry);
 		}
 		return Menu.MakeWidget();
 	}
 
-	void OnSlateColorSelected(FSlateColor NewSlateColor, ESlateColor Type)
+	void OnSlateColorSelected(FSlateColor NewSlateColor)
 	{
-		SlateColor = NewSlateColor;
-		Color = NewSlateColor.GetSpecifiedColor();
-		// ComboButton->SetContent(
-		// 	SNew(STextBlock).Text(NewSlateColor.)
-		// );
+		Color = NewSlateColor;
+		if (auto Attribute = WeakAttribute.Pin())[[likely]]
+		{
+			if constexpr (bSlateColor)
+			{
+				Attribute->SetValue(Color);
+			}
+			else
+			{
+				Attribute->SetValue(Color.GetSpecifiedColor());
+			}
+		}
 	}
 
-	sketch::FAttributeHandle Handle;
-	FLinearColor Color = FLinearColor::Black;
-	TSharedPtr<SColorBlock> ColorBlock;
+	FText GetSlateColorName() const
+	{
+		const FAllSlateColorFields& ColorInternals = (const FAllSlateColorFields&)(Color);
+		switch (ColorInternals.ColorUseRule)
+		{
+		case ESlateColorStylingMode::UseColor_Specified: return LOCTEXT("SlateColor.UseSpecified", "Specified Color");
+		case ESlateColorStylingMode::UseColor_ColorTable: return StaticEnum<EStyleColor>()->GetDisplayNameTextByValue(static_cast<int>(ColorInternals.ColorTableId));
+			break;
+		case ESlateColorStylingMode::UseColor_Foreground: return LOCTEXT("SlateColor.UseForeground", "Foreground");
+		case ESlateColorStylingMode::UseColor_Foreground_Subdued: return LOCTEXT("SlateColor.UseSubduedForeground", "Subdued Foreground");
+		case ESlateColorStylingMode::UseColor_UseStyle: return LOCTEXT("SlateColor.UseStyle", "Style");
+			break;
+		default: return LOCTEXT("Unknown", "Unknown");
+		}
+	}
 
-	FSlateColor SlateColor;
+	TWeakPtr<sketch::TColorAttribute<T>> WeakAttribute;
+	FSlateColor Color;
+
 	TSharedPtr<SComboButton> ComboButton;
 };
 
-TSharedRef<SWidget> sketch::TAttributeTraits<FLinearColor>::MakeEditor(const FAttributeHandle& Handle)
+template <class T>
+TSharedRef<SWidget> sketch::TColorAttribute<T>::MakeEditor()
 {
-	return SNew(SColorEditor<FLinearColor>, Handle);
+	return SNew(SColorEditor<T>, *this);
 }
 
-FString sketch::TAttributeTraits<FLinearColor>::GenerateCode(const FLinearColor& Color)
+template <class T>
+FString sketch::TColorAttribute<T>::GenerateCode() const
 {
+	constexpr bool bSlateColor = std::is_same_v<T, FSlateColor>;
+	if constexpr (bSlateColor)
+	{
+		const FAllSlateColorFields& Color = (const FAllSlateColorFields&)(Value);
+		switch (Color.ColorUseRule)
+		{
+		case ESlateColorStylingMode::UseColor_ColorTable:
+			{
+				FString Result = TEXT("FSlateColor(EStyleColor::");
+				Result += StaticEnum<EStyleColor>()->GetNameStringByValue(static_cast<int>(Color.ColorTableId));
+				Result += TEXT(")");
+				return Result;
+			}
+		case ESlateColorStylingMode::UseColor_Foreground:
+			return TEXT("FSlateColor::UseForeground()");
+		case ESlateColorStylingMode::UseColor_Foreground_Subdued:
+			return TEXT("FSlateColor::UseSubduedForeground()");
+		case ESlateColorStylingMode::UseColor_UseStyle:
+			return TEXT("FSlateColor::UseStyle()");
+		case ESlateColorStylingMode::UseColor_Specified:
+		default:
+			break;
+		}
+	}
+
+	FLinearColor Color;
+	if constexpr (std::is_same_v<FSlateColor, T>)
+	{
+		Color = Value.GetSpecifiedColor();
+	}
+	else
+	{
+		Color = Value;
+	}
 	FString Result;
 	Result.Reserve(32);
 	Result += TEXT("FLinearColor{ ");
@@ -172,14 +260,7 @@ FString sketch::TAttributeTraits<FLinearColor>::GenerateCode(const FLinearColor&
 	return Result;
 }
 
-TSharedRef<SWidget> sketch::TAttributeTraits<FSlateColor>::MakeEditor(const FAttributeHandle& Handle)
-{
-	return SNew(SColorEditor<FSlateColor>, Handle);
-}
-
-FString sketch::TAttributeTraits<FSlateColor>::GenerateCode(const FSlateColor& Color)
-{
-	return TAttributeTraits<FLinearColor>::GenerateCode(Color.GetSpecifiedColor());
-}
+template struct sketch::TColorAttribute<FLinearColor>;
+template struct sketch::TColorAttribute<FSlateColor>;
 
 #undef LOCTEXT_NAMESPACE

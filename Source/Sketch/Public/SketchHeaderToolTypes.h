@@ -11,6 +11,7 @@ namespace sketch::HeaderTool
 	public:
 		SLATE_METADATA_TYPE(FUniqueSlotMeta, ISlateMetaData)
 		TMap<FName, TWeakPtr<SSketchWidget>> Slots;
+		SKETCH_API TSharedRef<SSketchWidget> AddSlot(const SWidget* OldWidget, const FName& SlotType);
 
 		SKETCH_API static FFactory::FUniqueSlots GetSlots(SWidget& Widget);
 	};
@@ -41,5 +42,16 @@ namespace sketch::HeaderTool
 		Bind(Accessor.ShrinkSizeValue, Sketch(TEXT("ShrinkSizeValue"), 1.f));
 		Bind(Accessor.MinSize, Sketch(TEXT("MinSize"), 0.f));
 		Bind(Accessor.MaxSize, Sketch(TEXT("MaxSize"), 0.f));
+	}
+
+	template <class T>
+	void DestroyDynamicSlot(SWidget& InWidget, const FName& SlotType, int Index, FSlotBase& Slot)
+	{
+		// Multiple ways to remove a widget are prepared
+		// But looks like it's always by a shared ref
+		// So be it
+		check(SlotType == TEXT("FSlot"));
+		T& Widget = static_cast<T&>(InWidget);
+		Widget.RemoveSlot(Slot.GetWidget());
 	}
 }

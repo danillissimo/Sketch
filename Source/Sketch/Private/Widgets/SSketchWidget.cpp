@@ -8,20 +8,6 @@ SLATE_IMPLEMENT_WIDGET(SSketchWidget)
 void SSketchWidget::PrivateRegisterAttributes(FSlateAttributeDescriptor::FInitializer&)
 {}
 
-sketch::FFactory::FUniqueSlots SSketchWidget::CollectUniqueSlots() const
-{
-	if (!ContentFactory.IsValid())
-		return {};
-
-	const sketch::FFactory* Factory = ContentFactory.Resolve();
-	if (!Factory) [[unlikely]]
-		return {};
-
-	return Factory->EnumerateUniqueSlots.IsSet()
-			? Factory->EnumerateUniqueSlots(GetContent())
-			: sketch::FFactory::FUniqueSlots{};
-}
-
 SSketchWidget::FSlot* SSketchWidget::FindSlotFor(SSketchWidget* Widget)
 {
 	for (auto& [Type,TypedSlots] : Slots)
@@ -79,23 +65,38 @@ SSketchWidget* SSketchWidget::FindRoot() const
 
 void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bool bSuppressModificationEvent)
 {
+	// Unassign current factory if any
 	if (ContentFactory.IsValid())
 		UnassignFactory();
 
+	// Reset content
 	Overlay->ClearChildren();
 
-	auto& Host = FSketchModule::Get();
-	const sketch::FFactory& Factory = Host.Factories[FactoryType][FactoryIndex];
-	Host.RedirectNewAttributesInto(*this, Attributes);
-	TSharedRef<SWidget> Widget = Factory.ConstructWidget();
-	Host.StopRedirectingNewAttributes();
+	// Construct new widget
+	auto& Core = FSketchCore::Get();
+	const sketch::FFactory& Factory = Core.Factories[FactoryType][FactoryIndex];
+	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
+	TSharedRef<SWidget> Widget = Factory.ConstructWidget(nullptr);
+	Core.StopRedirectingNewAttributes();
 
+	// Start listening non-dynamic attributes
+	for (TSharedPtr<sketch::FAttribute>& Attribute : Attributes)
+	{
+		if (!Attribute->IsDynamic()) [[unlikely]]
+		{
+			Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::RebuildWidget);
+		}
+	}
+
+	// Cache current factory
 	ContentFactory.Type = FactoryType;
 	ContentFactory.Name = Factory.Name;
 
+	// Compose new content
 	Overlay->AddSlot()[MoveTemp(Widget)];
 	Overlay->AddSlot()[Border.ToSharedRef()];
 
+	// Notify whoever
 	BroadcastModification(bSuppressModificationEvent);
 }
 
@@ -111,12 +112,77 @@ void SSketchWidget::UnassignFactory()
 	ContentFactory.Name = NAME_None;
 }
 
-void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
+void SSketchWidget::RebuildWidget()
 {
+	// Some non-dynamic widget attribute was changed
+	// Old widget has to be destroyed, but all of its attributes and slots must be preserved
+	// Do not detach from current attributes cause they will be reused
+
+	// Preserve old content so we can retrieve unique slots from it
+	TSharedRef<SWidget> OldContent = GetContent().AsShared();
+
+	// Reset content
 	Overlay->ClearChildren();
 
+	// Reconstruct widget
+	auto& Core = FSketchCore::Get();
+	const sketch::FFactory& Factory = *Core.Factories[ContentFactory.Type].FindByPredicate([&](const sketch::FFactory& F) { return F.Name == ContentFactory.Name; });
+	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
+	TSharedRef<SWidget> Widget = Factory.ConstructWidget(&*OldContent);
+	Core.StopRedirectingNewAttributes();
+
+	// Restore dynamic slots
+	for (auto& [Type, TypedSlots] : Slots)
+	{
+		for (FSlot& Slot : TypedSlots)
+		{
+			Core.RedirectNewAttributesInto(Slot.Attributes);
+			Slot.Slot = &Factory.ConstructDynamicSlot(*Widget, Type);
+			Core.StopRedirectingNewAttributes();
+			Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
+		}
+	}
+
+	// Compose new content
+	Overlay->AddSlot()[MoveTemp(Widget)];
+	Overlay->AddSlot()[Border.ToSharedRef()];
+}
+
+void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
+{
+	// We don't currently have any means to remake a single slot
+	// And it's unlikely they will ever appear
+	// 'Cause different widgets' slot order is configured differently
+	// And it's very hard to determine correct way to recreate a slot procedurally
+	// But slots are usually stored in a kind of internal stack
+	// So a single slot can be recreated by destroying it and constructing it again at the same depth of the stack
+	// But to access this exact position - the entire city must be purged
+	// Or at least slots occupying indices larger than the one to be remade
+	// So kill all slots starting from the requested one, and then remake them all back
+	sketch::FFactory* Factory = ContentFactory.Resolve();
+	auto& TypedSlots = Slots[Type];
+	SWidget& Content = *Overlay->GetChildren()->GetChildAt(0);
+	for (int i = TypedSlots.Num() - 1; i >= Index; --i)
+	{
+		FSlot& Slot = TypedSlots[i];
+		Factory->DestroyDynamicSlot(Content, Type, i, *Slot.Slot);
+	}
+	auto& Core = FSketchCore::Get();
+	for (int i = Index; i < TypedSlots.Num(); ++i)
+	{
+		FSlot& Slot = TypedSlots[i];
+		Core.RedirectNewAttributesInto(Slot.Attributes);
+		Slot.Slot = &Factory->ConstructDynamicSlot(Content, Type);
+		Core.StopRedirectingNewAttributes();
+		Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
+	}
+}
+
+void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
+{
 	UnassignFactory();
 
+	Overlay->ClearChildren();
 	Overlay->AddSlot();
 	Overlay->AddSlot()[Border.ToSharedRef()];
 
@@ -125,19 +191,33 @@ void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
 
 int SSketchWidget::AddDynamicSlot(const FName& Type, bool bSuppressModificationEvent)
 {
+	// Make slot container
 	auto& TypedSlots = Slots.FindOrAdd(Type);
 	FSlot& Slot = TypedSlots.Emplace_GetRef();
-	Slot.Attributes = MakeShared<TArray<sketch::FAttribute>>();
+	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
 	Slot.Widget = SNew(SSketchWidget);
 
-	auto& Host = FSketchModule::Get();
+	// Make slot
+	auto& Core = FSketchCore::Get();
 	sketch::FFactory* Factory = ContentFactory.Resolve();
-	Host.RedirectNewAttributesInto(Slot.Attributes);
+	Core.RedirectNewAttributesInto(Slot.Attributes);
 	Slot.Slot = &Factory->ConstructDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Type);
-	Host.StopRedirectingNewAttributes();
+	Core.StopRedirectingNewAttributes();
 	Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
 
+	// Start listening non-dynamic attributes
+	for (TSharedPtr<sketch::FAttribute>& Attribute : *Slot.Attributes)
+	{
+		if (!Attribute->IsDynamic()) [[unlikely]]
+		{
+			Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::OnSlotNonDynamicAttributeChanged, Type, TypedSlots.Num() - 1);
+		}
+	}
+
+	// Notify whoever
 	BroadcastModification(bSuppressModificationEvent);
+
+	// Return new slot index
 	return TypedSlots.Num() - 1;
 }
 
@@ -176,10 +256,87 @@ void SSketchWidget::RemoveDynamicSlot(const FName& Type, int Index, bool bSuppre
 	BroadcastModification(bSuppressModificationEvent);
 }
 
-SSketchWidget::FArguments::WidgetArgsType& SSketchWidget::FArguments::SetupAsUniqueSlotContainer(const FStringView& SlotName)
+FString SSketchWidget::GenerateCode() const
+{
+	// Make sure there's anything to do
+	sketch::FFactory* Factory = ContentFactory.Resolve();
+	if (!Factory) return {};
+
+	// Init resulting string
+	FString Result;
+	Result.Reserve(1024);
+
+	// Make widget constructor
+	Result += TEXT("SNew(S");
+	ContentFactory.Name.AppendString(Result);
+	Result += TEXT(")");
+
+	// Add all modified attributes
+	for (const TSharedPtr<sketch::FAttribute>& Attribute : Attributes)
+	{
+		if (Attribute->IsSetToDefault()) continue;
+
+		Result += TEXT("\r\n.");
+		Attribute->GetName().AppendString(Result);
+		Result += TEXT("(");
+		Result += Attribute->GetValue()->GenerateCode();
+		Result += TEXT(")");
+	}
+
+	// Add all non-empty unique slots
+	if (Factory->EnumerateUniqueSlots)
+	{
+		sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(GetContent());
+		for (SSketchWidget* UniqueSlot : UniqueSlots)
+		{
+			Result += TEXT("\r\n.");
+			UniqueSlot->GetTag().AppendString(Result);
+			Result += TEXT("()\r\n[\r\n\t");
+			Result += UniqueSlot->GenerateCode();
+			Result += TEXT("\r\n]");
+		}
+	}
+
+	// Add all dynamic slots
+	for (const auto& [Type, TypedSlots] : Slots)
+	{
+		for (const FSlot& Slot : TypedSlots)
+		{
+			Result += TEXT("\r\n\r\n+ S");
+			ContentFactory.Name.AppendString(Result);
+			Result += TEXT("::");
+			Type.AppendString(Result);
+			Result += TEXT("()");
+			for (const TSharedPtr<sketch::FAttribute>& Attribute : *Slot.Attributes)
+			{
+				if (Attribute->IsSetToDefault()) continue;
+
+				Result += TEXT("\r\n.");
+				Attribute->GetName().AppendString(Result);
+				Result += TEXT("(");
+				Result += Attribute->GetValue()->GenerateCode();
+				Result += TEXT(")");
+			}
+			constexpr FStringView Tab(TEXT("\t"));
+			FString SlotContent = Tab + Slot.Widget->GenerateCode();
+			if (SlotContent != Tab)
+			{
+				SlotContent.ReplaceInline(TEXT("\r\n"), TEXT("\r\n\t"), ESearchCase::CaseSensitive);
+				SlotContent.RemoveFromEnd(Tab, ESearchCase::CaseSensitive);
+				Result += TEXT("\r\n[\r\n");
+				Result += SlotContent;
+				Result += TEXT("\r\n]");
+			}
+		}
+	}
+
+	return Result;
+}
+
+SSketchWidget::FArguments::WidgetArgsType& SSketchWidget::FArguments::SetupAsUniqueSlotContainer(const FName& SlotName)
 {
 	_bRoot = false;
-	Tag(FName(SlotName));
+	Tag(SlotName);
 	return *this;
 }
 
@@ -275,6 +432,20 @@ FReply SSketchWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoin
 	return FReply::Handled();
 }
 
+sketch::FFactory::FUniqueSlots SSketchWidget::CollectUniqueSlots(SWidget& Content) const
+{
+	if (!ContentFactory.IsValid())
+		return {};
+
+	const sketch::FFactory* Factory = ContentFactory.Resolve();
+	if (!Factory) [[unlikely]]
+		return {};
+
+	return Factory->EnumerateUniqueSlots.IsSet()
+		       ? Factory->EnumerateUniqueSlots(Content)
+		       : sketch::FFactory::FUniqueSlots{};
+}
+
 void SSketchWidget::BroadcastModification(bool bSuppress)
 {
 	if (bSuppress) return;
@@ -293,12 +464,12 @@ void SSketchWidget::OnConstructSlot(FName Name)
 {
 	sketch::FFactory* Factory = ContentFactory.Resolve();
 	FSlot& Slot = Slots.FindOrAdd(Name).Emplace_GetRef();
-	Slot.Attributes = MakeShared<TArray<sketch::FAttribute>>();
+	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
 	Slot.Widget = SNew(SSketchWidget);
-	auto& Host = FSketchModule::Get();
-	Host.RedirectNewAttributesInto(Slot.Attributes);
+	auto& Core = FSketchCore::Get();
+	Core.RedirectNewAttributesInto(Slot.Attributes);
 	Slot.Slot = &Factory->ConstructDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Name);
-	Host.StopRedirectingNewAttributes();
+	Core.StopRedirectingNewAttributes();
 	Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
 	BroadcastModification(false);
 }
@@ -315,8 +486,8 @@ void SSketchWidget::OnDestroySlot(FName Type, int Index)
 
 void SSketchWidget::OnListFactoriesOfType(FMenuBuilder& SubMenu, FName Type)
 {
-	const auto& Host = FSketchModule::Get();
-	for (auto Factory = Host.Factories[Type].CreateConstIterator(); Factory; ++Factory)
+	const auto& Core = FSketchCore::Get();
+	for (auto Factory = Core.Factories[Type].CreateConstIterator(); Factory; ++Factory)
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = FText::FromName(Factory->Name);
@@ -327,15 +498,15 @@ void SSketchWidget::OnListFactoriesOfType(FMenuBuilder& SubMenu, FName Type)
 
 void SSketchWidget::OnFactorySelected(FName Type, int Index)
 {
-	auto& Host = FSketchModule::Get();
+	auto& Core = FSketchCore::Get();
 	Overlay->ClearChildren();
 
-	Host.RedirectNewAttributesInto(*this, Attributes);
-	const sketch::FFactory& Factory = Host.Factories[Type][Index];
+	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
+	const sketch::FFactory& Factory = Core.Factories[Type][Index];
 	ContentFactory.Type = Type;
 	ContentFactory.Name = Factory.Name;
-	TSharedRef<SWidget> Widget = Factory.ConstructWidget();
-	Host.StopRedirectingNewAttributes();
+	TSharedRef<SWidget> Widget = Factory.ConstructWidget(nullptr);
+	Core.StopRedirectingNewAttributes();
 	Overlay->AddSlot()[MoveTemp(Widget)];
 
 	Overlay->AddSlot()[Border.ToSharedRef()];

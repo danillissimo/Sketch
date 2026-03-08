@@ -98,24 +98,38 @@ void SSketch::Construct(const FArguments& InArgs)
 		.ShowNumUsers(false);
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
+		SNew(SSplitter)
 
-		+ SHorizontalBox::Slot()
-		.AutoWidth()
+		+ SSplitter::Slot()
 		[
 			SNew(SSketchOutliner, Sketch.Get())
 			.AttributeCollection(&PropertyEditor.Get())
 		]
 
-		+ SHorizontalBox::Slot()
+		+ SSplitter::Slot()
 		[
 			MoveTemp(Sketch)
+
 		]
 
-		+ SHorizontalBox::Slot().AutoWidth()
+		+ SSplitter::Slot()
 		[
+
 			MoveTemp(PropertyEditor)
 		]
+
+		// + SHorizontalBox::Slot()
+		// .AutoWidth()
+		// [
+		// ]
+		//
+		// + SHorizontalBox::Slot()
+		// [
+		// ]
+		//
+		// + SHorizontalBox::Slot().AutoWidth()
+		// [
+		// ]
 		// SNew(SSplitter)
 		// .Orientation(Orient_Vertical)
 		//

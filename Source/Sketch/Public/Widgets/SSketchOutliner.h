@@ -16,6 +16,7 @@ public:
 private:
 	static void OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeakPtr<SSketchWidget>>& Children);
 	static TSharedRef<ITableRow> OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner);
+	static FReply OnExportRow(TWeakPtr<SSketchWidget> InItem);
 	void OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelectInfo::Type SelectionType);
 
 	TSharedPtr<SWidget> OnMakeContextMenu();

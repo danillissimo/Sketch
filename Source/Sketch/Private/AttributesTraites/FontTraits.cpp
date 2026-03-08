@@ -1,10 +1,18 @@
 #include "AttributesTraites/FontTraits.h"
 
 #include "Sketch.h"
+#include "SketchSandbox.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SFontEditor"
+
+static sketch::FHeaderToolAttributeFilter GFontFilter([](FStringView Attribute)
+{
+	return Attribute == TEXT("FSlateFontInfo");
+});
+
+static sketch::Sandbox::TItemInitializer<FSlateFontInfo> GSandboxFont(TEXT("Font"));
 
 struct FFontId
 {
@@ -30,56 +38,6 @@ struct FFontId
 
 	friend uint32 GetTypeHash(const FFontId& Id) { return HashCombineFast(GetTypeHash(Id.Style), GetTypeHash(Id.Name)); }
 	bool operator==(const FFontId& Other) const { return Style == Other.Style && Name == Other.Name; }
-};
-
-const TArray<FFontId>& GetFonts()
-{
-	static TArray<FFontId> Fonts;
-	if (Fonts.IsEmpty())
-	[[unlikely]]
-	{
-		Fonts.Reserve(256);
-		auto GatherFonts = [](const ISlateStyle& StyleInterface)-> bool
-		{
-			class FStyle : public FSlateStyleSet
-			{
-			public:
-				using FSlateStyleSet::FontInfoResources;
-			};
-			const auto& Style = static_cast<const FStyle&>(StyleInterface);
-			for (const auto& [Name, _] : Style.FontInfoResources)
-			{
-				Fonts.Emplace(&StyleInterface, Name);
-			}
-			return true;
-		};
-		FSlateStyleRegistry::IterateAllStyles(GatherFonts);
-	}
-	return Fonts;
-}
-
-sketch::FFont::FFont(const FSlateFontInfo& Info)
-	: FontInfo(Info)
-{
-	for (const FFontId& SomeFont : GetFonts())
-	{
-		if (SomeFont.GetFont() == FontInfo)
-		[[unlikely]]
-		{
-			StyleName = SomeFont.Style->GetStyleSetName();
-			FontName = SomeFont.Name;
-			break;
-		}
-	}
-}
-
-template <>
-struct TIsValidListItem<FFontId>
-{
-	enum
-	{
-		Value = true
-	};
 };
 
 template <>
@@ -133,6 +91,41 @@ public:
 	};
 };
 
+template <>
+struct TIsValidListItem<FFontId>
+{
+	enum
+	{
+		Value = true
+	};
+};
+
+const TArray<FFontId>& GetFonts()
+{
+	static TArray<FFontId> Fonts;
+	if (Fonts.IsEmpty())
+	[[unlikely]]
+	{
+		Fonts.Reserve(256);
+		auto GatherFonts = [](const ISlateStyle& StyleInterface)-> bool
+		{
+			class FStyle : public FSlateStyleSet
+			{
+			public:
+				using FSlateStyleSet::FontInfoResources;
+			};
+			const auto& Style = static_cast<const FStyle&>(StyleInterface);
+			for (const auto& [Name, _] : Style.FontInfoResources)
+			{
+				Fonts.Emplace(&StyleInterface, Name);
+			}
+			return true;
+		};
+		FSlateStyleRegistry::IterateAllStyles(GatherFonts);
+	}
+	return Fonts;
+}
+
 class SFontEditor : public SCompoundWidget
 {
 public:
@@ -142,20 +135,17 @@ public:
 
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const sketch::FAttributeHandle& InHandle)
+	void Construct(const FArguments& InArgs, sketch::FFontAttribute& Attribute)
 	{
-		Handle = InHandle;
+		WeakAttribute = Attribute.AsWeakSubobject(&Attribute);
 
-		// Locate current font and finalize its initialization
+		// Locate current font
 		{
-			sketch::FFont& Initializer = Handle->GetValueChecked<sketch::FFont>();
 			for (const FFontId& SomeFont : GetFonts())
 			{
-				if (SomeFont.GetFont() == Initializer.FontInfo)
+				if (SomeFont.GetFont() == Attribute.FontInfo)
 				{
 					Font = SomeFont;
-					Initializer.StyleName = SomeFont.Style->GetStyleSetName();
-					Initializer.FontName = SomeFont.Name;
 					break;
 				}
 			}
@@ -167,7 +157,7 @@ public:
 			SNew(SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(1)
 			[
 				SAssignNew(Button, SComboButton)
 				.ButtonContent()
@@ -239,83 +229,30 @@ private:
 		ButtonCaption->SetFont(Font.GetFont(FontSize->GetValue()));
 
 		// Update attribute
-		Handle.SetValue<sketch::FFont>(
-			{
-				Font.GetFont(NewSize),
-				Font.Style->GetStyleSetName(),
-				Font.Name,
-			}
-		);
+		if (TSharedPtr<sketch::FFontAttribute> Attribute = WeakAttribute.Pin())[[likely]]
+		{
+			Attribute->FontInfo = Font.GetFont(NewSize);
+			Attribute->StyleName = Font.Style ? Font.Style->GetStyleSetName() : NAME_None;
+			Attribute->FontName = Font.Name;
+			Attribute->OnValueChanged.Broadcast();
+		}
 	}
 
-	sketch::FAttributeHandle Handle;
+	TWeakPtr<sketch::FFontAttribute> WeakAttribute;
 	FFontId Font;
 	TSharedPtr<SComboButton> Button;
 	TSharedPtr<STextBlock> ButtonCaption;
 	TSharedPtr<SSpinBox<float>> FontSize;
 };
 
-// template <>
-// TSharedRef<SWidget> sketch::MakeEditor<sketch::FFont>(const FAttributeHandle& Handle)
-// {
-// 	return SNew(SFontEditor, Handle);
-// }
-//
-// template <>
-// FString sketch::GenerateCode<sketch::FFont>(const FFont& Font)
-// {
-// 	const ISlateStyle* Style = FSlateStyleRegistry::FindSlateStyle(Font.StyleName);
-// 	if (!Style)
-// 	[[unlikely]]
-// 	{
-// 		return {};
-// 	}
-//
-// 	FString Result;
-// 	FSlateFontInfo BaseFont = Style->GetFontStyle(Font.FontName);
-// 	TSharedRef<const FCompositeFont> DefaultFontSample = FCoreStyle::GetDefaultFont();
-// 	if (BaseFont.CompositeFont == DefaultFontSample)
-// 	{
-// 		Result = FString::Format(
-// 			TEXT("FCoreStyle::GetDefaultFontStyle(\"{0}\", {1})"), {
-// 				BaseFont.TypefaceFontName.ToString(),
-// 				FString::SanitizeFloat(Font.FontInfo.Size, 0),
-// 			}
-// 		);
-// 	}
-// 	else if (Font.FontInfo.Size == BaseFont.Size)
-// 	{
-// 		Result = FString::Format(
-// 			TEXT("FSlateStyleRegistry::FindSlateStyle(\"{0}\")->GetFontStyle(\"{1}\")"), {
-// 				Font.StyleName.ToString(),
-// 				Font.FontName.ToString(),
-// 			}
-// 		);
-// 	}
-// 	else
-// 	{
-// 		// Sigh, there's no adequate constructor for such cases
-// 		Result = FString::Format(
-// 			TEXT("[]{ auto Font = FSlateStyleRegistry::FindSlateStyle(\"{0}\")->GetFontStyle(\"{1}\"); Font.Size = {2}; return Font; }()")
-// 			, {
-// 				Font.StyleName.ToString(),
-// 				Font.FontName.ToString(),
-// 				FString::SanitizeFloat(Font.FontInfo.Size, 0),
-// 			}
-// 		);
-// 	}
-// 	return Result;
-// }
-
-
-TSharedRef<SWidget> sketch::TAttributeTraits<FSlateFontInfo>::MakeEditor(const FAttributeHandle& Handle)
+TSharedRef<SWidget> sketch::FFontAttribute::MakeEditor()
 {
-	return SNew(SFontEditor, Handle);
+	return SNew(SFontEditor, *this);
 }
 
-FString sketch::TAttributeTraits<FSlateFontInfo>::GenerateCode(const FFont& Font)
+FString sketch::FFontAttribute::GenerateCode() const
 {
-	const ISlateStyle* Style = FSlateStyleRegistry::FindSlateStyle(Font.StyleName);
+	const ISlateStyle* Style = FSlateStyleRegistry::FindSlateStyle(StyleName);
 	if (!Style)
 	[[unlikely]]
 	{
@@ -323,23 +260,23 @@ FString sketch::TAttributeTraits<FSlateFontInfo>::GenerateCode(const FFont& Font
 	}
 
 	FString Result;
-	FSlateFontInfo BaseFont = Style->GetFontStyle(Font.FontName);
+	FSlateFontInfo BaseFont = Style->GetFontStyle(FontName);
 	TSharedRef<const FCompositeFont> DefaultFontSample = FCoreStyle::GetDefaultFont();
 	if (BaseFont.CompositeFont == DefaultFontSample)
 	{
 		Result = FString::Format(
 			TEXT("FCoreStyle::GetDefaultFontStyle(\"{0}\", {1})"), {
 				BaseFont.TypefaceFontName.ToString(),
-				FString::SanitizeFloat(Font.FontInfo.Size, 0),
+				FString::SanitizeFloat(FontInfo.Size, 0),
 			}
 		);
 	}
-	else if (Font.FontInfo.Size == BaseFont.Size)
+	else if (FontInfo.Size == BaseFont.Size)
 	{
 		Result = FString::Format(
 			TEXT("FSlateStyleRegistry::FindSlateStyle(\"{0}\")->GetFontStyle(\"{1}\")"), {
-				Font.StyleName.ToString(),
-				Font.FontName.ToString(),
+				StyleName.ToString(),
+				FontName.ToString(),
 			}
 		);
 	}
@@ -349,13 +286,45 @@ FString sketch::TAttributeTraits<FSlateFontInfo>::GenerateCode(const FFont& Font
 		Result = FString::Format(
 			TEXT("[]{ auto Font = FSlateStyleRegistry::FindSlateStyle(\"{0}\")->GetFontStyle(\"{1}\"); Font.Size = {2}; return Font; }()")
 			, {
-				Font.StyleName.ToString(),
-				Font.FontName.ToString(),
-				FString::SanitizeFloat(Font.FontInfo.Size, 0),
+				StyleName.ToString(),
+				FontName.ToString(),
+				FString::SanitizeFloat(FontInfo.Size, 0),
 			}
 		);
 	}
 	return Result;
+}
+
+bool sketch::FFontAttribute::Equals(const IAttributeImplementation& InOther) const
+{
+	const FFontAttribute& Other = static_cast<const FFontAttribute&>(InOther);
+	return StyleName == Other.StyleName && FontName == Other.FontName && FontInfo == Other.FontInfo;
+}
+
+void sketch::FFontAttribute::Reinitialize(const IAttributeImplementation& From)
+{
+	const FFontAttribute& Other = static_cast<const FFontAttribute&>(From);
+	FontInfo = Other.FontInfo;
+	StyleName = Other.StyleName;
+	FontName = Other.FontName;
+}
+
+sketch::FFontAttribute::FFontAttribute(FSlateFontInfo&& InInfo)
+// All text widgets uses fallback font if no font is specified explicitly
+// No font at all - is an explicit font as well. It's like setting TOptional<FSlateFontInfo*> to nullptr
+// So when no font is provided - use default one
+	: FontInfo(InInfo.TypefaceFontName.IsNone() ? FCoreStyle::GetDefaultFontStyle("Regular", 10) : MoveTemp(InInfo))
+{
+	for (const FFontId& SomeFont : GetFonts())
+	{
+		if (SomeFont.GetFont() == FontInfo)
+		[[unlikely]]
+		{
+			StyleName = SomeFont.Style->GetStyleSetName();
+			FontName = SomeFont.Name;
+			return;
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

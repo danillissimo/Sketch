@@ -3,17 +3,22 @@
 
 namespace sketch
 {
-	template <>
-	struct TAttributeTraits<FLinearColor> : public TCommonAttributesTraits<FLinearColor>
+	template <class T>
+	struct TColorAttribute : public TCommonAttributeImplementation<T>
 	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FLinearColor& Color);
+		using Super = TCommonAttributeImplementation<T>;
+		using Super::Super;
+		using Super::Value;
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
 	};
 
+	extern template struct TColorAttribute<FLinearColor>;
+	extern template struct TColorAttribute<FSlateColor>;
+
 	template <>
-	struct TAttributeTraits<FSlateColor> : public TCommonAttributesTraits<FSlateColor>
-	{
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FSlateColor& Color);
-	};
+	struct TAttributeTraits<FLinearColor> : public TCommonAttributeTraits<TColorAttribute<FLinearColor>> {};
+
+	template <>
+	struct TAttributeTraits<FSlateColor> : public TCommonAttributeTraits<TColorAttribute<FSlateColor>> {};
 }

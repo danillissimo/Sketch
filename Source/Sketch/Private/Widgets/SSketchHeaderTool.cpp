@@ -1,8 +1,10 @@
 #include "Widgets/SSketchHeaderTool.h"
 
 #include "SketchHeaderTool.h"
+#include "Widgets/Images/SThrobber.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Text/SlateEditableTextLayout.h"
 
 #define LOCTEXT_NAMESPACE "SSketchHeaderTool"
 
@@ -11,96 +13,185 @@ void SSketchHeaderTool::Construct(const FArguments& InArgs)
 	GeneratedCode = SNew(SMultiLineEditableTextBox)
 		.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Mono"), 8))
 		.IsReadOnly(true);
-	SearchBox = SNew(SSearchBox).OnSearch(
-			SSearchBox::FOnSearch::CreateSPLambda(
-				GeneratedCode.Get(),
-				[Code = GeneratedCode](SSearchBox::SearchDirection Direction)
-				{
-					Code->AdvanceSearch(Direction == SSearchBox::Previous);
-				})
-		);
+	SearchBox = SNew(SSearchBox).OnSearch(this, &SSketchHeaderTool::OnSearch);
 	GeneratedCode->SetSearchText(TAttribute<FText>::CreateSP(SearchBox.Get(), &SSearchBox::GetText));
 
 	ChildSlot
-	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
+		.Padding(InArgs._ContentPadding)
 		[
-			SearchBox.ToSharedRef()
-		]
+			SNew(SVerticalBox)
 
-		+ SVerticalBox::Slot()
-		.FillHeight(1)
-		[
-			SNew(SScrollBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SearchBox.ToSharedRef()
+			]
 
-			+ SScrollBox::Slot()
-			.FillSize(1)
+			+ SVerticalBox::Slot()
+			.FillHeight(1)
+			[
+				SAssignNew(ScrollBox, SScrollBox)
+				+ SScrollBox::Slot()
+				.FillSize(1)
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.Padding(8., 4., 8., 0)
+					[
+						SAssignNew(Lines, STextBlock)
+						.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Mono"), 8))
+						.Justification(ETextJustify::Center)
+					]
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1)
+					[
+						GeneratedCode.ToSharedRef()
+					]
+				]
+			]
+
+			+ SVerticalBox::Slot()
+			.AutoHeight()
 			[
 				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(8., 4., 8., 0)
+				.FillWidth(1)
 				[
-					SAssignNew(Lines, STextBlock)
-					.Font(FCoreStyle::GetDefaultFontStyle(TEXT("Mono"), 8))
-					.Justification(ETextJustify::Center)
+					SNew(SVerticalBox)
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SAssignNew(PathEdit, SEditableTextBox)
+						.HintText(LOCTEXT("PathHint", "Path to scan"))
+					]
+
+					+ SVerticalBox::Slot()
+					[
+						SAssignNew(InclusionRootEdit, SEditableTextBox)
+						.HintText(LOCTEXT("InclusionRootHint", "Part of the path to omit in '#include'-s"))
+					]
 				]
 
 				+ SHorizontalBox::Slot()
-				.FillWidth(1)
+				.AutoWidth()
 				[
-					GeneratedCode.ToSharedRef()
-				]
-			]
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.FillWidth(1)
-			[
-				SNew(SVerticalBox)
-
-				+ SVerticalBox::Slot()
-				.AutoHeight()
-				[
-					SAssignNew(PathEdit, SEditableTextBox)
-					.HintText(LOCTEXT("PathHint", "Path to scan"))
+					SNew(SComboButton)
+					.OnGetMenuContent(this, &SSketchHeaderTool::ListCommonPaths)
+					// .MenuPlacement(MenuPlacement_MenuLeft)
 				]
 
-				+ SVerticalBox::Slot()
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-					SAssignNew(InclusionRootEdit, SEditableTextBox)
-					.HintText(LOCTEXT("InclusionRootHint", "Part of the path to omit in '#include'-s"))
+					SNew(SButton)
+					.Text(LOCTEXT("Run", "Run"))
+					.HAlign(HAlign_Center)
+					.VAlign(VAlign_Center)
+					.OnClicked(this, &SSketchHeaderTool::GenerateCode)
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(STextBlock)
+							.TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("ButtonText"))
+							.Text(LOCTEXT("Run", "Run"))
+							.Visibility(this, &SSketchHeaderTool::GetButtonTextVisibility)
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							SNew(SThrobber)
+							.Animate(SThrobber::VerticalAndOpacity)
+							.Visibility(this, &SSketchHeaderTool::GetButtonThrobberVisibility)
+						]
+					]
 				]
 			]
+		];
+}
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SComboButton)
-				.OnGetMenuContent(this, &SSketchHeaderTool::ListCommonPaths)
-				// .MenuPlacement(MenuPlacement_MenuLeft)
-			]
+FReply SSketchHeaderTool::OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (InKeyEvent.IsControlDown())
+	{
+		if (InKeyEvent.GetKey() == EKeys::Home)
+		{
+			ScrollBox->SetScrollOffset(0.f);
+			return FReply::Handled();
+		}
+		if (InKeyEvent.GetKey() == EKeys::End)
+		{
+			ScrollBox->ScrollToEnd();
+			return FReply::Handled();
+		}
+		constexpr float LineSize = 13.13f;
+		const bool bScrollDown = InKeyEvent.GetKey() == EKeys::Down;
+		const bool bScrollUp = InKeyEvent.GetKey() == EKeys::Up;
+		if (bScrollDown || bScrollUp)
+		{
+			const float ScrollSize = ScrollBox->GetScrollOffsetOfEnd();
+			// const float VisibleFraction = ScrollBox->GetViewFraction();
+			// const float VisibleSize = ScrollSize * VisibleFraction;
+			const float CurrentScroll = ScrollBox->GetScrollOffset();
+			const float NewScroll = FMath::Clamp(CurrentScroll + (bScrollDown ? LineSize : -LineSize), 0, ScrollSize);
+			ScrollBox->SetScrollOffset(NewScroll);
+			return FReply::Handled();
+		}
+	}
+	return SCompoundWidget::OnPreviewKeyDown(MyGeometry, InKeyEvent);
+}
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Text(LOCTEXT("Run", "Run"))
-				.HAlign(HAlign_Center)
-				.VAlign(VAlign_Center)
-				.OnClicked(this, &SSketchHeaderTool::GenerateCode)
-			]
-		]
-	];
+FSlateEditableTextLayout* SSketchHeaderTool::GetTextLayout()
+{
+	// We have no legal means to access detailed text state
+	// Here are illegal ones
+	class SMultiLineEditableTextBoxContents : public SMultiLineEditableTextBox
+	{
+	public:
+		using SMultiLineEditableTextBox::EditableText;
+	};
+	class SMultiLineEditableTextContents : public SMultiLineEditableText
+	{
+	public:
+		using SMultiLineEditableText::EditableTextLayout;
+	};
+
+	// Make sure it succeeded
+	FSlateEditableTextLayout* Layout =
+		static_cast<SMultiLineEditableTextContents*>(
+			static_cast<SMultiLineEditableTextBoxContents*>(GeneratedCode.Get())->EditableText.Get()
+		)
+		->EditableTextLayout.Get();
+	return Layout;
+}
+
+void SSketchHeaderTool::OnSearch(SSearchBox::SearchDirection Direction)
+{
+	// Advance search
+	GeneratedCode->AdvanceSearch(Direction == SSearchBox::Previous);
+
+	// Make sure it succeeded
+	FSlateEditableTextLayout* Layout = GetTextLayout();
+	const FTextSelection Selection = Layout->GetSelection();
+	if (!Selection.LocationA.IsValid())
+		return;
+
+	// Synthesize and apply new scroll offset
+	const float TotalLines = Layout->GetTextLineCount();
+	const float VisibleFraction = ScrollBox->GetViewFraction();
+	const float BasicDesiredOffset = float(Selection.LocationA.GetLineIndex()) / TotalLines;
+	const float RawCompensatedOffset = BasicDesiredOffset - VisibleFraction * 0.5f + VisibleFraction * BasicDesiredOffset;
+	const float CompensatedOffset = FMath::Clamp(RawCompensatedOffset, 0.f, 1.f);
+	const float NewOffset = CompensatedOffset * ScrollBox->GetScrollOffsetOfEnd();
+	ScrollBox->SetScrollOffset(NewOffset);
 }
 
 TSharedRef<SWidget> SSketchHeaderTool::ListCommonPaths()
@@ -108,16 +199,22 @@ TSharedRef<SWidget> SSketchHeaderTool::ListCommonPaths()
 	FMenuBuilder Menu(true, nullptr);
 	Menu.BeginSection(NAME_None, LOCTEXT("Engine", "Engine"));
 	Menu.AddMenuEntry(
-		LOCTEXT("SlateCore", "SlateCore"),
+		INVTEXT("SlateCore"),
 		FText(),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(this, &SSketchHeaderTool::SelectCommonPath, FStringView(TEXT("Runtime/SlateCore/Public"))))
 	);
 	Menu.AddMenuEntry(
-		LOCTEXT("Slate", "Slate"),
+		INVTEXT("Slate"),
 		FText(),
 		FSlateIcon(),
 		FUIAction(FExecuteAction::CreateSP(this, &SSketchHeaderTool::SelectCommonPath, FStringView(TEXT("Runtime/Slate/Public"))))
+	);
+	Menu.AddMenuEntry(
+		INVTEXT("AdvancedWidgets"),
+		FText(),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateSP(this, &SSketchHeaderTool::SelectCommonPath, FStringView(TEXT("Runtime/AdvancedWidgets/Public"))))
 	);
 	Menu.EndSection();
 	Menu.BeginSection(NAME_None, LOCTEXT("Project", "Project"));
@@ -164,6 +261,10 @@ void SSketchHeaderTool::SelectProjectPath(const FStringView Path)
 
 FReply SSketchHeaderTool::GenerateCode()
 {
+	if (bWorking)
+		return FReply::Handled();
+
+	bWorking = true;
 	GeneratedCode->SetText(FText());
 	Lines->SetText(FText());
 	auto Job = [
@@ -197,7 +298,7 @@ FReply SSketchHeaderTool::GenerateCode()
 		// Generate code
 		FString Prologue = FHeaderTool::GenerateReflectionPrologue();
 		FString Code;
-		FString Epilogue = FHeaderTool::GenerateReflectionEpilogue();
+		FString Epilogue = FHeaderTool::GenerateReflectionEpilogue(InclusionRootValue);
 		for (const FFile& File : Files)
 		{
 			for (const FClass& Class : File.Classes)
@@ -231,6 +332,7 @@ FReply SSketchHeaderTool::GenerateCode()
 
 			This->Lines->SetText(MoveTemp(Indices));
 			This->GeneratedCode->SetText(MoveTemp(Reflection));
+			This->bWorking = false;
 		};
 		AsyncTask(ENamedThreads::Type::GameThread, MoveTemp(Callback));
 	};

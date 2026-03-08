@@ -121,17 +121,31 @@ namespace sketch::HeaderTool
 	class SKETCH_API FHeaderTool
 	{
 	public:
+		enum ESlotProperties
+		{
+			SP_None                 = 0,
+			SP_ConstructorInherited = 1 << 0,
+			SP_DestructorInherited  = 1 << 1,
+		};
 		struct FOverride
 		{
-			FString Property;
-			FString ValueOverride;
+			FStringView Property;
+			FStringView ValueOverride;
+			FStringView TypeOverride;
+			FStringView SlotType;
+
+			ESlotProperties SlotProperties = SP_None;
+
+			static constexpr FOverride Value(FStringView Property, FStringView Value, FStringView SlotType = {}) { return FOverride{ .Property = Property, .ValueOverride = Value, .SlotType = SlotType }; }
+			static constexpr FOverride Type(FStringView Property, FStringView Type, FStringView SlotType = {}) { return FOverride{ .Property = Property, .ValueOverride = Type, .SlotType = SlotType }; }
+			static constexpr FOverride Slot(FStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
 		};
 		static TMap<FName, TArray<FOverride>> ClassOverrides;
 
 		static TArray<FFile> Scan(const FString& Path, bool bRecursive);
 		static FFile Scan(const FString& FilePath);
 		static FString GenerateReflectionPrologue();
-		static FString GenerateReflectionEpilogue();
+		static FString GenerateReflectionEpilogue(const FString& InclusionRoot);
 		static void GenerateReflection(
 			const FString& FilePath,
 			const FString& InclusionRoot,
@@ -144,10 +158,10 @@ namespace sketch::HeaderTool
 
 	private:
 		static TOptional<FIndex> IndexCode(const FString& Code);
-		static bool ProcessCode(const FString& Code, const TSet<FName>& SupportedAttributes, TArray<FClass>& OutClasses);
-		static TOptional<FAnchoredProperty> ProcessSlateProperty(const FIndex& Index, const FString& Code, const FStringView& ClassName, const FStringView& PropertiesDefaults, const FStringView& PropertyAndFurther, const TSet<FName>& SupportedAttributes);
+		static bool ProcessCode(const FString& Code, TArray<FClass>& OutClasses);
+		static TOptional<FAnchoredProperty> ProcessSlateProperty(const FIndex& Index, const FString& Code, const FStringView& ClassName, const FStringView& PropertiesDefaults, const FStringView& PropertyAndFurther, const FStringView& SlotTypeName);
 		static TOptional<TTuple<FSlot, FPropertyAnchors>> ProcessUniqueSlateSlot(const FIndex& Index, const FString& Code, const FStringView& PropertyAndFurther);
-		static TOptional<FSlot> ProcessDynamicSlot(const FIndex& Index, const FString& Code, int ClassScopeIndex, const FStringView& ClassName, const FStringView& PropertyAndFurther, const TSet<FName>& SupportedAttributes);
+		static TOptional<FSlot> ProcessDynamicSlot(const FIndex& Index, const FString& Code, int ClassScopeIndex, const FStringView& ClassName, const FStringView& PropertyAndFurther);
 		static TOptional<FProcessedString> ProcessSlateArgumentDefaultValue(const FIndex& Index, const FString& Code, const FStringView& PropertyAndFurther, FPropertyAnchors& Anchors);
 	};
 }

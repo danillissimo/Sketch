@@ -3,17 +3,19 @@
 
 namespace sketch
 {
-	struct FBrush
+	struct FBrushAttribute : IAttributeImplementation
 	{
-		FBrush() = default;
-		SKETCH_API FBrush(const FSlateBrush* Brush);
+		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
+		virtual bool Equals(const IAttributeImplementation& Other) const override;
+		virtual void Reinitialize(const IAttributeImplementation& From) override;
 
-		FBrush(const FSlateBrush* Brush, const FName& StyleName, const FName& BrushName)
-			: Brush(Brush)
-			  , StyleName(StyleName)
-			  , BrushName(BrushName)
-		{
-		}
+		FBrushAttribute() = default;
+		SKETCH_API FBrushAttribute(const FSlateBrush* Brush);
+		FBrushAttribute(const FBrushAttribute&) = default;
+		FBrushAttribute(FBrushAttribute&&) = default;
+		const FSlateBrush* GetValue() const { return Brush; }
+		FString GenerateBaseCode() const;
 
 		const FSlateBrush* Brush = nullptr;
 		FName StyleName;
@@ -21,18 +23,19 @@ namespace sketch
 	};
 
 	template <>
-	struct TWrappedType<FBrush>
+	struct TAttributeTraits<const FSlateBrush*> : public TCommonAttributeTraits<FBrushAttribute> {};
+
+	struct FIconAttribute : public FBrushAttribute
 	{
-		using Type = const FSlateBrush*;
+		virtual FString GenerateCode() const override;
+
+		FIconAttribute() = default;
+		FIconAttribute(FSlateIcon&& Icon) : FBrushAttribute(Icon.GetIcon()) {}
+		FIconAttribute(const FIconAttribute& Icon) = default;
+		FIconAttribute(FIconAttribute&& Icon) = default;
+		FSlateIcon GetValue() const { return FSlateIcon(StyleName, BrushName); }
 	};
 
 	template <>
-	struct TAttributeTraits<const FSlateBrush*>
-	{
-		using FStorage = FBrush;
-
-		static const FSlateBrush* GetValue(const FBrush& Storage) { return Storage.Brush; }
-		SKETCH_API static TSharedRef<SWidget> MakeEditor(const FAttributeHandle& Handle);
-		SKETCH_API static FString GenerateCode(const FBrush& Brush);
-	};
+	struct TAttributeTraits<FSlateIcon> : public TCommonAttributeTraits<FIconAttribute> {};
 }
