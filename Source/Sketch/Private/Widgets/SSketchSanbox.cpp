@@ -20,6 +20,12 @@ void SSketchSandbox::Construct(const FArguments& InArgs)
 	ScrollBox = SNew(SScrollBox)
 		.ExternalScrollbar(Scrollbar);
 	TSharedPtr<SSplitter> Splitter;
+	FMenuBarBuilder TitleMenu(nullptr);
+	TitleMenu.AddPullDownMenu(
+		LOCTEXT("Clear", "Clear"),
+		LOCTEXT("ClearTooltip", "Clear stale attributes"),
+		FNewMenuDelegate::CreateStatic([](FMenuBuilder&) { FSketchCore::Get().ClearStaleAttributes(); })
+	);
 
 	// Make content
 	ChildSlot
@@ -28,72 +34,83 @@ void SSketchSandbox::Construct(const FArguments& InArgs)
 			SNew(SBorder)
 			.BorderImage(FSlateIcon("CoreStyle", "Brushes.Recessed").GetIcon())
 			[
-				SAssignNew(Splitter, SSplitter)
-				.Orientation(Orient_Vertical)
+				SNew(SVerticalBox)
 
-				+ SSplitter::Slot()
+				+ SVerticalBox::Slot().AutoHeight()
 				[
-					SNew(SHorizontalBox)
+					TitleMenu.MakeWidget()
+				]
 
-					+ SHorizontalBox::Slot()
-					.FillWidth(1)
+				+ SVerticalBox::Slot()
+				.FillHeight(1)
+				[
+					SAssignNew(Splitter, SSplitter)
+					.Orientation(Orient_Vertical)
+
+					+ SSplitter::Slot()
+					[
+						SNew(SHorizontalBox)
+
+						+ SHorizontalBox::Slot()
+						.FillWidth(1)
+						[
+							SNew(SVerticalBox)
+							+ SVerticalBox::Slot()
+							.AutoHeight()
+							[
+								HeaderRow.ToSharedRef()
+							]
+
+							+ SVerticalBox::Slot()
+							.FillHeight(1)
+							[
+								ScrollBox.ToSharedRef()
+							]
+						]
+
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						[
+							Scrollbar
+						]
+					]
+
+					+ SSplitter::Slot()
+					.SizeRule(SSplitter::SizeToContent)
+					.Resizable(true)
 					[
 						SNew(SVerticalBox)
+
 						+ SVerticalBox::Slot()
 						.AutoHeight()
 						[
-							HeaderRow.ToSharedRef()
+							SNew(SBorder)
+							.BorderImage(FSlateIcon("CoreStyle", "Brushes.Background").GetIcon())
+							.Padding(4, 0, 0, 0)
+							.HAlign(HAlign_Left)
+							[
+								SNew(SBorder)
+								.BorderImage(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Section.Background_Header").GetIcon())
+								.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
+								.Padding(16, 4)
+								[
+									SNew(STextBlock)
+									.Text(LOCTEXT("Sandbox", "Sandbox"))
+									.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
+								]
+							]
 						]
 
 						+ SVerticalBox::Slot()
 						.FillHeight(1)
 						[
-							ScrollBox.ToSharedRef()
+							SNew(SSketchAttributeCollection)
+							.Attributes(sketch::Sandbox::Get())
+							.HeaderRow(HeaderRow)
+							.ShowInteractivity(false)
+							.ShowNumUsers(false)
+							.AllowCodePatching(false)
 						]
-					]
-
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					[
-						Scrollbar
-					]
-				]
-
-				+ SSplitter::Slot()
-				.SizeRule(SSplitter::SizeToContent)
-				.Resizable(true)
-				[
-					SNew(SVerticalBox)
-
-					+ SVerticalBox::Slot()
-					.AutoHeight()
-					[
-						SNew(SBorder)
-						.BorderImage(FSlateIcon("CoreStyle", "Brushes.Background").GetIcon())
-						.Padding(4, 0, 0, 0)
-						.HAlign(HAlign_Left)
-						[
-							SNew(SBorder)
-							.BorderImage(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Sequencer.Section.Background_Header").GetIcon())
-							.BorderBackgroundColor(FSlateColor(EStyleColor::Panel))
-							.Padding(16, 4)
-							[
-								SNew(STextBlock)
-								.Text(LOCTEXT("Sandbox", "Sandbox"))
-								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 10))
-							]
-						]
-					]
-
-					+ SVerticalBox::Slot()
-					.FillHeight(1)
-					[
-						SNew(SSketchAttributeCollection)
-						.Attributes(sketch::Sandbox::Get())
-						.HeaderRow(HeaderRow)
-						.ShowInteractivity(false)
-						.ShowNumUsers(false)
-						.AllowCodePatching(false)
 					]
 				]
 			]
