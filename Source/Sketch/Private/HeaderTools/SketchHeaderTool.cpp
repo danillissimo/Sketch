@@ -37,6 +37,33 @@
 
 #pragma region Parsing
 
+TArray<sketch::FStringView> GetFractionalNumericSpecializations()
+{
+	return {
+		sketch::FStringView(SL"float"),
+		// sketch::FStringView(SL"double"),
+	};
+}
+
+TArray<sketch::FStringView> GetAllNumericSpecializations()
+{
+	// No need in littering widget lists with barely different options
+	// A fractional and an integer are enough for design time, and can be clarified manually later
+	return {
+		sketch::FStringView(SL"int"),
+		sketch::FStringView(SL"float"),
+		// sketch::FStringView(SL"double"),
+		// sketch::FStringView(SL"uint8"),
+		// sketch::FStringView(SL"int8"),
+		// sketch::FStringView(SL"uint16"),
+		// sketch::FStringView(SL"int16"),
+		// sketch::FStringView(SL"uint32"),
+		// sketch::FStringView(SL"int32"),
+		// sketch::FStringView(SL"uint64"),
+		// sketch::FStringView(SL"int64"),
+	};
+}
+
 TMap<FName, TArray<sketch::HeaderTool::FOverride>> sketch::HeaderTool::GOverrides = {
 	{
 		SL"SThrobber",
@@ -59,6 +86,24 @@ TMap<FName, TArray<sketch::HeaderTool::FOverride>> sketch::HeaderTool::GOverride
 	{ SL"SSplitter", { FOverride::Type(SL"SizeRule", SL"SSplitter::ESizeRule", SL"FSlot") } },
 	{ SL"SBlock", { FOverride::Value(SL"Text", SL"INVTEXT(\"Sample text\")") } }, // Just a QOL
 	{ SL"SOverlay", { FOverride::Slot(SL"FOverlaySlot", SP_SlotOperatorsUsesGeneralName) } },
+	{ SL"SNumericDropDown", { FOverride::TemplateSpecializations(GetFractionalNumericSpecializations()) } },
+	{
+		SL"SNumericEntryBox", {
+			FOverride::TemplateSpecializations(GetAllNumericSpecializations()),
+			FOverride{ .Name = SL"LabelLocation", .TypeOverride = SL"SNumericEntryBox<NumericType>::ELabelLocation", .ValueOverride = SL"SNumericEntryBox<NumericType>::ELabelLocation::Outside" },
+			FOverride::Value(SL"MinFractionalDigits", SL"1"),
+			FOverride::Value(SL"MaxFractionalDigits", SL"6"),
+		}
+	},
+	{ SL"SNumericRotatorInputBox", { FOverride::TemplateSpecializations(GetAllNumericSpecializations()) } },
+	{
+		SL"SSpinBox", {
+			FOverride::TemplateSpecializations(GetAllNumericSpecializations()),
+			FOverride::Value(SL"MinFractionalDigits", SL"1"),
+			FOverride::Value(SL"MaxFractionalDigits", SL"6"),
+		}
+	},
+	{ SL"SBreadcrumbTrail", { FOverride::TemplateSpecializations({ { SL"FString" } }) } },
 };
 
 sketch::HeaderTool::Private::FIndex::FIndex(const sketch::FStringView& Code, FLog& Log)
