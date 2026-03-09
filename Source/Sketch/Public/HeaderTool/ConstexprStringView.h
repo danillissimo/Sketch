@@ -72,7 +72,7 @@ namespace sketch
 			return true;
 		}
 
-		bool operator==(const FStringView& Other) const { return Equals(Other); }
+		constexpr bool operator==(const FStringView& Other) const { return Equals(Other); }
 
 		template <ESearchCase::Type SearchCase = ESearchCase::CaseSensitive>
 		constexpr bool StartsWith(FStringView Prefix) const
@@ -84,6 +84,19 @@ namespace sketch
 		constexpr bool EndsWith(FStringView Suffix) const
 		{
 			return Suffix.Equals<SearchCase>(Right(Suffix.Len()));
+		}
+
+		template <ESearchCase::Type SearchCase = ESearchCase::CaseSensitive>
+		constexpr int Find(const FStringView& Search, const int32 StartPosition = 0) const
+		{
+			const int32 Index = UE::String::FindFirst(RightChop(StartPosition), Search, SearchCase);
+			return Index == INDEX_NONE ? INDEX_NONE : Index + StartPosition;
+		}
+
+		template <ESearchCase::Type SearchCase = ESearchCase::CaseSensitive>
+		constexpr bool Contains(const FStringView& Search) const
+		{
+			return Find<SearchCase>(Search, 0) != INDEX_NONE;
 		}
 
 		constexpr int FindLast(TCHAR Char)
@@ -105,21 +118,30 @@ namespace sketch
 		constexpr const TCHAR* begin() const { return DataPtr; }
 		constexpr const TCHAR* end() const { return DataPtr + Size; }
 
+		/** Returns the left-most part of the view by taking the given number of characters from the left. */
 		constexpr FStringView Left(int32 CharCount) const
 		{
 			return FStringView(DataPtr, FMath::Clamp(CharCount, 0, Size));
 		}
 
+		constexpr void LeftInline(int32 CharCount)
+		{
+			*this = Left(CharCount);
+		}
+
+		/** Returns the left-most part of the view by chopping the given number of characters from the right. */
 		constexpr FStringView LeftChop(int32 CharCount) const
 		{
 			return FStringView(DataPtr, FMath::Clamp(Size - CharCount, 0, Size));
 		}
 
+		/** Modifies the view by chopping the given number of characters from the right. */
 		constexpr void LeftChopInline(int32 CharCount)
 		{
 			*this = LeftChop(CharCount);
 		}
 
+		/** Returns the middle part of the view by taking up to the given number of characters from the given position. */
 		constexpr FStringView Mid(int32 Position, int32 CharCount) const
 		{
 			const TCHAR* CurrentStart = GetData();
@@ -147,18 +169,26 @@ namespace sketch
 			*this = Mid(Position, CharCount);
 		}
 
+		/** Returns the right-most part of the view by taking the given number of characters from the right. */
 		constexpr FStringView Right(int32 CharCount) const
 		{
 			const int32 OutLen = FMath::Clamp(CharCount, 0, Size);
 			return FStringView(DataPtr + Size - OutLen, OutLen);
 		}
 
+		constexpr void RightInline(int32 CharCount)
+		{
+			*this = Right(CharCount);
+		}
+
+		/** Returns the right-most part of the view by chopping the given number of characters from the left. */
 		constexpr FStringView RightChop(int32 CharCount) const
 		{
 			const int32 OutLen = FMath::Clamp(Size - CharCount, 0, Size);
 			return FStringView(DataPtr + Size - OutLen, OutLen);
 		}
 
+		/** Modifies the view by chopping the given number of characters from the left. */
 		constexpr void RightChopInline(int32 CharCount)
 		{
 			*this = RightChop(CharCount);
