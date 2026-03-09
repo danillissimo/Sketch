@@ -194,7 +194,8 @@ namespace sketch::HeaderTool
 
 	struct FClass
 	{
-		sketch::FStringView Name;
+		/** @note Pure string view for regular classes, synthesized for template classes */
+		SourceCode::FProcessedString Name;
 		TArray<FProperty> Properties;
 		TArray<FSlot, TInlineAllocator<4>> NamedSlots;
 		TArray<FSlot, TInlineAllocator<1>> DynamicSlots;
@@ -214,6 +215,8 @@ namespace sketch::HeaderTool
 	};
 	struct FOverride
 	{
+		TArray<sketch::FStringView> Specializations;
+
 		sketch::FStringView Name;
 		sketch::FStringView TypeOverride;
 		sketch::FStringView ValueOverride;
@@ -221,9 +224,10 @@ namespace sketch::HeaderTool
 		sketch::FStringView SlotType;
 		ESlotProperties SlotProperties = SP_None;
 
-		static constexpr FOverride Value(sketch::FStringView Property, sketch::FStringView Value, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .ValueOverride = Value, .SlotType = SlotType }; }
-		static constexpr FOverride Type(sketch::FStringView Property, sketch::FStringView Type, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .TypeOverride = Type, .SlotType = SlotType }; }
-		static constexpr FOverride Slot(sketch::FStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
+		static FOverride TemplateSpecializations(TArray<sketch::FStringView>&& Specializations) { return FOverride{ .Specializations = MoveTemp(Specializations) }; }
+		static FOverride Value(sketch::FStringView Property, sketch::FStringView Value, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .ValueOverride = Value, .SlotType = SlotType }; }
+		static FOverride Type(sketch::FStringView Property, sketch::FStringView Type, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .TypeOverride = Type, .SlotType = SlotType }; }
+		static FOverride Slot(sketch::FStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
 	};
 	extern SKETCH_API TMap<FName, TArray<FOverride>> GOverrides;
 

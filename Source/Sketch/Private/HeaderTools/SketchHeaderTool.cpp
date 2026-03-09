@@ -369,7 +369,9 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		// An, then, find the very last class declaration there
 		// Don't forget to skip any subscopes on the way
 		sketch::FStringView ClassName;
-		bool bTemplate = false;
+		sketch::FStringView TemplateArgs;
+		sketch::FStringView TemplateArgType;
+		const FOverride* TemplateSpecializations = nullptr;
 		{
 			const int OuterScopeIndex = Index.FindOuterScope(ScopeIndex);
 			Private::FScope OuterScope = Index.GetScope(Code, OuterScopeIndex);
@@ -379,8 +381,8 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 			auto AdvancementFilter = CombinedFilter(&Bracket::SubscopeFilter, &Bracket::ArgumentFilter);
 			for (TMatcher It(ClassNameContainer, 0, MoveTemp(AdvancementFilter), &NoFilter, Demangle(Pattern)); It; ++It)
 			{
-				ClassName = It.Match.Get<ClassNameTag>().Value.ToView(ClassNameContainer);
-				bTemplate = It.Match.Get<TemplateArgsTag>().MatchResult == MR_Success;
+				ClassName = It.View<ClassNameTag>();
+				TemplateArgs = It.View<TemplateArgsTag>();
 
 				// We want to skip all subscopes, but class declaration matcher stops on subscope beginning, if any
 				// So iterator will start new advancement inside subscope instead of skipping it
@@ -395,10 +397,27 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		}
 		Log.BeginClass(ClassName);
 		ON_SCOPE_EXIT { Log.EndClass(); };
-		if (bTemplate)[[unlikely]]
+		if (!TemplateArgs.IsEmpty())[[unlikely]]
 		{
-			Log.Display(SL"Skipping class as it's a template", Index.LocatePosition(Code, ClassName));
-			continue;
+			// Only one template argument supported right now
+			const TArray<FArgument> Args = ParseArguments(TemplateArgs);
+			if (Args.Num() != 1) [[unlikely]]
+			{
+				Log.Display(SL"Skipping class as it's a template with more then 1 argument", Index.LocatePosition(Code, ClassName));
+				continue;
+			}
+
+			// We only process templates when provided with specializations
+			const TArray<FOverride>* Overrides = GOverrides.Find(FName(ClassName));
+			TemplateSpecializations = Overrides ? Overrides->FindByPredicate([](const FOverride& Override) { return !Override.Specializations.IsEmpty(); }) : nullptr;
+			if (!TemplateSpecializations)
+			{
+				Log.Display(SL"Skipping class as it's a template and no specializations provided", Index.LocatePosition(Code, ClassName));
+				continue;
+			}
+
+			// Cache template arg type name
+			TemplateArgType = Args[0].Name.ToView(TemplateArgs);
 		}
 
 		// Make sure this is not an internal data structure
@@ -457,59 +476,135 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		sketch::FStringView PropertiesInitializers(&SlateProperties[0], PropertyPosition - 1);
 
 		// Parse all slate properties
-		FClass& Class = Classes.Emplace_GetRef();
-		Class.Name = ClassName;
-		enum { ArgumentTag, AttributeTag, DefaultSlotTag, NamedSlotTag, SlotArgumentTag, EventTag, StyleArgumentTag, UnknownPropertyTag, DeprecatedSuffixTag, DefaultSuffixTag, ArgumentsTag };
-		auto Property = Demangle(
-				TMatcher(
-					SlateProperties,
-					Matcher::String(SL"SLATE_"),
-					Matcher::OneOf(
-						Matcher::String<ArgumentTag>(SL"ARGUMENT"),
-						Matcher::String<AttributeTag>(SL"ATTRIBUTE"),
-						Matcher::String<DefaultSlotTag>(SL"DEFAULT_SLOT"),
-						Matcher::String<NamedSlotTag>(SL"NAMED_SLOT"),
-						Matcher::String<SlotArgumentTag>(SL"SLOT_ARGUMENT"),
-						Matcher::String<EventTag>(SL"EVENT"),
-						Matcher::String<StyleArgumentTag>(SL"STYLE_ARGUMENT"),
-						Matcher::String(SL"ITEMS_SOURCE_ARGUMENT"),
-						Matcher::Name<UnknownPropertyTag>()
-					),
-					Matcher::OneOf(
-						ST_Optional,
-						Matcher::String<DeprecatedSuffixTag>(SL"_DEPRECATED"),
-						Matcher::String<DefaultSuffixTag>(SL"_DEFAULT")
-					),
-					Matcher::Arguments<ArgumentsTag>()
-				)
-			);
-		for (; Property; ++Property)
 		{
-			if (Property.Match.Get<UnknownPropertyTag>().MatchResult == MR_Success)[[unlikely]]
+			FClass& Class = Classes.Emplace_GetRef();
+			Class.Name.String = ClassName;
+			enum { ArgumentTag, AttributeTag, DefaultSlotTag, NamedSlotTag, SlotArgumentTag, EventTag, StyleArgumentTag, UnknownPropertyTag, DeprecatedSuffixTag, DefaultSuffixTag, ArgumentsTag };
+			auto Property = Demangle(
+					TMatcher(
+						SlateProperties,
+						Matcher::String(SL"SLATE_"),
+						Matcher::OneOf(
+							Matcher::String<ArgumentTag>(SL"ARGUMENT"),
+							Matcher::String<AttributeTag>(SL"ATTRIBUTE"),
+							Matcher::String<DefaultSlotTag>(SL"DEFAULT_SLOT"),
+							Matcher::String<NamedSlotTag>(SL"NAMED_SLOT"),
+							Matcher::String<SlotArgumentTag>(SL"SLOT_ARGUMENT"),
+							Matcher::String<EventTag>(SL"EVENT"),
+							Matcher::String<StyleArgumentTag>(SL"STYLE_ARGUMENT"),
+							Matcher::String(SL"ITEMS_SOURCE_ARGUMENT"),
+							Matcher::Name<UnknownPropertyTag>()
+						),
+						Matcher::OneOf(
+							ST_Optional,
+							Matcher::String<DeprecatedSuffixTag>(SL"_DEPRECATED"),
+							Matcher::String<DefaultSuffixTag>(SL"_DEFAULT")
+						),
+						Matcher::Arguments<ArgumentsTag>()
+					)
+				);
+			for (; Property; ++Property)
 			{
-				Log.Warn(SL"Unknown slate property '%s'", Index.LocatePosition(Code, SlateProperties, Property.Match.Value.FirstOf), *Property.Match.Get<UnknownPropertyTag>().Value.ToView(SlateProperties).ToString());
-				continue;
+				if (Property.Match.Get<UnknownPropertyTag>().MatchResult == MR_Success)[[unlikely]]
+				{
+					Log.Warn(SL"Unknown slate property '%s'", Index.LocatePosition(Code, SlateProperties, Property.Match.Value.FirstOf), *Property.Match.Get<UnknownPropertyTag>().Value.ToView(SlateProperties).ToString());
+					continue;
+				}
+
+				FLocalStringView Arguments = Property.Match.Get<ArgumentsTag>().Value;
+				++Arguments.FirstOf;
+				--Arguments.FirstAfter;
+				if (Property.Match.Get<ArgumentTag>().MatchResult == MR_Success || Property.Match.Get<AttributeTag>().MatchResult == MR_Success)
+				{
+					const bool bDeprecated = Property.Match.Get<DeprecatedSuffixTag>().MatchResult == MR_Success;
+					const bool bExplicitDefault = Property.Match.Get<DefaultSuffixTag>().MatchResult == MR_Success;
+					FProperty Attribute = ProcessAttribute(SlateProperties, Arguments, bDeprecated, bExplicitDefault, PropertiesInitializers);
+					if (Attribute.IsValid()) Class.Properties.Emplace(MoveTemp(Attribute));
+				}
+				else if (Property.Match.Get<NamedSlotTag>().MatchResult == MR_Success || Property.Match.Get<DefaultSlotTag>().MatchResult == MR_Success)
+				{
+					FSlot Slot = ProcessUniqueSlot(SlateProperties, Arguments);
+					if (Slot.IsValid()) Class.NamedSlots.Emplace(MoveTemp(Slot));
+				}
+				else if (Property.Match.Get<SlotArgumentTag>().MatchResult == MR_Success)
+				{
+					FSlot Slot = ProcessDynamicSlot(SlateProperties, Arguments, ScopeIndex);
+					if (Slot.IsValid()) Class.DynamicSlots.Emplace(MoveTemp(Slot));
+				}
+			}
+		}
+
+		// Instantiate all provided template specializations
+		if (TemplateSpecializations)[[unlikely]]
+		{
+			// Create all additional copies
+			const int FirstInstance = Classes.Num() - 1;
+			Classes.Reserve(Classes.Num() + TemplateSpecializations->Specializations.Num() - 1);
+			for (int i = 1; i < TemplateSpecializations->Specializations.Num(); ++i)
+			{
+				// It's an UB if new classes are not preallocated
+				Classes.Emplace(Classes[FirstInstance]);
 			}
 
-			FLocalStringView Arguments = Property.Match.Get<ArgumentsTag>().Value;
-			++Arguments.FirstOf;
-			--Arguments.FirstAfter;
-			if (Property.Match.Get<ArgumentTag>().MatchResult == MR_Success || Property.Match.Get<AttributeTag>().MatchResult == MR_Success)
+			// Replace each copy template type with specialized type
+			for (int i = 0; i < TemplateSpecializations->Specializations.Num(); ++i)
 			{
-				const bool bDeprecated = Property.Match.Get<DeprecatedSuffixTag>().MatchResult == MR_Success;
-				const bool bExplicitDefault = Property.Match.Get<DefaultSuffixTag>().MatchResult == MR_Success;
-				FProperty Attribute = ProcessAttribute(SlateProperties, Arguments, bDeprecated, bExplicitDefault, PropertiesInitializers);
-				if (Attribute.IsValid()) Class.Properties.Emplace(MoveTemp(Attribute));
-			}
-			else if (Property.Match.Get<NamedSlotTag>().MatchResult == MR_Success || Property.Match.Get<DefaultSlotTag>().MatchResult == MR_Success)
-			{
-				FSlot Slot = ProcessUniqueSlot(SlateProperties, Arguments);
-				if (Slot.IsValid()) Class.NamedSlots.Emplace(MoveTemp(Slot));
-			}
-			else if (Property.Match.Get<SlotArgumentTag>().MatchResult == MR_Success)
-			{
-				FSlot Slot = ProcessDynamicSlot(SlateProperties, Arguments, ScopeIndex);
-				if (Slot.IsValid()) Class.DynamicSlots.Emplace(MoveTemp(Slot));
+				// Update class name
+				FClass& ClassInstance = Classes[FirstInstance + i];
+				ClassInstance.Name.Container = ClassInstance.Name.String.ToString();
+				ClassInstance.Name.Container.AppendChar(TCHAR('<'));
+				ClassInstance.Name.Container.Append(TemplateSpecializations->Specializations[i].ToCommonStringView());
+				ClassInstance.Name.Container.AppendChar(TCHAR('>'));
+				ClassInstance.Name.String = ClassInstance.Name.Container;
+
+				// Make property type updater
+				auto TryPatchProperty = [&](FProperty& Property)
+				{
+					auto PatchExpression = [&](SourceCode::FProcessedString& Expression)
+					{
+						const int TemplateTypeLocation = Expression.String.Find(TemplateArgType);
+						const int PreviousCharIndex = TemplateTypeLocation - 1;
+						const int FollowingCharIndex = TemplateTypeLocation + TemplateArgType.Len();
+						const bool bPreviousCharIsUnrelated = (PreviousCharIndex < 0) || !IsNameChar(Expression.String[PreviousCharIndex]);
+						const bool bFollowingCharIsUnrelated = (FollowingCharIndex >= Expression.String.Len()) || !IsNameChar(Expression.String[FollowingCharIndex]);
+						if (TemplateTypeLocation != INDEX_NONE && bPreviousCharIsUnrelated && bFollowingCharIsUnrelated)
+						{
+							Expression.Container = Expression.String.Left(TemplateTypeLocation).ToCommonStringView();
+							Expression.Container.Append(TemplateSpecializations->Specializations[i].ToCommonStringView());
+							Expression.Container.Append(Expression.String.RightChop(TemplateTypeLocation + TemplateArgType.Len()).ToCommonStringView());
+							Expression.String = Expression.Container;
+							return true;
+						}
+						return false;
+					};
+
+					if (Property.Type.String == TemplateArgType)
+					{
+						Property.Type = { .String = TemplateSpecializations->Specializations[i] };
+						Property.bSupported = IsSupportedAttributeType(Property.Type.String);
+					}
+					else if (PatchExpression(Property.Type))
+					{
+						Property.bSupported = IsSupportedAttributeType(Property.Type.String);
+					}
+					PatchExpression(Property.DefaultValue);
+				};
+
+				// Fix properties types
+				for (FProperty& Property : ClassInstance.Properties)
+				{
+					TryPatchProperty(Property);
+				}
+
+				// Fix dynamic slots properties types
+				// Named slots are skipped since they can't own any properties
+				for (FSlot& Slot : ClassInstance.DynamicSlots)
+				{
+					for (FProperty& Property : Slot.Properties)
+					{
+						TryPatchProperty(Property);
+					}
+				}
 			}
 		}
 	}
@@ -617,7 +712,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 	}
 
 	// Apply predefined override
-	const FName ClassNameName = FName(Classes.Last().Name.ToCommonStringView(), FNAME_Find);
+	const FName ClassNameName = FName(Classes.Last().Name.String.ToCommonStringView(), FNAME_Find);
 	if (TArray<FOverride>* Overrides = GOverrides.Find(ClassNameName))
 	[[unlikely]]
 	{
@@ -725,7 +820,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 	// Make sure class contains "ReturnType AddSlot(...)"
 	using namespace SourceCode;
 	const FStringView ClassBody = Index.Scopes[ClassScopeIndex].ToView(Code);
-	TArray<FOverride>* Overrides = GOverrides.Find(FName(Classes.Last().Name.ToCommonStringView(), FNAME_Find));
+	TArray<FOverride>* Overrides = GOverrides.Find(FName(Classes.Last().Name.String.ToCommonStringView(), FNAME_Find));
 	FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Result.Type; }) : nullptr;
 	if (!Override || !EnumHasAnyFlags(Override->SlotProperties, SP_ConstructorInherited)) [[likely]]
 	{
@@ -1152,13 +1247,26 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 	FStringView Include(&File.FilePath[InclusionRoot.Len() + 1], File.FilePath.Len() - InclusionRoot.Len() - 1);
 	Prologue << SL"#include \"" << Include << SL"\"\r\n";
 
-	// Epilogue
-	FStringView ClassName = Class.Name.RightChop(1);
-	Epilogue << SL"\tRegister" << ClassName << SL"();\r\n";
+	{
+		// Watch out for templates
+		// If clas is a template instantiation - synthesize an acceptable registrar name first
+		SourceCode::FProcessedString ClassName{ .String = Class.Name.String };
+		if (Class.Name.String.EndsWith(SL">"))[[unlikely]]
+		{
+			ClassName.Container = ClassName.String.ToCommonStringView();
+			ClassName.Container.LeftInline(ClassName.Container.Len() - 1);
+			ClassName.Container.ReplaceCharInline(TCHAR('<'), TCHAR('_'));
+			ClassName.String = ClassName.Container;
+		}
+		ClassName.String.RightChopInline(1);
 
-	// Registrar beginning
-	Code << SL"void Register" << ClassName << SL"()\r\n{\r\n";
-	Code << SL"\tusing namespace sketch;\r\n";
+		// Epilogue
+		Epilogue << SL"\tRegister" << ClassName << SL"();\r\n";
+
+		// Registrar beginning
+		Code << SL"void Register" << ClassName << SL"()\r\n{\r\n";
+		Code << SL"\tusing namespace sketch;\r\n";
+	}
 
 	// Widget factory, including named slots
 	PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
@@ -1167,7 +1275,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 		[[maybe_unused]] FFactory Factory;
 		Code
 			<< SL"\t" << EXPR(FFactory Factory;) << SL"\r\n"
-			<< SL"\t" << EXPR(Factory.Name) << SL" = TEXT(\"" << Class.Name.RightChop(1) << SL"\";)\r\n"
+			<< SL"\t" << EXPR(Factory.Name) << SL" = TEXT(\"" << Class.Name.String.RightChop(1) << SL"\";)\r\n"
 			<< SL"\t" << EXPR(Factory.ConstructWidget) << SL" = [](SWidget* WidgetToTakeUniqueSlotsFrom)\r\n"
 			<< SL"\t{\r\n";
 		if (!Class.NamedSlots.IsEmpty())
@@ -1231,7 +1339,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 		if (Class.DynamicSlots.Num() > 1) [[unlikely]]
 		{
 			// TODO Would be nice to replace LogTemp with something more consistent
-			UE_LOG(LogTemp, Error, SL"Multiple types of dynamic slots (%s) aren't currently supported", *Class.Name.ToString());
+			UE_LOG(LogTemp, Error, SL"Multiple types of dynamic slots (%s) aren't currently supported", *Class.Name.String.ToString());
 		}
 		return Class.DynamicSlots.Num() == 1;
 	}();
