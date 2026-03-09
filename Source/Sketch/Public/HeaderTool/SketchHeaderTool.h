@@ -279,7 +279,7 @@ namespace sketch::HeaderTool
 		FString Epilogue;
 	};
 
-	SKETCH_API FString TryGetModuleName(FString& InclusionRoot, const TCHAR* FallbackValue = TEXT("All"));
+	SKETCH_API sketch::FStringView TryGetModuleName(sketch::FStringView InclusionRoot, sketch::FStringView FallbackValue = TEXT("All"));
 }
 
 #undef FORMATTER

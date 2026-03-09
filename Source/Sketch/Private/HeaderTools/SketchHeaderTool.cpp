@@ -1353,24 +1353,35 @@ FString sketch::HeaderTool::FReflectionGenerator::GenerateReflection()
 	return Result;
 }
 
-FString sketch::HeaderTool::TryGetModuleName(FString& InclusionRoot, const TCHAR* FallbackValue)
+sketch::FStringView sketch::HeaderTool::TryGetModuleName(sketch::FStringView InclusionRoot, sketch::FStringView FallbackValue)
 {
-	FPaths::NormalizeDirectoryName(InclusionRoot);
-	constexpr TCHAR Public[]{ TEXT("/Public") };
-	constexpr TCHAR Private[]{ TEXT("/Private") };
-	if (InclusionRoot.EndsWith(Public, ESearchCase::IgnoreCase))
+	constexpr sketch::FStringView Public(SL"Public");
+	constexpr sketch::FStringView Private(SL"Private");
+	auto EndsWith = [&InclusionRoot](sketch::FStringView Suffix)
 	{
-		InclusionRoot.LeftChopInline(UE_ARRAY_COUNT(Public) - 1, EAllowShrinking::No);
+		const int PrecedingCharIndex = InclusionRoot.Len() - 1 - Suffix.Len();
+		return
+			InclusionRoot.EndsWith<ESearchCase::IgnoreCase>(Suffix)
+			&& InclusionRoot.IsValidIndex(PrecedingCharIndex)
+			&& (InclusionRoot[PrecedingCharIndex] == TCHAR('/') || InclusionRoot[PrecedingCharIndex] == TCHAR('\\'));
+	};
+	if (EndsWith(Public))
+	{
+		InclusionRoot.LeftChopInline(Public.Len() + 1);
 	}
-	else if (InclusionRoot.EndsWith(Private, ESearchCase::IgnoreCase))
+	else if (EndsWith(Private))
 	{
-		InclusionRoot.LeftChopInline(UE_ARRAY_COUNT(Private) - 1, EAllowShrinking::No);
+		InclusionRoot.LeftChopInline(Private.Len() + 1);
+	}
+	else if (const int DotPosition = InclusionRoot.FindLast(TCHAR('.')); DotPosition != INDEX_NONE)
+	{
+		InclusionRoot.LeftInline(DotPosition);
 	}
 	for (int i = InclusionRoot.Len() - 1; i >= 0; --i)
 	{
 		if (InclusionRoot[i] == TCHAR('/'))
 		{
-			return FStringView(&InclusionRoot[i + 1], InclusionRoot.Len() - i - 1).ToString();
+			return FStringView(&InclusionRoot[i + 1], InclusionRoot.Len() - i - 1);
 		}
 	}
 	return FallbackValue;
