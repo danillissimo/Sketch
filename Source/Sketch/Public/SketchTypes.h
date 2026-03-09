@@ -75,8 +75,8 @@ namespace sketch
 		uint8 StaleCountdown = 0;
 		uint16 NumUsers = 0;
 
-		using FCodeGenerator = FString(*)(const FSlotBase*);
-		using FMetaValue = TVariant<FEmptyVariantState, int64, FStringView, FCodeGenerator>;
+		using FCustomSloteCodeGenerator = FString(*)(const FSlotBase*);
+		using FMetaValue = TVariant<FEmptyVariantState, int64, FStringView, FCustomSloteCodeGenerator>;
 		TMap<FName, FMetaValue> Meta;
 
 	private:
@@ -167,7 +167,7 @@ namespace sketch
 
 		TAttributeInitializer& AddMeta(const FName& Key) { return Meta.Add(Key), *this; }
 		TAttributeInitializer& AddMeta(const FName& Key, FStringView Value) { return Meta.Add(Key, FAttribute::FMetaValue(TInPlaceType<FStringView>{}, Value)), *this; }
-		TAttributeInitializer& AddMeta(const FName& Key, FAttribute::FCodeGenerator CodeGenerator) { return Meta.Add(Key, FAttribute::FMetaValue(TInPlaceType<FAttribute::FCodeGenerator>{}, CodeGenerator)), *this; }
+		TAttributeInitializer& AddMeta(const FName& Key, FAttribute::FCustomSloteCodeGenerator CodeGenerator) { return Meta.Add(Key, FAttribute::FMetaValue(TInPlaceType<FAttribute::FCustomSloteCodeGenerator>{}, CodeGenerator)), *this; }
 
 		template <class T>
 			requires std::is_integral_v<T>

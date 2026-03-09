@@ -313,12 +313,12 @@ FString SSketchWidget::GenerateCode() const
 			// Here's a little nuance
 			// Skip attributes with special code generators, but don't completely discard them
 			// Collect their generators and run them later
-			TSet<sketch::FAttribute::FCodeGenerator> SpecialCases;
+			TSet<sketch::FAttribute::FCustomSloteCodeGenerator> SpecialCases;
 			auto TryAddGenerator = [&SpecialCases](const TSharedPtr<sketch::FAttribute>& Attribute)-> bool
 			{
 				for (const auto& [_,MayBeGenerator] : Attribute->Meta)
 				{
-					const sketch::FAttribute::FCodeGenerator* Generator = MayBeGenerator.TryGet<sketch::FAttribute::FCodeGenerator>();
+					const sketch::FAttribute::FCustomSloteCodeGenerator* Generator = MayBeGenerator.TryGet<sketch::FAttribute::FCustomSloteCodeGenerator>();
 					if (Generator && *Generator)
 					{
 						SpecialCases.Add(*Generator);
@@ -340,7 +340,7 @@ FString SSketchWidget::GenerateCode() const
 			}
 
 			// Run all generators
-			for (sketch::FAttribute::FCodeGenerator Generator : SpecialCases)
+			for (sketch::FAttribute::FCustomSloteCodeGenerator Generator : SpecialCases)
 			{
 				FString CustomCode = Generator(Slot.Slot);
 				Result += MoveTemp(CustomCode);
