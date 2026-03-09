@@ -19,6 +19,7 @@ namespace sketch::HeaderTool
 	template <class T>
 	void InitResizingMixinProperties(T& Slot, bool bSupportsAttributes)
 	{
+		// Introduce HAX
 		using FMixin = TResizingWidgetSlotMixin<T>;
 		FMixin& Mixin = static_cast<FMixin&>(Slot);
 		class FAccessor : public FMixin
@@ -30,16 +31,61 @@ namespace sketch::HeaderTool
 			using FMixin::MinSize;
 			using FMixin::MaxSize;
 		};
+
+		// Introduce code generator
+		static FName ResizingMixinInitializer = TEXT("ResizingMixinInitializer");
+		auto CodeGenerator = [](const FSlotBase* SlotPtr)-> FString
+		{
+			const T* Slot = (T*)SlotPtr;
+			const FMixin* Mixin = static_cast<const FMixin*>(Slot);
+			const FAccessor* Accessor = static_cast<const FAccessor*>(Mixin);
+			FString Result;
+			Result.Reserve(128);
+			Result += TEXT(".");
+			const FSizeParam::ESizeRule& SizeRule = Accessor->SizeRule;
+			constexpr bool bVerticalBox = std::is_same_v<SVerticalBox::FSlot, T>;
+			constexpr bool bHorizontalBox = std::is_same_v<SHorizontalBox::FSlot, T>;
+			constexpr FStringView ParamName = bVerticalBox ? TEXT("Height") : bHorizontalBox ? TEXT("Width") : TEXT("Size");
+			switch (SizeRule)
+			{
+			case FSizeParam::SizeRule_Auto:
+				Result += TEXT("Auto");
+				Result += ParamName;
+				Result += TEXT("()");
+				break;
+			case FSizeParam::SizeRule_Stretch:
+				Result += TEXT("Fill");
+				Result += ParamName;
+				Result += TEXT("(");
+				Result.Append(FString::SanitizeFloat(Accessor->SizeValue.Get()));
+				Result += TEXT(")");
+				break;
+			case FSizeParam::SizeRule_StretchContent:
+				Result += TEXT("FillContent");
+				Result += ParamName;
+				Result += TEXT("(");
+				Result.Append(FString::SanitizeFloat(Accessor->SizeValue.Get()));
+				Result += TEXT(", ");
+				Result.Append(FString::SanitizeFloat(Accessor->ShrinkSizeValue.Get()));
+				Result += TEXT(")");
+				break;
+			default:
+				unimplemented();
+			}
+			return Result;
+		};
+
+		// Bind all the hidden stuff
 		FAccessor& Accessor = static_cast<FAccessor&>(Mixin);
-		Accessor.SizeRule = Sketch(TEXT("SizeRule"), FSizeParam::SizeRule_Stretch);
+		Accessor.SizeRule = Sketch(TEXT("SizeRule"), FSizeParam::SizeRule_Stretch).AddMeta(ResizingMixinInitializer, CodeGenerator);
 		auto Bind = [&](decltype(FAccessor::SizeValue)& Attribute, auto&& Initializer)
 		{
 			bSupportsAttributes
 				? Attribute.Assign(Slot, Initializer)
 				: Attribute.Assign(Slot, static_cast<float>(Initializer));
 		};
-		Bind(Accessor.SizeValue, Sketch(TEXT("SizeValue"), 1.f));
-		Bind(Accessor.ShrinkSizeValue, Sketch(TEXT("ShrinkSizeValue"), 1.f));
+		Bind(Accessor.SizeValue, Sketch(TEXT("SizeValue"), 1.f).AddMeta(ResizingMixinInitializer, CodeGenerator));
+		Bind(Accessor.ShrinkSizeValue, Sketch(TEXT("ShrinkSizeValue"), 1.f).AddMeta(ResizingMixinInitializer, CodeGenerator));
 		Bind(Accessor.MinSize, Sketch(TEXT("MinSize"), 0.f));
 		Bind(Accessor.MaxSize, Sketch(TEXT("MaxSize"), 0.f));
 	}

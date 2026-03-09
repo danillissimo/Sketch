@@ -305,11 +305,32 @@ FString SSketchWidget::GenerateCode() const
 			Result += TEXT("\r\n\r\n+ S");
 			ContentFactory.Name.AppendString(Result);
 			Result += TEXT("::");
-			Type.AppendString(Result);
+			FString TypeString = Type.ToString();
+			Result += FStringView(TypeString).RightChop(1);
 			Result += TEXT("()");
+
+			// Add all slot properties
+			// Here's a little nuance
+			// Skip attributes with special code generators, but don't completely discard them
+			// Collect their generators and run them later
+			TSet<sketch::FAttribute::FCodeGenerator> SpecialCases;
+			auto TryAddGenerator = [&SpecialCases](const TSharedPtr<sketch::FAttribute>& Attribute)-> bool
+			{
+				for (const auto& [_,MayBeGenerator] : Attribute->Meta)
+				{
+					const sketch::FAttribute::FCodeGenerator* Generator = MayBeGenerator.TryGet<sketch::FAttribute::FCodeGenerator>();
+					if (Generator && *Generator)
+					{
+						SpecialCases.Add(*Generator);
+						return true;
+					}
+				}
+				return false;
+			};
 			for (const TSharedPtr<sketch::FAttribute>& Attribute : *Slot.Attributes)
 			{
 				if (Attribute->IsSetToDefault()) continue;
+				if (TryAddGenerator(Attribute)) continue;
 
 				Result += TEXT("\r\n.");
 				Attribute->GetName().AppendString(Result);
@@ -317,6 +338,15 @@ FString SSketchWidget::GenerateCode() const
 				Result += Attribute->GetValue()->GenerateCode();
 				Result += TEXT(")");
 			}
+
+			// Run all generators
+			for (sketch::FAttribute::FCodeGenerator Generator : SpecialCases)
+			{
+				FString CustomCode = Generator(Slot.Slot);
+				Result += MoveTemp(CustomCode);
+			}
+
+			// Add slot content
 			constexpr FStringView Tab(TEXT("\t"));
 			FString SlotContent = Tab + Slot.Widget->GenerateCode();
 			if (SlotContent != Tab)
