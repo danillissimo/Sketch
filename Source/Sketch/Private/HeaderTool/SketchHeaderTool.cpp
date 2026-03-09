@@ -523,7 +523,7 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		// Parse all slate properties
 		{
 			FClass& Class = Classes.Emplace_GetRef();
-			Class.Name.String = ClassName;
+			Class.Name.View = ClassName;
 			enum { ArgumentTag, AttributeTag, DefaultSlotTag, NamedSlotTag, SlotArgumentTag, EventTag, StyleArgumentTag, UnknownPropertyTag, DeprecatedSuffixTag, DefaultSuffixTag, ArgumentsTag };
 			auto Property = Demangle(
 					TMatcher(
@@ -596,41 +596,41 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 			{
 				// Update class name
 				FClass& ClassInstance = Classes[FirstInstance + i];
-				ClassInstance.Name.Container = ClassInstance.Name.String.ToString();
+				ClassInstance.Name.Container = ClassInstance.Name.View.ToString();
 				ClassInstance.Name.Container.AppendChar(TCHAR('<'));
 				ClassInstance.Name.Container.Append(TemplateSpecializations->Specializations[i].ToCommonStringView());
 				ClassInstance.Name.Container.AppendChar(TCHAR('>'));
-				ClassInstance.Name.String = ClassInstance.Name.Container;
+				ClassInstance.Name.View = ClassInstance.Name.Container;
 
 				// Make property type updater
 				auto TryPatchProperty = [&](FProperty& Property)
 				{
 					auto PatchExpression = [&](SourceCode::FProcessedString& Expression)
 					{
-						const int TemplateTypeLocation = Expression.String.Find(TemplateArgType);
+						const int TemplateTypeLocation = Expression.View.Find(TemplateArgType);
 						const int PreviousCharIndex = TemplateTypeLocation - 1;
 						const int FollowingCharIndex = TemplateTypeLocation + TemplateArgType.Len();
-						const bool bPreviousCharIsUnrelated = (PreviousCharIndex < 0) || !IsNameChar(Expression.String[PreviousCharIndex]);
-						const bool bFollowingCharIsUnrelated = (FollowingCharIndex >= Expression.String.Len()) || !IsNameChar(Expression.String[FollowingCharIndex]);
+						const bool bPreviousCharIsUnrelated = (PreviousCharIndex < 0) || !IsNameChar(Expression.View[PreviousCharIndex]);
+						const bool bFollowingCharIsUnrelated = (FollowingCharIndex >= Expression.View.Len()) || !IsNameChar(Expression.View[FollowingCharIndex]);
 						if (TemplateTypeLocation != INDEX_NONE && bPreviousCharIsUnrelated && bFollowingCharIsUnrelated)
 						{
-							Expression.Container = Expression.String.Left(TemplateTypeLocation).ToCommonStringView();
+							Expression.Container = Expression.View.Left(TemplateTypeLocation).ToCommonStringView();
 							Expression.Container.Append(TemplateSpecializations->Specializations[i].ToCommonStringView());
-							Expression.Container.Append(Expression.String.RightChop(TemplateTypeLocation + TemplateArgType.Len()).ToCommonStringView());
-							Expression.String = Expression.Container;
+							Expression.Container.Append(Expression.View.RightChop(TemplateTypeLocation + TemplateArgType.Len()).ToCommonStringView());
+							Expression.View = Expression.Container;
 							return true;
 						}
 						return false;
 					};
 
-					if (Property.Type.String == TemplateArgType)
+					if (Property.Type.View == TemplateArgType)
 					{
-						Property.Type = { .String = TemplateSpecializations->Specializations[i] };
-						Property.bSupported = IsSupportedAttributeType(Property.Type.String);
+						Property.Type = { .View = TemplateSpecializations->Specializations[i] };
+						Property.bSupported = IsSupportedAttributeType(Property.Type.View);
 					}
 					else if (PatchExpression(Property.Type))
 					{
-						Property.bSupported = IsSupportedAttributeType(Property.Type.String);
+						Property.bSupported = IsSupportedAttributeType(Property.Type.View);
 					}
 					PatchExpression(Property.DefaultValue);
 				};
@@ -721,7 +721,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 			sketch::FStringView InitializerView = InitializerMatcher.Match.Get<ValueTag>().Value.ToView(PropertiesDefaults);
 			InitializerView = InitializerView.Mid(1, InitializerView.Len() - 2);
 			FProcessedString Initializer = CleanCode(InitializerView);
-			if (!Initializer.String.IsEmpty())
+			if (!Initializer.View.IsEmpty())
 			{
 				Result.DefaultValue = MoveTemp(Initializer);
 			}
@@ -744,7 +744,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 				DefaultValueView.TrimStartAndEndInline();
 				DefaultValueView.RemovePrefixInline(SL"=");
 				FProcessedString DefaultValue = CleanCode(DefaultValueView);
-				if (!DefaultValue.String.IsEmpty())
+				if (!DefaultValue.View.IsEmpty())
 				{
 					Result.DefaultValue = MoveTemp(DefaultValue);
 				}
@@ -757,7 +757,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 	}
 
 	// Apply predefined override
-	const FName ClassNameName = FName(Classes.Last().Name.String.ToCommonStringView(), FNAME_Find);
+	const FName ClassNameName = FName(Classes.Last().Name.View.ToCommonStringView(), FNAME_Find);
 	if (TArray<FOverride>* Overrides = GOverrides.Find(ClassNameName))
 	[[unlikely]]
 	{
@@ -771,11 +771,11 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 			if (Override->TypeOverride.GetData())
 			{
 				Result.Type.Container.Empty();
-				Result.Type.String = Override->TypeOverride;
+				Result.Type.View = Override->TypeOverride;
 			}
 			if (Override->ValueOverride.GetData())
 			{
-				Result.DefaultValue.String = Override->ValueOverride;
+				Result.DefaultValue.View = Override->ValueOverride;
 			}
 		}
 	}
@@ -793,7 +793,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessAttribute
 )
 {
 	auto Result = ProcessProperty(Properties, PropertyBody, bDeprecated, bExplicitDefaultValue, PropertiesDefaults, SlotType);
-	Result.bSupported = IsSupportedAttributeType(Result.Type.String);
+	Result.bSupported = IsSupportedAttributeType(Result.Type.View);
 	return Result;
 }
 
@@ -823,7 +823,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 		if (!Property.IsValid()) [[unlikely]] return {};
 		if (!Property.Type.Container.IsEmpty()) [[unlikely]] return Log.Warn(SL"Unexpected slot type '%s'", Index.LocatePosition(Code, PropertyBody.ToView(Properties)), *Property.Type.Container), FSlot{};
 		Result.Name = Property.Name;
-		Result.Type = Property.Type.String;
+		Result.Type = Property.Type.View;
 		if (const int ColonIndex = Result.Type.FindLast(TCHAR(':')))
 		{
 			Result.Type = Result.Type.RightChop(ColonIndex + 1);
@@ -865,7 +865,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 	// Make sure class contains "ReturnType AddSlot(...)"
 	using namespace SourceCode;
 	const FStringView ClassBody = Index.Scopes[ClassScopeIndex].ToView(Code);
-	TArray<FOverride>* Overrides = GOverrides.Find(FName(Classes.Last().Name.String.ToCommonStringView(), FNAME_Find));
+	TArray<FOverride>* Overrides = GOverrides.Find(FName(Classes.Last().Name.View.ToCommonStringView(), FNAME_Find));
 	FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Result.Type; }) : nullptr;
 	if (!Override || !EnumHasAnyFlags(Override->SlotProperties, SP_ConstructorInherited)) [[likely]]
 	{
@@ -1085,7 +1085,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 			constexpr sketch::FStringView MarginName = EXPR(FMargin);
 			Result.Properties.Emplace(
 				FProperty{
-					.Type = { .String = MarginName },
+					.Type = { .View = MarginName },
 					.Name = TEXT("Padding"),
 					.bSupported = IsSupportedAttributeType(MarginName)
 				}
@@ -1097,16 +1097,16 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 			constexpr FStringView VAlignmentName = EXPR(EVerticalAlignment);
 			Result.Properties.Emplace(
 				FProperty{
-					.Type = { .String = HAlignmentName },
+					.Type = { .View = HAlignmentName },
 					.Name = TEXT("HAlign"),
-					.DefaultValue = FProcessedString{ .String = EXPR(HAlign_Fill) },
+					.DefaultValue = FProcessedString{ .View = EXPR(HAlign_Fill) },
 					.bSupported = IsSupportedAttributeType(HAlignmentName)
 				});
 			Result.Properties.Emplace(
 				FProperty{
-					.Type = { .String = VAlignmentName },
+					.Type = { .View = VAlignmentName },
 					.Name = TEXT("VAlign"),
-					.DefaultValue = FProcessedString{ .String = EXPR(VAlign_Fill) },
+					.DefaultValue = FProcessedString{ .View = EXPR(VAlign_Fill) },
 					.bSupported = IsSupportedAttributeType(VAlignmentName)
 				});
 		}
@@ -1120,7 +1120,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 			Result.Properties.Emplace(
 				FProperty{
 					.CustomEntityInitializationCode = {
-						.String = WidgetDeclaration == INDEX_NONE
+						.View = WidgetDeclaration == INDEX_NONE
 							          ? EXPR(HeaderTool::InitResizingMixinProperties(*Slot, false);)
 							          : EXPR(HeaderTool::InitResizingMixinProperties(*Slot, true);)
 					}
@@ -1191,19 +1191,19 @@ sketch::HeaderTool::FFileBuilder::FFileBuilder(FString&& InFilePath, FLog& InLog
 
 inline FString& operator<<(FString& A, const TCHAR* B) { return A.Append(B); }
 inline FString& operator<<(FString& A, const FStringView& B) { return A.Append(B); }
-inline FString& operator<<(FString& A, const sketch::SourceCode::FProcessedString& B) { return A << B.String; }
+inline FString& operator<<(FString& A, const sketch::SourceCode::FProcessedString& B) { return A << B.View; }
 inline FString& operator<<(FString& A, int B) { return A.AppendInt(B), A; }
 
 FString& operator<<(FString& A, const sketch::HeaderTool::FProperty& B)
 {
-	const bool bPointerType = B.Type.String.EndsWith(SL"*");
+	const bool bPointerType = B.Type.View.EndsWith(SL"*");
 	if (bPointerType)
 		A << TEXT("(");
 	A << B.Type;
 	if (bPointerType)
 		A << TEXT(")");
 
-	if (bPointerType && B.DefaultValue.String.IsEmpty()) [[unlikely]]
+	if (bPointerType && B.DefaultValue.View.IsEmpty()) [[unlikely]]
 		A << TEXT(" nullptr ");
 	else
 		A << TEXT("( ") << B.DefaultValue << TEXT(" )");
@@ -1295,15 +1295,15 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 	{
 		// Watch out for templates
 		// If clas is a template instantiation - synthesize an acceptable registrar name first
-		SourceCode::FProcessedString ClassName{ .String = Class.Name.String };
-		if (Class.Name.String.EndsWith(SL">"))[[unlikely]]
+		SourceCode::FProcessedString ClassName{ .View = Class.Name.View };
+		if (Class.Name.View.EndsWith(SL">"))[[unlikely]]
 		{
-			ClassName.Container = ClassName.String.ToCommonStringView();
+			ClassName.Container = ClassName.View.ToCommonStringView();
 			ClassName.Container.LeftInline(ClassName.Container.Len() - 1);
 			ClassName.Container.ReplaceCharInline(TCHAR('<'), TCHAR('_'));
-			ClassName.String = ClassName.Container;
+			ClassName.View = ClassName.Container;
 		}
-		ClassName.String.RightChopInline(1);
+		ClassName.View.RightChopInline(1);
 
 		// Epilogue
 		Epilogue << SL"\tRegister" << ClassName << SL"();\r\n";
@@ -1320,7 +1320,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 		[[maybe_unused]] FFactory Factory;
 		Code
 			<< SL"\t" << EXPR(FFactory Factory;) << SL"\r\n"
-			<< SL"\t" << EXPR(Factory.Name) << SL" = TEXT(\"" << Class.Name.String.RightChop(1) << SL"\";)\r\n"
+			<< SL"\t" << EXPR(Factory.Name) << SL" = TEXT(\"" << Class.Name.View.RightChop(1) << SL"\";)\r\n"
 			<< SL"\t" << EXPR(Factory.ConstructWidget) << SL" = [](SWidget* WidgetToTakeUniqueSlotsFrom)\r\n"
 			<< SL"\t{\r\n";
 		if (!Class.NamedSlots.IsEmpty())
@@ -1355,14 +1355,14 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 		Code << SL"\t\t\t.SKETCH_WIDGET_FACTORY_BOILERPLATE();\r\n";
 		for (const FProperty& Property : Class.Properties)
 		{
-			if (Property.CustomArgumentInitializationCode.String.IsEmpty()) [[likely]]
+			if (Property.CustomArgumentInitializationCode.View.IsEmpty()) [[likely]]
 				continue;
 			Code << SL"\t\t\t" << Property.CustomArgumentInitializationCode << SL"\r\n";
 		}
 		Code << SL"\t\tTSharedRef<" << Class.Name << SL"> Widget = SArgumentNew(Arguments, " << Class.Name << SL");\r\n";
 		for (const FProperty& Property : Class.Properties)
 		{
-			if (Property.CustomEntityInitializationCode.String.IsEmpty()) [[likely]]
+			if (Property.CustomEntityInitializationCode.View.IsEmpty()) [[likely]]
 				continue;
 			Code << SL"\t\t\t" << Property.CustomEntityInitializationCode << SL"\r\n";
 		}
@@ -1384,7 +1384,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 		if (Class.DynamicSlots.Num() > 1) [[unlikely]]
 		{
 			// TODO Would be nice to replace LogTemp with something more consistent
-			UE_LOG(LogTemp, Error, SL"Multiple types of dynamic slots (%s) aren't currently supported", *Class.Name.String.ToString());
+			UE_LOG(LogTemp, Error, SL"Multiple types of dynamic slots (%s) aren't currently supported", *Class.Name.View.ToString());
 		}
 		return Class.DynamicSlots.Num() == 1;
 	}();
@@ -1430,7 +1430,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 			<< SL"\t\t\t;\r\n";
 		for (const auto& Property : Class.DynamicSlots[0].Properties)
 		{
-			if (Property.CustomArgumentInitializationCode.String.IsEmpty()) [[likely]]
+			if (Property.CustomArgumentInitializationCode.View.IsEmpty()) [[likely]]
 				continue;
 			Code << SL"\t\t\t" << Property.CustomArgumentInitializationCode << SL"\r\n";
 		}
@@ -1439,7 +1439,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 			<< SL"\t\t}\r\n";
 		for (const auto& Property : Class.DynamicSlots[0].Properties)
 		{
-			if (Property.CustomEntityInitializationCode.String.IsEmpty()) [[likely]]
+			if (Property.CustomEntityInitializationCode.View.IsEmpty()) [[likely]]
 				continue;
 			Code << SL"\t\t" << Property.CustomEntityInitializationCode << SL"\r\n";
 		}

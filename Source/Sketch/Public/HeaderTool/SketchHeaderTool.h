@@ -170,13 +170,13 @@ namespace sketch::HeaderTool
 	///
 	struct FProperty
 	{
-		bool IsValid() const { return !Type.String.IsEmpty() && !Name.IsEmpty(); }
+		bool IsValid() const { return !Type.View.IsEmpty() && !Name.IsEmpty(); }
 		SourceCode::FProcessedString Type;
 		sketch::FStringView Name;
 		SourceCode::FProcessedString DefaultValue;
 		SourceCode::FProcessedString CustomArgumentInitializationCode;
 		SourceCode::FProcessedString CustomEntityInitializationCode;
-		bool WithCustomInitialization() const { return !CustomArgumentInitializationCode.String.IsEmpty() || !CustomEntityInitializationCode.String.IsEmpty(); }
+		bool WithCustomInitialization() const { return !CustomArgumentInitializationCode.View.IsEmpty() || !CustomEntityInitializationCode.View.IsEmpty(); }
 		bool bSupported = false;
 	};
 
