@@ -392,7 +392,7 @@ TSharedRef<SWidget> sketch::FBrushAttribute::MakeEditor()
 
 FString sketch::FBrushAttribute::GenerateCode() const
 {
-	return GenerateBaseCode() + TEXT(".GetBrush()");
+	return GenerateBaseCode() + TEXT(".GetIcon()");
 }
 
 bool sketch::FBrushAttribute::Equals(const IAttributeImplementation& InOther) const
