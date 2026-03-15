@@ -107,12 +107,6 @@ void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 								PropertyEditor
 							]
 						]
-
-						+ SVerticalBox::Slot()
-						.MinHeight(50)
-						[
-							SNew(SSketchWidget)
-						]
 					]
 
 					+ SHorizontalBox::Slot()
