@@ -1,7 +1,7 @@
 #pragma once
 #include "SketchTypes.h"
 
-class FSketchCore
+class FSketchCore : FNoncopyable
 {
 public:
 	SKETCH_API static FSketchCore& Get();
@@ -30,6 +30,14 @@ public:
 	/** QOL helper */
 	SKETCH_API void RegisterFactory(const FName& Type, sketch::FFactory&& Factory);
 
+
+
+	const TWeakPtr<SSketchWidget>& GetWidgetEditorTarget() const { return WidgetEditorTarget; }
+	SKETCH_API void SetWidgetEditorTarget(SSketchWidget& NewTarget);
+	SKETCH_API void ResetWidgetEditorTarget();
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnWidgetEditorTargetChanged, SSketchWidget*);
+	FOnWidgetEditorTargetChanged OnWidgetEditorTargetChanged;
+
 private:
 	FSketchCore() = default;
 
@@ -40,4 +48,5 @@ private:
 
 	TMap<sketch::FSourceLocation, sketch::FAttributeCollection> Attributes;
 	TArray<sketch::FAttributeCollection, TInlineAllocator<1>> CustomAttributes;
+	TWeakPtr<SSketchWidget> WidgetEditorTarget;
 };

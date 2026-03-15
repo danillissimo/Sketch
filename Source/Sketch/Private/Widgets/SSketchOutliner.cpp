@@ -7,22 +7,56 @@
 
 #define LOCTEXT_NAMESPACE "SSketchOutliner"
 
-void SSketchOutliner::Construct(const FArguments& InArgs, SSketchWidget& Root)
+void SSketchOutliner::Construct(const FArguments& InArgs)
 {
-	RootAsArray.Reserve(1);
-	RootAsArray.Emplace(StaticCastWeakPtr<SSketchWidget>(Root.AsWeak()));
-	ChildSlot
-	[
-		SAssignNew(Tree, STreeView<TWeakPtr<SSketchWidget>>)
-		.TreeItemsSource(&RootAsArray)
-		.OnGetChildren_Static(&SSketchOutliner::OnGetChildren)
-		.OnGenerateRow_Static(&SSketchOutliner::OnGenerateRow)
-		.OnSelectionChanged(this, &SSketchOutliner::OnSelectionChanged)
-		.OnContextMenuOpening(this, &SSketchOutliner::OnMakeContextMenu)
-	];
-	Root.OnModification.AddSP(this, &SSketchOutliner::OnSketchUpdated);
+	SetRoot(InArgs._Root);
 	if (InArgs._AttributeCollection)
 		WeakCollection = StaticCastWeakPtr<SSketchAttributeCollection>(InArgs._AttributeCollection->AsWeak());
+}
+
+void SSketchOutliner::SetRoot(SSketchWidget* Root)
+{
+	if (!RootAsArray.IsEmpty())
+	{
+		if (TSharedPtr<SSketchWidget> OldRoot = RootAsArray[0].Pin())
+		{
+			OldRoot->OnModification.Remove(RootListener);
+			RootListener.Reset();
+		}
+	}
+	RootAsArray.Empty(1);
+	if (Root)
+	{
+		RootAsArray.Add(SharedThis(Root).ToWeakPtr());
+		RootListener = Root->OnModification.AddSP(this, &SSketchOutliner::OnSketchUpdated);
+	}
+	Rebuild();
+	OnSelectionChanged(nullptr, ESelectInfo::Direct);
+}
+
+void SSketchOutliner::Rebuild()
+{
+	ChildSlot
+	[
+		SNew(SVerticalBox)
+
+		+ SVerticalBox::Slot().AutoHeight()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("NoAttachedWidget", "No attached widget"))
+			.Visibility(RootAsArray.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed)
+		]
+
+		+ SVerticalBox::Slot().FillHeight(1.f)
+		[
+			SAssignNew(Tree, STreeView<TWeakPtr<SSketchWidget>>)
+			.TreeItemsSource(&RootAsArray)
+			.OnGetChildren_Static(&SSketchOutliner::OnGetChildren)
+			.OnGenerateRow_Static(&SSketchOutliner::OnGenerateRow)
+			.OnSelectionChanged(this, &SSketchOutliner::OnSelectionChanged)
+			.OnContextMenuOpening(this, &SSketchOutliner::OnMakeContextMenu)
+		]
+	];
 }
 
 void SSketchOutliner::OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeakPtr<SSketchWidget>>& Children)

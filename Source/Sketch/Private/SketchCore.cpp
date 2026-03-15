@@ -1,6 +1,7 @@
 #include "SketchCore.h"
 
 #include "Factories/BuiltinFactories.h"
+#include "Widgets/SSketchWidget.h"
 
 FSketchCore& FSketchCore::Get()
 {
@@ -63,4 +64,20 @@ void FSketchCore::RegisterFactory(const FName& Type, sketch::FFactory&& Factory)
 	{
 		CategorizedFactories.Emplace(MoveTemp(Factory));
 	}
+}
+
+void FSketchCore::SetWidgetEditorTarget(SSketchWidget& NewTarget)
+{
+	WidgetEditorTarget = StaticCastWeakPtr<SSketchWidget>(NewTarget.AsWeak());
+	OnWidgetEditorTargetChanged.Broadcast(&NewTarget);
+}
+
+void FSketchCore::ResetWidgetEditorTarget()
+{
+	if (auto Widget = WidgetEditorTarget.Pin())
+	{
+		Widget->NotifyEditorDetached();
+	}
+	WidgetEditorTarget.Reset();
+	OnWidgetEditorTargetChanged.Broadcast(nullptr);
 }

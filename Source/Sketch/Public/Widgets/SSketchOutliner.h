@@ -8,12 +8,16 @@ class SSketchOutliner : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSketchOutliner) {}
+		SLATE_ARGUMENT_DEFAULT(SSketchWidget*, Root) = nullptr;
 		SLATE_ARGUMENT_DEFAULT(SSketchAttributeCollection*, AttributeCollection) = nullptr;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, SSketchWidget& Root);
+	void Construct(const FArguments& InArgs);
+	void SetRoot(SSketchWidget* Root);
 
 private:
+	void Rebuild();
+
 	static void OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeakPtr<SSketchWidget>>& Children);
 	static TSharedRef<ITableRow> OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner);
 	static FReply OnExportRow(TWeakPtr<SSketchWidget> InItem);
@@ -35,6 +39,7 @@ private:
 	void OnSketchUpdated();
 
 	TArray<TWeakPtr<SSketchWidget>> RootAsArray;
+	FDelegateHandle RootListener;
 	TSharedPtr<STreeView<TWeakPtr<SSketchWidget>>> Tree;
 
 	TWeakPtr<SSketchAttributeCollection> WeakCollection;

@@ -5,6 +5,8 @@
 
 SLATE_IMPLEMENT_WIDGET(SSketchWidget)
 
+#define LOCTEXT_NAMESPACE "SSketchWidget"
+
 void SSketchWidget::PrivateRegisterAttributes(FSlateAttributeDescriptor::FInitializer&)
 {}
 
@@ -94,7 +96,7 @@ void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bo
 
 	// Compose new content
 	Overlay->AddSlot()[MoveTemp(Widget)];
-	Overlay->AddSlot()[Border.ToSharedRef()];
+	FinalizeOverlayRebuild();
 
 	// Notify whoever
 	BroadcastModification(bSuppressModificationEvent);
@@ -145,7 +147,7 @@ void SSketchWidget::RebuildWidget()
 
 	// Compose new content
 	Overlay->AddSlot()[MoveTemp(Widget)];
-	Overlay->AddSlot()[Border.ToSharedRef()];
+	FinalizeOverlayRebuild();
 }
 
 void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
@@ -184,7 +186,7 @@ void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
 
 	Overlay->ClearChildren();
 	Overlay->AddSlot();
-	Overlay->AddSlot()[Border.ToSharedRef()];
+	FinalizeOverlayRebuild();
 
 	BroadcastModification(bSuppressModificationEvent);
 }
@@ -195,7 +197,7 @@ int SSketchWidget::AddDynamicSlot(const FName& Type, bool bSuppressModificationE
 	auto& TypedSlots = Slots.FindOrAdd(Type);
 	FSlot& Slot = TypedSlots.Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
-	Slot.Widget = SNew(SSketchWidget);
+	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
 
 	// Make slot
 	auto& Core = FSketchCore::Get();
@@ -363,9 +365,17 @@ FString SSketchWidget::GenerateCode() const
 	return Result;
 }
 
+void SSketchWidget::NotifyEditorDetached()
+{
+	check(AttachTargetHint);
+	bRoot = false;
+	AttachTargetHint->SetVisibility(EVisibility::Visible);
+}
+
 SSketchWidget::FArguments::WidgetArgsType& SSketchWidget::FArguments::SetupAsUniqueSlotContainer(const FName& SlotName)
 {
 	_bRoot = false;
+	_bAttachTarget = false;
 	Tag(SlotName);
 	return *this;
 }
@@ -373,19 +383,39 @@ SSketchWidget::FArguments::WidgetArgsType& SSketchWidget::FArguments::SetupAsUni
 void SSketchWidget::Construct(const FArguments& InArgs)
 {
 	bRoot = InArgs._bRoot;
+	if (InArgs._bAttachTarget)
+	{
+		AttachTargetHint =
+			SNew(SBox)
+			.Visibility(EVisibility::Visible)
+			.HAlign(HAlign_Right)
+			.VAlign(VAlign_Top)
+			.Padding(2)
+			[
+				SNew(SBorder)
+				.Padding(0.f)
+				.BorderImage(FSlateIcon("CoreStyle", "Brushes.Black").GetIcon())
+				.BorderBackgroundColor(FLinearColor{ 1, 1, 1, 0.5 })
+				[
+					SNew(SImage)
+					.Image(FSlateIcon("CoreStyle", "Icons.Info.Small").GetIcon())
+					.DesiredSizeOverride(FVector2d(10.0, 10.0))
+					.ToolTipText(LOCTEXT("AttachTooltip", "Ctrl+shift+click anywhere on this widget to un/attach to Sketch Widget Editor"))
+				]
+			];
+	}
+	SAssignNew(Border, SBorder)
+	.BorderImage(FSlateIcon("CoreStyle", "PlainBorder").GetIcon())
+	.BorderBackgroundColor(this, &SSketchWidget::GetBorderColor)
+	.Visibility(EVisibility::HitTestInvisible);
+
 	ChildSlot
 	[
 		SAssignNew(Overlay, SOverlay)
 
 		+ SOverlay::Slot()
-		+ SOverlay::Slot()
-		[
-			SAssignNew(Border, SBorder)
-			.BorderImage(FSlateIcon("CoreStyle", "PlainBorder").GetIcon())
-			.BorderBackgroundColor(this, &SSketchWidget::GetBorderColor)
-			.Visibility(EVisibility::HitTestInvisible)
-		]
 	];
+	FinalizeOverlayRebuild();
 }
 
 FReply SSketchWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
@@ -462,6 +492,26 @@ FReply SSketchWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoin
 	return FReply::Handled();
 }
 
+FReply SSketchWidget::OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (AttachTargetHint && MouseEvent.IsControlDown() && MouseEvent.IsShiftDown())
+	{
+		auto& Core = FSketchCore::Get();
+		if (!bRoot)
+		{
+			AttachTargetHint->SetVisibility(EVisibility::Collapsed);
+			bRoot = true;
+			Core.SetWidgetEditorTarget(*this);
+		}
+		else
+		{
+			Core.ResetWidgetEditorTarget();
+		}
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
+}
+
 sketch::FFactory::FUniqueSlots SSketchWidget::CollectUniqueSlots(SWidget& Content) const
 {
 	if (!ContentFactory.IsValid())
@@ -490,12 +540,19 @@ void SSketchWidget::BroadcastModification(bool bSuppress)
 	}
 }
 
+void SSketchWidget::FinalizeOverlayRebuild()
+{
+	Overlay->AddSlot()[Border.ToSharedRef()];
+	if (AttachTargetHint)
+		Overlay->AddSlot()[AttachTargetHint.ToSharedRef()];
+}
+
 void SSketchWidget::OnConstructSlot(FName Name)
 {
 	sketch::FFactory* Factory = ContentFactory.Resolve();
 	FSlot& Slot = Slots.FindOrAdd(Name).Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
-	Slot.Widget = SNew(SSketchWidget);
+	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
 	auto& Core = FSketchCore::Get();
 	Core.RedirectNewAttributesInto(Slot.Attributes);
 	Slot.Slot = &Factory->ConstructDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Name);
@@ -539,7 +596,7 @@ void SSketchWidget::OnFactorySelected(FName Type, int Index)
 	Core.StopRedirectingNewAttributes();
 	Overlay->AddSlot()[MoveTemp(Widget)];
 
-	Overlay->AddSlot()[Border.ToSharedRef()];
+	FinalizeOverlayRebuild();
 
 	BroadcastModification(false);
 }
@@ -564,3 +621,5 @@ FSlateColor SSketchWidget::GetBorderColor() const
 		return HoveredColor;
 	return HighlightedColor;
 }
+
+#undef LOCTEXT_NAMESPACE

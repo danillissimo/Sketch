@@ -37,13 +37,16 @@ public:
 
 	FString GenerateCode() const;
 
+	void NotifyEditorDetached();
+
 
 
 	///
 	/// Slate
 	///
-	SLATE_BEGIN_ARGS(SSketchWidget) : _bRoot(false) {}
-		SLATE_ARGUMENT(bool, bRoot)
+	SLATE_BEGIN_ARGS(SSketchWidget) {}
+		SLATE_ARGUMENT_DEFAULT(bool, bRoot) = false;
+		SLATE_ARGUMENT_DEFAULT(bool, bAttachTarget) = true;
 
 		SKETCH_API WidgetArgsType& SetupAsUniqueSlotContainer(const FName& SlotName);
 	SLATE_END_ARGS()
@@ -51,6 +54,7 @@ public:
 	void Construct(const FArguments& InArgs);
 
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
+	virtual FReply OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 
 
@@ -69,6 +73,7 @@ private:
 	sketch::FFactory::FUniqueSlots CollectUniqueSlots(SWidget& Content) const;
 
 	void BroadcastModification(bool bSuppress);
+	void FinalizeOverlayRebuild();
 
 	void UnassignFactory();
 	void RebuildWidget();
@@ -88,7 +93,7 @@ private:
 
 	///
 	/// Data
-	///
+	///	
 	bool bRoot = false;
 	sketch::FFactoryHandle ContentFactory;
 	TArray<TSharedPtr<sketch::FAttribute>> Attributes;
@@ -96,5 +101,6 @@ private:
 
 	TSharedPtr<SOverlay> Overlay;
 	TSharedPtr<SBorder> Border;
+	TSharedPtr<SWidget> AttachTargetHint;
 	uint8 bHighlighted : 1 = false;
 };
