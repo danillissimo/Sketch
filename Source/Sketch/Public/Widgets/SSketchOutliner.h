@@ -25,7 +25,7 @@ private:
 
 	TSharedPtr<SWidget> OnMakeContextMenu();
 	void MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type);
-	void MakeExistingSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type, int Index);
+	void ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName FactoriesType, FName SlotType, int SlotIndex);
 
@@ -33,7 +33,7 @@ private:
 	static void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
 	static void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	static void OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
-	static void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
+	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 
 
 	void OnSketchUpdated();

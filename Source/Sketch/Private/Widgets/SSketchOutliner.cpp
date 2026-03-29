@@ -204,7 +204,8 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	if (const sketch::FFactory* Factory = Item->GetContentFactory().Resolve(); Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
 	{
 		// First list new slot controls
-		Menu.AddSeparator(TEXT("new slots"));
+		static const FName NAME_Slots = TEXT("Slots");
+		Menu.BeginSection(NAME_Slots, LOCTEXT("lots", "Slots"));
 		const sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
 		for (const FName& SlotType : SlotTypes)
 		{
@@ -218,31 +219,33 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 
 			Menu.AddMenuEntry(Entry);
 		}
+		Menu.EndSection();
 
 		// Second list all existing slots controls
-		Menu.AddSeparator(TEXT("existing slots"));
-		for (auto It = Item->GetDynamicSlots().CreateConstIterator(); It; ++It)
-		{
-			const FName& Type = It->Key;
-			const auto& TypedSlots = It->Value;
-			FString TypeString = Type.ToString();
-			for (auto Slot = TypedSlots.CreateConstIterator(); Slot; ++Slot)
-			{
-				FMenuEntryParams Entry;
-				FString Caption = TypeString + TEXT("#") + FString::FromInt(Slot.GetIndex());
-				Entry.LabelOverride = FText::FromString(Caption);
-				Entry.EntryBuilder.BindSP(this, &SSketchOutliner::MakeExistingSlotMenu, SelectedItems[0], Type, Slot.GetIndex());
-				Entry.bIsSubMenu = true;
-				Entry.bIsRecursivelySearchable = false;
-
-				Menu.AddMenuEntry(Entry);
-			}
-		}
-
-		Menu.AddSeparator(TEXT("factories"));
+		// Menu.AddSeparator(TEXT("existing slots"));
+		// for (auto It = Item->GetDynamicSlots().CreateConstIterator(); It; ++It)
+		// {
+		// 	const FName& Type = It->Key;
+		// 	const auto& TypedSlots = It->Value;
+		// 	FString TypeString = Type.ToString();
+		// 	for (auto Slot = TypedSlots.CreateConstIterator(); Slot; ++Slot)
+		// 	{
+		// 		FMenuEntryParams Entry;
+		// 		FString Caption = TypeString + TEXT("#") + FString::FromInt(Slot.GetIndex());
+		// 		Entry.LabelOverride = FText::FromString(Caption);
+		// 		Entry.EntryBuilder.BindSP(this, &SSketchOutliner::MakeExistingSlotMenu, SelectedItems[0], Type, Slot.GetIndex());
+		// 		Entry.bIsSubMenu = true;
+		// 		Entry.bIsRecursivelySearchable = false;
+		//
+		// 		Menu.AddMenuEntry(Entry);
+		// 	}
+		// }
 	}
 
-	ListFactories(Menu, Item, NAME_None, INDEX_NONE);
+	static const FName NAME_Factories = TEXT("factories");
+	Menu.BeginSection(NAME_Factories, LOCTEXT("Factories", "Factories"));
+	ListFactoriesIfAppropriate(Menu, Item, NAME_None, INDEX_NONE);
+	Menu.EndSection();
 
 	return Menu.MakeWidget();
 }
@@ -255,25 +258,61 @@ void SSketchOutliner::MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget
 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnMakeEmptySlot, Widget, Type);
 		Menu.AddMenuEntry(Entry);
 	}
-	ListFactories(Menu, Widget, Type, INDEX_NONE);
+	ListFactoriesIfAppropriate(Menu, Widget, Type, INDEX_NONE);
 }
 
-void SSketchOutliner::MakeExistingSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type, int Index)
+void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
+	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
+	if (!Widget) [[unlikely]]
 	{
 		FMenuEntryParams Entry;
+		Entry.LabelOverride = LOCTEXT("ERROR", "ERROR");
+		Entry.DirectActions.CanExecuteAction.BindStatic([] { return false; });
+		Menu.AddMenuEntry(Entry);
+		return;
+	}
+
+	const bool bNewSlot = !SlotType.IsNone() && SlotIndex == INDEX_NONE;
+	if (Widget->GetContentFactory().IsValid() && !bNewSlot)
+	{
+		FMenuEntryParams Entry;
+		Entry.IconOverride = FSlateIcon("CoreStyle", "Icons.Delete");
 		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearExistingSlot, Widget, Type, Index);
+		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearWidget, WeakWidget);
 		Menu.AddMenuEntry(Entry);
 	}
+
+	if (!Widget->GetContentFactory().IsValid() || bNewSlot)
+	{
+		ListFactories(Menu, WeakWidget, SlotType, SlotIndex);
+	}
+	else
 	{
 		FMenuEntryParams Entry;
-		Entry.LabelOverride = LOCTEXT("Remove", "Remove");
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnRemoveSlot, Widget, Type, Index);
+		Entry.LabelOverride = LOCTEXT("Replace", "Replace");
+		Entry.bIsSubMenu = true;
+		Entry.EntryBuilder.BindSP(this, &SSketchOutliner::ListFactories, WeakWidget, SlotType, SlotIndex);
 		Menu.AddMenuEntry(Entry);
 	}
-	ListFactories(Menu, Widget, Type, Index);
 }
+
+// void SSketchOutliner::MakeExistingSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type, int Index)
+// {
+// 	{
+// 		FMenuEntryParams Entry;
+// 		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
+// 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearExistingSlot, Widget, Type, Index);
+// 		Menu.AddMenuEntry(Entry);
+// 	}
+// 	{
+// 		FMenuEntryParams Entry;
+// 		Entry.LabelOverride = LOCTEXT("Remove", "Remove");
+// 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnRemoveSlot, Widget, Type, Index);
+// 		Menu.AddMenuEntry(Entry);
+// 	}
+// 	ListFactories(Menu, Widget, Type, Index);
+// }
 
 void SSketchOutliner::ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
@@ -287,13 +326,6 @@ void SSketchOutliner::ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> 
 		return;
 	}
 
-	{
-		FMenuEntryParams Entry;
-		Entry.IconOverride = FSlateIcon("CoreStyle", "Icons.Delete");
-		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearWidget, WeakWidget);
-		Menu.AddMenuEntry(Entry);
-	}
 	const auto& Core = FSketchCore::Get();
 	for (const auto& [Type, Factory] : Core.Factories)
 	{
@@ -318,7 +350,7 @@ void SSketchOutliner::ListFactoriesOfType(
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = FText::FromName(Factory->Name);
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnFactorySelected, FactoriesType, Factory.GetIndex(), Widget, SlotType, SlotIndex);
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnFactorySelected, FactoriesType, Factory.GetIndex(), Widget, SlotType, SlotIndex);
 		Menu.AddMenuEntry(Entry);
 	}
 }
@@ -391,6 +423,7 @@ void SSketchOutliner::OnFactorySelected(
 	{
 		Widget->AssignFactory(FactoryType, FactoryIndex, false);
 	}
+	Tree->SetItemExpansion(WeakWidget, true);
 }
 
 void SSketchOutliner::OnSketchUpdated()
