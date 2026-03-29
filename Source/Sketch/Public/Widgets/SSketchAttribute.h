@@ -27,7 +27,9 @@ private:
 	FSlateColor GetBackgroundColor() const;
 
 	FText GetNumUsers() const;
+	bool TryPatchCode(bool bRemoveSketchInvocation);
 	FReply PatchCode();
+	EActiveTimerReturnType AnimatePatchCodeButton(double CurrentTime, float InDeltaTime);
 	FReply CopyCode();
 	void Reset();
 	EVisibility GetResetButtonVisibility() const;
@@ -36,8 +38,11 @@ private:
 	TWeakPtr<sketch::FAttribute> WeakAttribute;
 
 	TSharedPtr<SBox> EditorContainer;
+	TSharedPtr<SImage> PatchCodeButtonIcon;
 	TWeakPtr<SSketchHeaderRow> WeakHeader;
 
 	mutable uint16 NumDisplayedUsers = ~0;
 	mutable FText NumDisplayedUsersText;
+	FLinearColor CurrentPatchCodeButtonColor = FLinearColor::Black;
+	TSharedPtr<FActiveTimerHandle> Animator;
 };

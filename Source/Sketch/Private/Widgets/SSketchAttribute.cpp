@@ -5,54 +5,10 @@
 #include "SketchTypes.h"
 #include "SourceCodeNavigation.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "HeaderTool/SourceCodeUtility.h"
 #include "Widgets/SSketchHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SSketchAttribute"
-
-#define Require(Condition) { if(!(Condition)) [[unlikely]] return; }
-
-void PatchCode(const TWeakPtr<sketch::FAttribute>& WeakAttribute)
-{
-	const auto& Core = FSketchCore::Get();
-	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
-	Require(Attribute);
-
-	TArray<FString> File;
-	Require(FFileHelper::LoadFileToStringArray(File, *Attribute->GetSourceLocation().FileName.ToString()));
-	const int LineIndex = Attribute->GetLine();
-	Require(File.IsValidIndex(LineIndex));
-	FString Line = File[LineIndex - 1];
-	const FString AttributeName = TEXT("\"") + Attribute->GetName().ToString() + TEXT("\"");
-	int NameStart = Line.Find(AttributeName, ESearchCase::CaseSensitive);
-	bool bAnsi = false;
-	if (NameStart == INDEX_NONE)
-	{
-		Line = FString((ANSICHAR*)*Line);
-		NameStart = Line.Find(AttributeName, ESearchCase::CaseSensitive);
-		bAnsi = true;
-	}
-	Require(NameStart != INDEX_NONE);
-	const int SketchStart = Line.Find(TEXT("Sketch"), ESearchCase::CaseSensitive, ESearchDir::FromEnd, NameStart);
-	Require(SketchStart != INDEX_NONE);
-	const int CommaAfterNameIndex = Line.Find(TEXT(","), ESearchCase::CaseSensitive, ESearchDir::FromStart, NameStart);
-	Require(CommaAfterNameIndex != INDEX_NONE);
-	const int ParenthesisAfterArgsIndex = Line.Find(TEXT(")"), ESearchCase::CaseSensitive, ESearchDir::FromStart, CommaAfterNameIndex);
-	Require(ParenthesisAfterArgsIndex != INDEX_NONE);
-	const FString GeneratedCode = Attribute->GetValue()->GenerateCode();
-	Line = Line.Left(CommaAfterNameIndex + 1) + TEXT(" ") + GeneratedCode + Line.RightChop(ParenthesisAfterArgsIndex);
-	UE_LOG(LogTemp, Warning, TEXT("%s"), *Line);
-	if (bAnsi)
-	{
-		FAnsiString AnsiLine = FAnsiString(*Line);
-		AnsiLine.AppendChar(ANSICHAR('0'));
-		AnsiLine[Line.Len() - 1] = ANSICHAR('\0');
-		Line = FString((TCHAR*)*AnsiLine);
-		AnsiLine[Line.Len() - 1] = ANSICHAR('0');
-	}
-	File[LineIndex - 1] = Line;
-	FFileHelper::SaveStringArrayToFile(File, *Attribute->GetSourceLocation().FileName.ToString());
-}
-#undef Require
 
 void SSketchAttribute::Construct(
 	const FArguments& InArgs,
@@ -179,11 +135,11 @@ void SSketchAttribute::Construct(
 				SNew(SButton)
 				.Visibility(GetSlotVisibility(4, InArgs._AllowCodePatching))
 				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-				.ToolTipText(LOCTEXT("PatchCode", "Patch code"))
+				.ToolTipText(LOCTEXT("PatchCode", "Patch code.\nHold \"ctrl\" to remove \"Sketch\" invocation as well - can only be done once."))
 				.OnClicked(this, &SSketchAttribute::PatchCode)
 				.HAlign(HAlign_Center)
 				[
-					SNew(SImage)
+					SAssignNew(PatchCodeButtonIcon, SImage)
 					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Import").GetIcon())
 				]
 			]
@@ -249,10 +205,98 @@ FText SSketchAttribute::GetNumUsers() const
 	return NumDisplayedUsersText;
 }
 
+bool SSketchAttribute::TryPatchCode(bool bRemoveSketchInvocation)
+{
+	// Sanitize
+	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
+	if (!Attribute) [[unlikely]] return false;
+
+	// Load file
+	TArray<FString> File;
+	const FString FilePath = Attribute->GetSourceLocation().FileName.ToString();
+	if (!FFileHelper::LoadFileToStringArray(File, *FilePath)) [[unlikely]] return false;
+	const int LineIndex = Attribute->GetLine();
+	if (!File.IsValidIndex(LineIndex)) [[unlikely]] return false;
+	FString& Line = File[LineIndex - 1];
+
+	// Find attribute in given line. Do not rely on column info as at can possibly be outdated.
+	{
+		using namespace sketch::SourceCode;
+		enum { InvocationTag, ArgsTag };
+		TMatcher InvocationMatcher(
+			Line,
+			&NoFilter,
+			Matcher::String<InvocationTag>(TEXT("Sketch")),
+			Matcher::Arguments<ArgsTag>()
+		);
+		const FString AttributeName = TEXT("\"") + Attribute->GetName().ToString() + TEXT("\"");
+		for (; InvocationMatcher; ++InvocationMatcher)
+		{
+			sketch::FStringView Args = InvocationMatcher.View<ArgsTag>();
+			TMatcher CommaMatcher(Args, CombinedFilter(&Bracket::AnySubscopeFilter, &String::LiteralFilter), Matcher::String(TEXT(",")));
+			if (CommaMatcher) [[likely]]
+			{
+				sketch::FStringView NameArg = Args.Mid(1, CommaMatcher.Position - 1);
+				if (NameArg.Contains(AttributeName)) [[likely]]
+				{
+					const sketch::FStringView LineView = Line;
+					FString NewLine;
+					NewLine.Reserve(Line.Len());
+					if (!bRemoveSketchInvocation)
+					{
+						NewLine += LineView.Left(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstOf + CommaMatcher.Position);
+						NewLine += TEXT(" ");
+						NewLine += Attribute->GetValue()->GenerateCode();
+						NewLine += LineView.RightChop(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstAfter - 1);
+					}
+					else
+					{
+						NewLine += LineView.Left(InvocationMatcher.Match.Get<InvocationTag>().Value.FirstOf);
+						NewLine += Attribute->GetValue()->GenerateCode();
+
+						// Watch out for cases when line is over right after Sketch invocation
+						if (LineView.IsValidIndex(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstAfter))[[likely]]
+						{
+							NewLine += LineView.RightChop(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstAfter);
+						}
+					}
+					Line = MoveTemp(NewLine);
+					UE_LOG(LogTemp, Warning, TEXT("%s"), *Line);
+					FFileHelper::SaveStringArrayToFile(File, *FilePath);
+					break;
+				}
+			}
+		}
+	}
+	return true;
+}
+
 FReply SSketchAttribute::PatchCode()
 {
-	::PatchCode(WeakAttribute);
+	const bool bRemoveSketchInvocation = FSlateApplication::Get().GetModifierKeys().IsControlDown();
+	const bool bSuccess = TryPatchCode(bRemoveSketchInvocation);
+	CurrentPatchCodeButtonColor = bSuccess ? FLinearColor::Green : FLinearColor::Red;
+	PatchCodeButtonIcon->SetColorAndOpacity(CurrentPatchCodeButtonColor);
+	if (!Animator)[[likely]]
+	{
+		Animator = RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateSP(this, &SSketchAttribute::AnimatePatchCodeButton));
+	}
 	return FReply::Handled();
+}
+
+EActiveTimerReturnType SSketchAttribute::AnimatePatchCodeButton(double CurrentTime, float DeltaTime)
+{
+	constexpr float Speed = 0.33f;
+	CurrentPatchCodeButtonColor.R = FMath::Min(1.f, CurrentPatchCodeButtonColor.R + DeltaTime * Speed);
+	CurrentPatchCodeButtonColor.G = FMath::Min(1.f, CurrentPatchCodeButtonColor.G + DeltaTime * Speed);
+	CurrentPatchCodeButtonColor.B = FMath::Min(1.f, CurrentPatchCodeButtonColor.B + DeltaTime * Speed);
+	PatchCodeButtonIcon->SetColorAndOpacity(CurrentPatchCodeButtonColor);
+	if (CurrentPatchCodeButtonColor == FLinearColor::White) [[unlikely]]
+	{
+		Animator.Reset();
+		return EActiveTimerReturnType::Stop;
+	}
+	return EActiveTimerReturnType::Continue;
 }
 
 FReply SSketchAttribute::CopyCode()
