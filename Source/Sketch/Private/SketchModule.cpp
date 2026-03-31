@@ -134,8 +134,7 @@ void FSketchModule::StartupModule()
 				FOnSpawnTab::CreateStatic([](const FSpawnTabArgs& Args)
 				{
 					TSharedRef<SDockTab> Tab = SNew(SDockTab).TabRole(NomadTab);
-					UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>();
-					TSharedRef<SWidget> Content =
+					TSharedRef<SVerticalBox> Content =
 						SNew(SVerticalBox)
 
 						+ SVerticalBox::Slot()
@@ -143,14 +142,23 @@ void FSketchModule::StartupModule()
 						[
 							SNew(SSketchHeaderTool)
 							.ContentPadding(FMargin(4, 0))
-						]
-
-						+ SVerticalBox::Slot()
-						.AutoHeight()
-						[
-							StatusBarSubsystem ? StatusBarSubsystem->MakeStatusBarWidget(TEXT("Sketch.HeaderToolStatusBar"), Tab) : SNullWidget::NullWidget
 						];
 					Tab->SetContent(Content);
+					Tab->RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateLambda([C = &Content.Get(), T = &Tab.Get()](double, float)
+					{
+						// It can happen that Header Tool tab gets instanced before main editor window
+						// When UStatusBarSubsystem is not instanced yet
+						// This fixes it
+						if (UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+						{
+							C->AddSlot().AutoHeight()
+							[
+								StatusBarSubsystem->MakeStatusBarWidget(TEXT("Sketch.HeaderToolStatusBar"), StaticCastSharedRef<SDockTab>(T->AsShared()))
+							];
+							return EActiveTimerReturnType::Stop;
+						}
+						return EActiveTimerReturnType::Continue;
+					}));
 					return Tab;
 				})
 			)
