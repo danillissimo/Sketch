@@ -4,6 +4,7 @@
 #include "SketchSandbox.h"
 #include "Runtime/AppFramework/Public/Widgets/Colors/SColorPicker.h"
 #include "Styling/StyleColors.h"
+#include "Widgets/ImageColorAnimator.h"
 #include "Widgets/Colors/SColorBlock.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SColorEditor"
@@ -51,36 +52,51 @@ public:
 
 		SHorizontalBox::FArguments Box;
 		Box + SHorizontalBox::Slot()
-		.FillContentWidth(1,1)
-		[
-			SNew(SBorder)
-			.Padding(1)
+			.FillWidth(1)
 			[
-				SNew(SColorBlock)
-				.Size(FVector2D{ 64, 16 })
-				.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
-				.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
-				.ShowBackgroundForAlpha(true)
-				.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Separate)
-				.OnMouseButtonDown(this, &SColorEditor::OpenColorPicker)
-				.Color(this, &SColorEditor::GetColor)
-			]
-		];
+				SNew(SBorder)
+				.Padding(1)
+				[
+					SNew(SColorBlock)
+					.Size(FVector2D{ 64, 16 })
+					.CornerRadius(FVector4(4.0f, 4.0f, 4.0f, 4.0f))
+					.AlphaBackgroundBrush(FAppStyle::Get().GetBrush("ColorPicker.RoundedAlphaBackground"))
+					.ShowBackgroundForAlpha(true)
+					.AlphaDisplayMode(EColorBlockAlphaDisplayMode::Separate)
+					.OnMouseButtonDown(this, &SColorEditor::OpenColorPicker)
+					.Color(this, &SColorEditor::GetColor)
+				]
+			];
 
 		if constexpr (bSlateColor)
 		{
-			Box + SHorizontalBox::Slot()
-			.FillContentWidth(1,1)
-			[
-				SAssignNew(ComboButton, SComboButton)
-				.OnGetMenuContent(this, &SColorEditor::ListSlateColors)
-				.ButtonContent()
+			Box
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
 				[
-					SNew(STextBlock)
-					.Text(this, &SColorEditor::GetSlateColorName)
-					.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "SimpleButton")
+					.ToolTipText(LOCTEXT("TryDetectSlateColor", "Try detect Slate color"))
+					.IsEnabled(this, &SColorEditor::CanTryDetectSlateColor)
+					.OnClicked(this, &SColorEditor::TryDetectSlateColor)
+					[
+						SAssignNew(TryConvertButtonImage, SImage)
+						.Image(FSlateIcon("CoreStyle", "Icons.ArrowRight").GetIcon())
+					]
 				]
-			];
+
+				+ SHorizontalBox::Slot()
+				.FillWidth(1)
+				[
+					SAssignNew(ComboButton, SComboButton)
+					.OnGetMenuContent(this, &SColorEditor::ListSlateColors)
+					.ButtonContent()
+					[
+						SNew(STextBlock)
+						.Text(this, &SColorEditor::GetSlateColorName)
+						.Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
+					]
+				];
 		}
 
 		ChildSlot
@@ -111,6 +127,33 @@ private:
 		{
 			Attribute->SetValue(NewColor);
 		}
+	}
+
+	bool CanTryDetectSlateColor() const
+	{
+		const FAllSlateColorFields& ColorInternals = (const FAllSlateColorFields&)(Color);
+		return ColorInternals.ColorUseRule == ESlateColorStylingMode::UseColor_Specified;
+	}
+
+	FReply TryDetectSlateColor()
+	{
+		if (TSharedPtr<sketch::TColorAttribute<T>> Attribute = WeakAttribute.Pin())[[likely]]
+		{
+			const FAllSlateColorFields& ColorInternals = (const FAllSlateColorFields&)(Color);
+			for (uint8 ColorId = 0; ColorId < uint8(EStyleColor::MAX); ++ColorId)
+			{
+				FSlateColor SlateColor = EStyleColor(ColorId);
+				if (ColorInternals.SpecifiedColor == SlateColor.GetSpecifiedColor())
+				{
+					Color = SlateColor;
+					Attribute->SetValue(Color);
+					Animator.Animate(*this, *TryConvertButtonImage.Get(), FLinearColor::Green);
+					return FReply::Handled();
+				}
+			}
+		}
+		Animator.Animate(*this, *TryConvertButtonImage.Get(), FLinearColor::Red);
+		return FReply::Handled();
 	}
 
 	TSharedRef<SWidget> ListSlateColors()
@@ -197,6 +240,8 @@ private:
 	TWeakPtr<sketch::TColorAttribute<T>> WeakAttribute;
 	FSlateColor Color;
 
+	TSharedPtr<SImage> TryConvertButtonImage;
+	FImageColorAnimator Animator;
 	TSharedPtr<SComboButton> ComboButton;
 };
 
