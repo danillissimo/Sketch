@@ -1,4 +1,5 @@
 #pragma once
+#include "ImageColorAnimator.h"
 #include "Widgets/SCompoundWidget.h"
 
 class SSketchHeaderRow;
@@ -29,7 +30,6 @@ private:
 	FText GetNumUsers() const;
 	bool TryPatchCode(bool bRemoveSketchInvocation);
 	FReply PatchCode();
-	EActiveTimerReturnType AnimatePatchCodeButton(double CurrentTime, float InDeltaTime);
 	FReply CopyCode();
 	void Reset();
 	EVisibility GetResetButtonVisibility() const;
@@ -39,10 +39,9 @@ private:
 
 	TSharedPtr<SBox> EditorContainer;
 	TSharedPtr<SImage> PatchCodeButtonIcon;
+	FImageColorAnimator PatchCodeButtonAnimator;
 	TWeakPtr<SSketchHeaderRow> WeakHeader;
 
 	mutable uint16 NumDisplayedUsers = ~0;
 	mutable FText NumDisplayedUsersText;
-	FLinearColor CurrentPatchCodeButtonColor = FLinearColor::Black;
-	TSharedPtr<FActiveTimerHandle> Animator;
 };

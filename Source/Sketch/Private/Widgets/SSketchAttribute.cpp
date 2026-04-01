@@ -275,28 +275,8 @@ FReply SSketchAttribute::PatchCode()
 {
 	const bool bRemoveSketchInvocation = FSlateApplication::Get().GetModifierKeys().IsControlDown();
 	const bool bSuccess = TryPatchCode(bRemoveSketchInvocation);
-	CurrentPatchCodeButtonColor = bSuccess ? FLinearColor::Green : FLinearColor::Red;
-	PatchCodeButtonIcon->SetColorAndOpacity(CurrentPatchCodeButtonColor);
-	if (!Animator)[[likely]]
-	{
-		Animator = RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateSP(this, &SSketchAttribute::AnimatePatchCodeButton));
-	}
+	PatchCodeButtonAnimator.Animate(*this, *PatchCodeButtonIcon.Get(), bSuccess ? FLinearColor::Green : FLinearColor::Red);
 	return FReply::Handled();
-}
-
-EActiveTimerReturnType SSketchAttribute::AnimatePatchCodeButton(double CurrentTime, float DeltaTime)
-{
-	constexpr float Speed = 0.33f;
-	CurrentPatchCodeButtonColor.R = FMath::Min(1.f, CurrentPatchCodeButtonColor.R + DeltaTime * Speed);
-	CurrentPatchCodeButtonColor.G = FMath::Min(1.f, CurrentPatchCodeButtonColor.G + DeltaTime * Speed);
-	CurrentPatchCodeButtonColor.B = FMath::Min(1.f, CurrentPatchCodeButtonColor.B + DeltaTime * Speed);
-	PatchCodeButtonIcon->SetColorAndOpacity(CurrentPatchCodeButtonColor);
-	if (CurrentPatchCodeButtonColor == FLinearColor::White) [[unlikely]]
-	{
-		Animator.Reset();
-		return EActiveTimerReturnType::Stop;
-	}
-	return EActiveTimerReturnType::Continue;
 }
 
 FReply SSketchAttribute::CopyCode()
