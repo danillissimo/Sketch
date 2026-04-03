@@ -2,8 +2,12 @@
 
 #include "Sketch.h"
 #include "SketchSandbox.h"
+#include "Framework/Application/SlateApplication.h"
+#include "Styling/SlateStyle.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SBrushEditor"
 

@@ -1,6 +1,9 @@
 #pragma once
 #include "Modules/ModuleManager.h"
 
+class FUICommandList;
+class FWorkspaceItem;
+
 class FSketchModule : public IModuleInterface
 {
 public:

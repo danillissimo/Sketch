@@ -1,5 +1,6 @@
 #pragma once
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STreeView.h"
 
 class SSketchAttributeCollection;
 class SSketchWidget;

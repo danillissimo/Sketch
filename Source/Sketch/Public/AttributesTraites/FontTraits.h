@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "Fonts/SlateFontInfo.h"
 
 namespace sketch
 {

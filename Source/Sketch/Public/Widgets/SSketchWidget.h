@@ -1,6 +1,10 @@
 #pragma once
 #include "SketchTypes.h"
 #include "Widgets/SCompoundWidget.h"
+#include "Widgets/SOverlay.h"
+
+class SBorder;
+class FMenuBuilder;
 
 class SKETCH_API SSketchWidget : public SCompoundWidget
 {

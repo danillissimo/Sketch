@@ -2,6 +2,7 @@
 #include "ConstexprStringView.h"
 #include "SourceCodeTypes.h"
 #include "SourceCodeUtility.h"
+#include "Delegates/Delegate.h"
 
 #ifdef __RESHARPER__
 // Resharper denies analyzing non-free methods. Here it goes, even though colors it as an error.

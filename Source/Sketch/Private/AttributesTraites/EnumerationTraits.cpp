@@ -1,6 +1,12 @@
 #include "AttributesTraites/EnumerationTraits.h"
 
+#include <array>
+
+#include "Components/VerticalBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Types/SlateStructs.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.FEnumerationAttribute"
 

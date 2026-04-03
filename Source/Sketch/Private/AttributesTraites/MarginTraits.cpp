@@ -1,6 +1,7 @@
 #include "AttributesTraites/MarginTraits.h"
 
 #include "Sketch.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SMarginEditor"

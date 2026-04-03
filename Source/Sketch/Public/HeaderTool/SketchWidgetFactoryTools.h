@@ -1,5 +1,6 @@
 #pragma once
 #include "Sketch.h"
+#include "Components/VerticalBox.h"
 #include "Types/ISlateMetaData.h"
 
 class SSketchWidget;

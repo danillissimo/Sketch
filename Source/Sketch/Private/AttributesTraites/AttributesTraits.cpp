@@ -1,5 +1,6 @@
 #include "AttributesTraites/AttributesTraits.h"
 
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Text/STextScroller.h"
 

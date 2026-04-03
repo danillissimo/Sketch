@@ -1,4 +1,6 @@
 #include "SketchModule.h"
+
+#include "Editor.h"
 #include "SketchCommands.h"
 #include "SketchSandbox.h"
 #include "SketchStyle.h"
@@ -21,9 +23,7 @@ static const FName HeaderToolTabName("SketchHeaderTool");
 
 
 
-using namespace sketch;
-
-TAttribute<FSlateFontInfo> Private::DefaultFont()
+TAttribute<FSlateFontInfo> sketch::Private::DefaultFont()
 {
 	return Sketch("Font", FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont")));
 }

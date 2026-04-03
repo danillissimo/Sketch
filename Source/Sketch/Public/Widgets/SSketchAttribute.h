@@ -2,6 +2,7 @@
 #include "ImageColorAnimator.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SBox;
 class SSketchHeaderRow;
 
 namespace sketch

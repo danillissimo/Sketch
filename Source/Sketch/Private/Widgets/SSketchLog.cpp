@@ -4,6 +4,7 @@
 #include "SourceCodeNavigation.h"
 #include "HeaderTool/StringLiteral.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "SSketchLog"
 

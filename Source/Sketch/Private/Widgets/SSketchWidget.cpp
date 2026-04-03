@@ -2,6 +2,10 @@
 
 #include "SketchModule.h"
 #include "Sketch.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 
 SLATE_IMPLEMENT_WIDGET(SSketchWidget)
 

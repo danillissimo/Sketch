@@ -6,11 +6,13 @@
 #include "AttributesTraites/MarginTraits.h"
 #include "AttributesTraites/TextTraits.h"
 #include "HeaderTool/StringLiteral.h"
+#include "Textures/SlateIcon.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderRow.h"
 #include "Widgets/SSketchOutliner.h"
 #include "Widgets/SSketchWidget.h"
 #include "Widgets/Layout/SBackgroundBlur.h"
+#include "Widgets/Layout/SScrollBox.h"
 
 #define LOCTEXT_NAMESPACE "SSketchWidgetEditor"
 

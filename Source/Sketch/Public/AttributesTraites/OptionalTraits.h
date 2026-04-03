@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "Widgets/Input/SCheckBox.h"
 
 ///
 /// Declaration

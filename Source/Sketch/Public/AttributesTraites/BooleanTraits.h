@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "SCheckBoxList.h"
 
 namespace sketch
 {

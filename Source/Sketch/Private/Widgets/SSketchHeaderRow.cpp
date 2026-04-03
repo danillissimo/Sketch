@@ -1,5 +1,11 @@
 #include "Widgets/SSketchHeaderRow.h"
 
+#include <array>
+
+#include "Textures/SlateIcon.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Layout/SBox.h"
+
 #define LOCTEXT_NAMESPACE "SSketchHeaderRow"
 
 void SSketchHeaderRow::Construct(const FArguments& InArgs)

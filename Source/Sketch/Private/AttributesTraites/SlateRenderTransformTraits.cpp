@@ -1,6 +1,7 @@
 #include "AttributesTraites/SlateRenderTransformTraits.h"
 
 #include "Widgets/Input/SVectorInputBox.h"
+#include "Widgets/Layout/SExpandableArea.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.FSlateRenderTransformAttribute"
 

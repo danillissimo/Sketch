@@ -2,6 +2,8 @@
 
 #include "Widgets/SSketchAttribute.h"
 #include "Sketch.h"
+#include "Components/VerticalBox.h"
+#include "Widgets/Layout/SSpacer.h"
 
 #define LOCTEXT_NAMESPACE "SSketchAttributeCollection"
 

@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "Textures/SlateIcon.h"
 
 namespace sketch
 {

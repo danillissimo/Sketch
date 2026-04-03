@@ -1,5 +1,7 @@
 #pragma once
 #include "HeaderTool/SketchHeaderTool.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Views/STreeView.h"
 
 struct sketch::HeaderTool::FLog;
 

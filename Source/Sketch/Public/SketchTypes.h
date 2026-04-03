@@ -1,8 +1,13 @@
 #pragma once
 #include <source_location>
 
+#include "Misc/Attribute.h"
+#include "Misc/TVariant.h"
+#include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 
+class SWidget;
+class FSlotBase;
 class SSketchWidget;
 
 namespace sketch

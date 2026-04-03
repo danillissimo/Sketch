@@ -2,10 +2,14 @@
 
 #include "Sketch.h"
 #include "SketchSandbox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Runtime/AppFramework/Public/Widgets/Colors/SColorPicker.h"
 #include "Styling/StyleColors.h"
 #include "Widgets/ImageColorAnimator.h"
 #include "Widgets/Colors/SColorBlock.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SColorEditor"
 

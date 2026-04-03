@@ -1,5 +1,7 @@
 #include "AttributesTraites/BooleanTraits.h"
 
+#include "Widgets/Input/SCheckBox.h"
+
 static sketch::FHeaderToolAttributeFilter GBooleanFilter([](FStringView Attribute)
 {
 	return Attribute == TEXT("bool");

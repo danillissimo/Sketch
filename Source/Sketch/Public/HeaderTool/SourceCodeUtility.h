@@ -3,6 +3,10 @@
 #include "ConstexprStringView.h"
 #include "SourceCodeTypes.h"
 #include "BuildDependent.h"
+#include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
+#include "Templates/UnrealTemplate.h"
+#include "Containers/UnrealString.h"
 
 /**
  * Mantras of this file:

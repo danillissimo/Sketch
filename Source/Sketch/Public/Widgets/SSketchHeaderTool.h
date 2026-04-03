@@ -3,6 +3,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SSearchBox.h"
 
+class STextBlock;
+class SScrollBox;
 class SSketchLog;
 class SSearchBox;
 class SMultiLineEditableTextBox;

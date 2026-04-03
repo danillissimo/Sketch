@@ -2,8 +2,15 @@
 
 #include "SketchCore.h"
 #include "SketchSandbox.h"
+#include "Components/VerticalBox.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Styling/StyleColors.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderRow.h"
+#include "Widgets/Input/SEditableText.h"
+#include "Widgets/Layout/SExpandableArea.h"
+#include "Widgets/Layout/SScrollBar.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/LaYout/SWidgetSwitcher.h"
 
 #define LOCTEXT_NAMESPACE "SSketchSanbox"

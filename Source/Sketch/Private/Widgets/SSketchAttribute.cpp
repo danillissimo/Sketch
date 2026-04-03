@@ -4,9 +4,16 @@
 #include "Sketch.h"
 #include "SketchTypes.h"
 #include "SourceCodeNavigation.h"
+#include "Framework/Application/SlateApplication.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HeaderTool/SourceCodeUtility.h"
+#include "Misc/FileHelper.h"
 #include "Widgets/SSketchHeaderRow.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Layout/SBox.h"
+#include "Widgets/Text/STextBlock.h"
+#include "Styling/StyleColors.h"
 
 #define LOCTEXT_NAMESPACE "SSketchAttribute"
 

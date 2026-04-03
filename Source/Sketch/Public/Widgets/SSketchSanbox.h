@@ -1,6 +1,8 @@
 #pragma once
 #include "Widgets/SCompoundWidget.h"
 
+class SWidgetSwitcher;
+class SScrollBox;
 class SSketchHeaderRow;
 
 class SSketchSandbox : public SCompoundWidget

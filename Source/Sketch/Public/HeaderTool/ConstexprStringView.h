@@ -1,6 +1,9 @@
 #pragma once
 #include <string>
 
+#include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+
 namespace sketch
 {
 	/** @note Copied from TChar */

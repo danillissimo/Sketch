@@ -1,11 +1,17 @@
 #include "Widgets/SSketchHeaderTool.h"
 
 #include "Sketch.h"
+#include "Async/Async.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "HAL/FileManager.h"
 #include "HeaderTool/SketchHeaderTool.h"
 #include "Widgets/SSketchLog.h"
 #include "Widgets/Images/SThrobber.h"
+#include "Widgets/Input/SButton.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Input/SSearchBox.h"
+#include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Text/SlateEditableTextLayout.h"
 
 #define LOCTEXT_NAMESPACE "SSketchHeaderTool"

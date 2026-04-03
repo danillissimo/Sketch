@@ -1,9 +1,12 @@
 #include "Widgets/SSketchOutliner.h"
 
 #include "SketchCore.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchWidget.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Textures/SlateIcon.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "SSketchOutliner"
 

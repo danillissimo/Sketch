@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "Rendering/SlateRenderTransform.h"
 
 namespace sketch
 {

@@ -1,7 +1,10 @@
 #pragma once
+#include <source_location>
 #include <string>
+#include <array>
 
 #include "AttributesTraits.h"
+#include "Layout/Visibility.h"
 
 namespace sketch
 {

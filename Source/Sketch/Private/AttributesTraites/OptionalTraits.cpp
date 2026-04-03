@@ -1,5 +1,8 @@
 #include "AttributesTraites/OptionalTraits.h"
 
+#include "Components/HorizontalBox.h"
+#include "Widgets/Layout/SBox.h"
+
 #define LOCTEXT_NAMESPACE "Sketch.TOptionalAttribute"
 
 static sketch::FHeaderToolAttributeFilter GOptionalFilter([](FStringView Attribute)

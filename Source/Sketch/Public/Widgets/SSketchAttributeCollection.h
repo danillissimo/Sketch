@@ -2,6 +2,7 @@
 #include "SketchTypes.h"
 #include "Widgets/SCompoundWidget.h"
 
+class SVerticalBox;
 class SSketchHeaderRow;
 
 class SKETCH_API SSketchAttributeCollection : public SCompoundWidget

@@ -1,5 +1,8 @@
 #include "Widgets/ImageColorAnimator.h"
 
+#include "Types/SlateEnums.h"
+#include "Widgets/Images/SImage.h"
+
 void FImageColorAnimator::Animate(SWidget& Owner, SImage& Image, FLinearColor InitialColor)
 {
 	CurrentColor = InitialColor;

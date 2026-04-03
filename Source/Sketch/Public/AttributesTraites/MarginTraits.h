@@ -1,5 +1,6 @@
 #pragma once
 #include "AttributesTraits.h"
+#include "Layout/Margin.h"
 
 namespace sketch
 {

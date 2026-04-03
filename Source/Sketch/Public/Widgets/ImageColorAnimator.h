@@ -1,4 +1,8 @@
 #pragma once
+#include "Runtime/SlateCore/Private/Application/ActiveTimerHandle.h"
+
+class SImage;
+class SWidget;
 
 /** A simple utility that animates given image color from InitialColor to white with constant speed */
 struct FImageColorAnimator
