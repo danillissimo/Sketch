@@ -17,6 +17,7 @@ TSharedRef<SWidget> sketch::FNameAttribute::MakeEditor()
 
 FString sketch::FNameAttribute::GenerateCode() const
 {
+	if (Value.IsNone()) return SL"NAME_None";
 	FString Result = SL"TEXT(\"";
 	Result += Value.ToString().Replace(SL"\n", SL"\\n\"\n\"", ESearchCase::CaseSensitive);
 	Result += SL"\")";
