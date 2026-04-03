@@ -1,6 +1,7 @@
 #include "AttributesTraites/StringTraits.h"
 
 #include "Sketch.h"
+#include "HeaderTool/StringLiteral.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 static sketch::FHeaderToolAttributeFilter GStringFilter([](FStringView Attribute)
@@ -17,5 +18,8 @@ TSharedRef<SWidget> sketch::FStringAttribute::MakeEditor()
 
 FString sketch::FStringAttribute::GenerateCode() const
 {
-	return FString::Printf(TEXT("TEXT(\"%s\")"), *Value);
+	FString Result = SL"TEXT(\"";
+	Result += Value.Replace(SL"\n", SL"\\n\"\n\"", ESearchCase::CaseSensitive);
+	Result += SL"\")";
+	return Result;
 }

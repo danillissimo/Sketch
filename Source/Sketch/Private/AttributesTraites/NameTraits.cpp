@@ -1,6 +1,7 @@
 #include "AttributesTraites/NameTraits.h"
 
 #include "Sketch.h"
+#include "HeaderTool/StringLiteral.h"
 
 static sketch::FHeaderToolAttributeFilter GNameFilter([](FStringView Attribute)
 {
@@ -16,5 +17,8 @@ TSharedRef<SWidget> sketch::FNameAttribute::MakeEditor()
 
 FString sketch::FNameAttribute::GenerateCode() const
 {
-	return FString::Printf(TEXT("TEXT(\"%s\")"), *Value.ToString());
+	FString Result = SL"TEXT(\"";
+	Result += Value.ToString().Replace(SL"\n", SL"\\n\"\n\"", ESearchCase::CaseSensitive);
+	Result += SL"\")";
+	return Result;
 }
