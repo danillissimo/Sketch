@@ -3,6 +3,7 @@
 void RegisterSlateFactories();
 void RegisterSlateCoreFactories();
 void RegisterHandWrittenFactories();
+void RegisterTestWidgetFactory();
 
 inline void RegisterBuiltinFactories()
 {
@@ -11,4 +12,6 @@ inline void RegisterBuiltinFactories()
 
 	// Must always be the last one so it can override any automatically generated factories
 	RegisterHandWrittenFactories();
+
+	// RegisterTestWidgetFactory();
 }
