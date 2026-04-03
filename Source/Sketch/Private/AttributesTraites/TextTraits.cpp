@@ -1,6 +1,7 @@
 #include "AttributesTraites/TextTraits.h"
 
 #include "Sketch.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 static sketch::FHeaderToolAttributeFilter GTextFilter([](FStringView Attribute)
 {
@@ -9,7 +10,7 @@ static sketch::FHeaderToolAttributeFilter GTextFilter([](FStringView Attribute)
 
 TSharedRef<SWidget> sketch::FTextAttribute::MakeEditor()
 {
-	return SNew(SEditableTextBox)
+	return SNew(SMultiLineEditableTextBox)
 		.Text(TAttribute<FText>::CreateSP(this, &FTextAttribute::CopyValue))
 		.OnTextChanged(FOnTextChanged::CreateSP(this, &FTextAttribute::SetValue));
 }
