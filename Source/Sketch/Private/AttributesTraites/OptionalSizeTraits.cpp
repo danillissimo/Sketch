@@ -1,6 +1,7 @@
 #include "AttributesTraites/OptionalSizeTraits.h"
 
 #include "Sketch.h"
+#include "HeaderTool/StringLiteral.h"
 #include "Widgets/Input/SSpinBox.h"
 
 using namespace sketch;
@@ -86,4 +87,13 @@ private:
 TSharedRef<SWidget> FOptionalSizeAttribute::MakeEditor()
 {
 	return SNew(SOptionalSizeEditor, *this);
+}
+
+FString FOptionalSizeAttribute::GenerateCode() const
+{
+	FString Result = SL"FOptionalSize(";
+	if (Value.IsSet())
+		Result += FString::SanitizeFloat(Value.Get());
+	Result += SL")";
+	return Result;
 }

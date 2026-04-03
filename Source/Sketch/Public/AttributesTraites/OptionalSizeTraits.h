@@ -7,6 +7,7 @@ namespace sketch
 	{
 		using TCommonAttributeImplementation::TCommonAttributeImplementation;
 		virtual TSharedRef<SWidget> MakeEditor() override;
+		virtual FString GenerateCode() const override;
 	};
 
 	template <>
