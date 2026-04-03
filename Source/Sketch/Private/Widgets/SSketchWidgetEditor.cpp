@@ -1,6 +1,11 @@
 #include "Widgets/SSketchWidgetEditor.h"
 
 #include "SketchCore.h"
+#include "AttributesTraites/BooleanTraits.h"
+#include "AttributesTraites/ColorTraits.h"
+#include "AttributesTraites/MarginTraits.h"
+#include "AttributesTraites/TextTraits.h"
+#include "HeaderTool/StringLiteral.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderRow.h"
 #include "Widgets/SSketchOutliner.h"
@@ -9,9 +14,91 @@
 
 #define LOCTEXT_NAMESPACE "SSketchWidgetEditor"
 
+static const FText WidgetEditorDocumentation = LOCTEXT(
+	"Documentation",
+	"Welcome to Sketch widget editor!\n"
+	"Initially, Sketch was developed to simplify creation and polishing of Slate interfaces.\n"
+	"But then I noted Sketch attributes are a very convenient base to build reflection on.\n"
+	"And then I understood that instead of just tuning widgets on the run, I can build whole widget hierarchies on the run.\n"
+	"That I can create a UMG for Slate.\n"
+	"So that's exactly what You are looking at.\n"
+	"Sketch widget editor allows You design Slate interfaces without touching code until actually needed.\n"
+	"Editing is done trough hierarchy Outliner to the left of this text.\n"
+	"Properties of a particular widget are listed to the right when You select one in the Outliner.\n"
+	"Once You done - You can copy Your design by clicking the \"Copy\" button, present on each widget in the ouliner.\n"
+	"Note that the widget You click \"Copy\" on will be the root of copied design - any widgets above it will be ignored.\n"
+	"Not only Sketch widget editor allows You building interfaces interactively - it allows You doing so wherever is convenient for you.\n"
+	"To do so:\n"
+	"- Create an instance of SSketchWidget in Your layout\n"
+	"- Bring it onto Your screen\n"
+	"- Ctrl + shift + click it\n"
+	"And now widget editor is attached to this widget.\n"
+	"\n"
+	"===========================Extending widget editor===========================\n"
+	"Extension of widget editor is done primarily via Sketch header tool.\n"
+	"Just feed it needed file, and it will generate all the codes You need.\n"
+	"In case Sketch header tool is not an option for some reason - You can do its job manually.\n"
+	"Create an instance of 'sketch::FFactory' and put it into FSketchCore::Factories.\n"
+	"For examples of live factories You can check out 'Sketch/Private/Factories' folder.\n"
+	"There are both generated and hand-written factories."
+);
+
+template <class T>
+T& FindAttribute(SSketchWidget& SketchWidget, const FName& Name)
+{
+	return static_cast<T&>(
+		*SketchWidget
+		 .GetAttributes()
+		 .FindByPredicate([&](const TSharedPtr<sketch::FAttribute>& Attribute) { return Attribute->GetName() == Name; })
+		 ->Get()
+		 ->GetValue()
+		 .Get()
+	);
+}
+
 void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 {
 	WidgetPreview = SNew(SSketchWidget).bRoot(true).bAttachTarget(false);
+	static const FName EditableTextClassName(SL"EditableText");
+	static const FName BoxClassName(SL"Box");
+	auto& Core = FSketchCore::Get();
+	[&]
+	{
+		FName BoxFactoryCategory;
+		int BoxFactoryIndex = INDEX_NONE;
+		FName EditableTextFactoryCategory;
+		int EditableTextFactoryIndex = INDEX_NONE;
+		for (const auto& [Category, Factories] : Core.Factories)
+		{
+			for (auto Factory = Factories.CreateConstIterator(); Factory; ++Factory)
+			{
+				if (Factory->Name == EditableTextClassName || Factory->Name == BoxClassName)
+				{
+					if (Factory->Name == EditableTextClassName)
+					{
+						EditableTextFactoryCategory = Category;
+						EditableTextFactoryIndex = Factory.GetIndex();
+					}
+					else
+					{
+						BoxFactoryCategory = Category;
+						BoxFactoryIndex = Factory.GetIndex();
+					}
+					if (BoxFactoryIndex != INDEX_NONE && EditableTextFactoryIndex != INDEX_NONE)
+					{
+						WidgetPreview->AssignFactory(BoxFactoryCategory, BoxFactoryIndex, true);
+						FindAttribute<sketch::FMarginAttribute>(*WidgetPreview, SL"Padding").SetValue(FMargin{ 8.f });
+						auto UniqueSlots = WidgetPreview->CollectUniqueSlots();
+						UniqueSlots[0]->AssignFactory(EditableTextFactoryCategory, EditableTextFactoryIndex, true);
+						FindAttribute<sketch::FTextAttribute>(*UniqueSlots[0], SL"TEXT").SetValue(WidgetEditorDocumentation);
+						FindAttribute<sketch::FBooleanAttribute>(*UniqueSlots[0], SL"IsReadOnly").SetValue(true);
+						FindAttribute<sketch::TColorAttribute<FSlateColor>>(*UniqueSlots[0], SL"ColorAndOpacity").SetValue(FLinearColor(1, 1, 1, .75f));
+						return;
+					}
+				}
+			}
+		}
+	}();
 	TSharedRef<SSketchHeaderRow> HeaderRow = SNew(SSketchHeaderRow)
 		.ShowNumUsers(false)
 		.ShowLine(false);
@@ -23,7 +110,6 @@ void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 	SSketchWidget* Target = WidgetPreview.Get();
 	EVisibility PreviewOverlayVisibility = EVisibility::Collapsed;
 	{
-		auto& Core = FSketchCore::Get();
 		if (TSharedPtr<SSketchWidget> CurrentTarget = Core.GetWidgetEditorTarget().Pin())
 		{
 			Target = CurrentTarget.Get();

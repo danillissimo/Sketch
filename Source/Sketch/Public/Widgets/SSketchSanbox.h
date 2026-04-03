@@ -18,6 +18,10 @@ private:
 	void ScheduleUpdate();
 	void UpdateAttributes();
 
+	ECheckBoxState IsTabActive(int Tab) const;
+	void OnTabClicked(ECheckBoxState NewTabState, int Tab);
+
 	TSharedPtr<SSketchHeaderRow> HeaderRow;
 	TSharedPtr<SScrollBox> ScrollBox;
+	TSharedPtr<SWidgetSwitcher> TabSwitcher;
 };
