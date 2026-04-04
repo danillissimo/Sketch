@@ -76,7 +76,7 @@ namespace sketch::HeaderTool
 
 		/// Contents
 	private:
-		FORCENOINLINE static void End(int& Pointer, TArray<FString>& Array, int& Counter, const FSimpleMulticastDelegate* Event = nullptr)
+		static void End(int& Pointer, TArray<FString>& Array, int& Counter, const FSimpleMulticastDelegate* Event = nullptr)
 		{
 			if (Pointer != INDEX_NONE)
 			{
