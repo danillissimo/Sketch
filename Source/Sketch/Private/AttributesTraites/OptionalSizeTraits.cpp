@@ -2,6 +2,7 @@
 
 #include "Sketch.h"
 #include "HeaderTool/StringLiteral.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 
 using namespace sketch;

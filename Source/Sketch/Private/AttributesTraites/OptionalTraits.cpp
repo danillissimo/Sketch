@@ -1,6 +1,7 @@
 #include "AttributesTraites/OptionalTraits.h"
 
 #include "Components/HorizontalBox.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Layout/SBox.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.TOptionalAttribute"

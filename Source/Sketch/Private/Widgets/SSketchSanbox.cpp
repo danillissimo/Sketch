@@ -7,6 +7,7 @@
 #include "Styling/StyleColors.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderRow.h"
+#include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SEditableText.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Layout/SScrollBar.h"
