@@ -1,7 +1,7 @@
 #pragma once
 #include "Widgets/Views/SHeaderRow.h"
 
-class SSketchHeaderRow : public SHeaderRow
+class SKETCH_API SSketchHeaderRow : public SHeaderRow
 {
 public:
 	SLATE_BEGIN_ARGS(SSketchHeaderRow) {}
@@ -12,7 +12,7 @@ public:
 		SLATE_ARGUMENT_DEFAULT(bool, AllowCodePatching) = false;
 	SLATE_END_ARGS()
 
-	SKETCH_API void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs);
 
 	struct FColumnProperties
 	{
@@ -22,5 +22,8 @@ public:
 		FText Label;
 	};
 	/** @note Is a method so data can be updated by live coding instead of by a reboot */
-	SKETCH_API static std::array<FColumnProperties, 7> GetColumnsProperties();
+	static std::array<FColumnProperties, 7> GetColumnsProperties();
+
+	static const FText InteractivityTooltip;
+	static const FText NumUsersTooltip;
 };

@@ -112,10 +112,11 @@ void SSketchSandbox::Construct(const FArguments& InArgs)
 		.ExternalScrollbar(Scrollbar);
 	TSharedPtr<SSplitter> Splitter;
 	FMenuBarBuilder TitleMenu(nullptr);
-	TitleMenu.AddPullDownMenu(
+	TitleMenu.AddMenuEntry(
 		LOCTEXT("Clear", "Clear"),
 		LOCTEXT("ClearTooltip", "Clear stale attributes"),
-		FNewMenuDelegate::CreateStatic([](FMenuBuilder&) { FSketchCore::Get().ClearStaleAttributes(); })
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateStatic([]() { FSketchCore::Get().ClearStaleAttributes(); }))
 	);
 
 	// Make content

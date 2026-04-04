@@ -8,6 +8,9 @@
 
 #define LOCTEXT_NAMESPACE "SSketchHeaderRow"
 
+const FText SSketchHeaderRow::InteractivityTooltip = LOCTEXT("InteractivityTooltip", "Interactivity.\nInteractive attributes are read via TAttribute-s, and are expected to reflect changes immediately.\nNon-interactive attributes are likely to require additional actions to reflect changes.");
+const FText SSketchHeaderRow::NumUsersTooltip = LOCTEXT("NumUsersTooltip", "Number of reading TAttributes");
+
 void SSketchHeaderRow::Construct(const FArguments& InArgs)
 {
 	SHeaderRow::FArguments HeaderArgs;
@@ -27,7 +30,7 @@ void SSketchHeaderRow::Construct(const FArguments& InArgs)
 		nullptr,
 		nullptr,
 		SNew(SBox)
-		.ToolTipText(LOCTEXT("InteractivityTooltip", "Interactivity.\nInteractive attributes are read via TAttribute-s, and are expected to reflect changes immediately.\nNon-interactive attributes are likely to require additional actions to reflect changes."))
+		.ToolTipText(InteractivityTooltip)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -35,7 +38,7 @@ void SSketchHeaderRow::Construct(const FArguments& InArgs)
 			.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.ExpandHotPath16").GetIcon())
 		],
 		SNew(SBox)
-		.ToolTipText(LOCTEXT("NumUsersTooltip", "Number of reading TAttributes"))
+		.ToolTipText(NumUsersTooltip)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
 		[
@@ -45,6 +48,7 @@ void SSketchHeaderRow::Construct(const FArguments& InArgs)
 		SNew(SBox)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
+		.ToolTipText(LOCTEXT("PatchCodeButtonTooltip", "Patch code button"))
 		[
 			SNew(SImage)
 			.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Import").GetIcon())
@@ -52,6 +56,7 @@ void SSketchHeaderRow::Construct(const FArguments& InArgs)
 		SNew(SBox)
 		.HAlign(HAlign_Center)
 		.VAlign(VAlign_Center)
+		.ToolTipText(LOCTEXT("CopyToClipboardButtonTooltip", "Copy to clipboard button"))
 		[
 			SNew(SImage)
 			.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())

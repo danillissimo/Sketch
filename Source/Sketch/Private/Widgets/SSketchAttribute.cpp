@@ -123,6 +123,7 @@ void SSketchAttribute::Construct(
 				[
 					SNew(SImage)
 					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Profiler.EventGraph.ExpandHotPath16").GetIcon())
+					.ToolTipText(SSketchHeaderRow::InteractivityTooltip)
 					.Visibility(GetSlotVisibility(2, InArgs._ShowInteractivity))
 				]
 			]
@@ -135,6 +136,7 @@ void SSketchAttribute::Construct(
 				.Justification(ETextJustify::Center)
 				.OverflowPolicy(ETextOverflowPolicy::Clip)
 				.Visibility(GetSlotVisibility(3, InArgs._ShowNumUsers))
+				.ToolTipText(SSketchHeaderRow::NumUsersTooltip)
 			]
 
 			+ MakeSlot(4, HAlign_Center)
