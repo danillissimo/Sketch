@@ -217,6 +217,8 @@ bool SSketchAttribute::TryPatchCode(bool bRemoveSketchInvocation)
 	// Sanitize
 	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
 	if (!Attribute) [[unlikely]] return false;
+	TOptional<FString> Code = Attribute->GetValue()->TryGenerateCode();
+	if (!Code) [[unlikely]] return false;
 
 	// Load file
 	TArray<FString> File;
@@ -253,13 +255,13 @@ bool SSketchAttribute::TryPatchCode(bool bRemoveSketchInvocation)
 					{
 						NewLine += LineView.Left(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstOf + CommaMatcher.Position);
 						NewLine += TEXT(" ");
-						NewLine += Attribute->GetValue()->GenerateCode();
+						NewLine += Code.GetValue();
 						NewLine += LineView.RightChop(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstAfter - 1);
 					}
 					else
 					{
 						NewLine += LineView.Left(InvocationMatcher.Match.Get<InvocationTag>().Value.FirstOf);
-						NewLine += Attribute->GetValue()->GenerateCode();
+						NewLine += Code.GetValue();
 
 						// Watch out for cases when line is over right after Sketch invocation
 						if (LineView.IsValidIndex(InvocationMatcher.Match.Get<ArgsTag>().Value.FirstAfter))[[likely]]
