@@ -23,7 +23,7 @@ public:
 		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, AllowCodePatching) = false;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, sketch::FAttribute& Attribute);
+	SKETCH_API void Construct(const FArguments& InArgs, sketch::FAttribute& Attribute);
 
 private:
 	FSlateColor GetBackgroundColor() const;

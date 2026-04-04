@@ -10,8 +10,8 @@ namespace sketch
 		using Super::Super;
 		using Super::Value;
 
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 	};
 
 	extern template SKETCH_API struct TIntegerAttribute<uint8>;

@@ -246,9 +246,9 @@ namespace sketch::HeaderTool
 		bool IsValid() const { return !Code.IsEmpty(); }
 	};
 
-	struct SKETCH_API FFileBuilder : FFile
+	struct FFileBuilder : FFile
 	{
-		FFileBuilder(FString&& FilePath, FLog& Log);
+		SKETCH_API FFileBuilder(FString&& FilePath, FLog& Log);
 
 	private:
 		bool Init();

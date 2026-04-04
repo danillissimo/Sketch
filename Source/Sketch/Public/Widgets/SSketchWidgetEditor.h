@@ -10,7 +10,7 @@ public:
 		SLATE_ATTRIBUTE(FMargin, ContentPadding)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SKETCH_API void Construct(const FArguments& InArgs);
 
 private:
 	void OnTargetChanged(SSketchWidget* SketchWidget);

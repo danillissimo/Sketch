@@ -10,15 +10,15 @@ class SSearchBox;
 class SMultiLineEditableTextBox;
 class SSuggestionTextBox;
 
-class SKETCH_API SSketchHeaderTool : public SCompoundWidget
+class SSketchHeaderTool : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSketchHeaderTool) {}
 		SLATE_ARGUMENT(FMargin, ContentPadding)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
-	virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
+	SKETCH_API void Construct(const FArguments& InArgs);
+	SKETCH_API virtual FReply OnPreviewKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent) override;
 
 private:
 	FSlateEditableTextLayout* GetTextLayout();

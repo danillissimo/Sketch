@@ -12,7 +12,7 @@ public:
 		SLATE_ATTRIBUTE(FMargin, ContentPadding)
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SKETCH_API void Construct(const FArguments& InArgs);
 
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 

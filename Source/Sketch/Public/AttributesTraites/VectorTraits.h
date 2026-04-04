@@ -25,8 +25,8 @@ namespace sketch
 		using Super::Super;
 		using Super::Value;
 		using Super::OnValueChanged;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 
 		TOptional<T> GetX() const { return Value.X; }
 		TOptional<T> GetY() const { return Value.Y; }

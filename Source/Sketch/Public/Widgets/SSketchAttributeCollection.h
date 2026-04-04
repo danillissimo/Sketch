@@ -5,7 +5,7 @@
 class SVerticalBox;
 class SSketchHeaderRow;
 
-class SKETCH_API SSketchAttributeCollection : public SCompoundWidget
+class SSketchAttributeCollection : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SSketchAttributeCollection) {}
@@ -20,11 +20,11 @@ public:
 		SLATE_ARGUMENT_DEFAULT(TOptional<bool>, AllowCodePatching) = false;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SKETCH_API void Construct(const FArguments& InArgs);
 
-	void SetSlotAttributes(const sketch::FConstAttributeCollection& Attributes);
-	void SetAttributes(const sketch::FConstAttributeCollection& Attributes);
-	void Update();
+	SKETCH_API void SetSlotAttributes(const sketch::FConstAttributeCollection& Attributes);
+	SKETCH_API void SetAttributes(const sketch::FConstAttributeCollection& Attributes);
+	SKETCH_API void Update();
 
 private:
 	EVisibility GetAttributeGroupSpacerVisibility() const;

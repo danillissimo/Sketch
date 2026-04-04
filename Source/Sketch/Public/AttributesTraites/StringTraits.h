@@ -8,8 +8,8 @@ namespace sketch
 	{
 		using Super = TCommonAttributeImplementation<FString>;
 		using Super::Super;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 		FText ToText() const { return FText::FromString(Value); }
 		void FromText(const FText& InText) { Value = InText.ToString(); }
 	};

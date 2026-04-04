@@ -10,12 +10,12 @@ namespace sketch
 		using Super = TCommonAttributeImplementation<T>;
 		using Super::Super;
 		using Super::Value;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 	};
 
-	extern template struct TColorAttribute<FLinearColor>;
-	extern template struct TColorAttribute<FSlateColor>;
+	extern template SKETCH_API struct TColorAttribute<FLinearColor>;
+	extern template SKETCH_API struct TColorAttribute<FSlateColor>;
 
 	template <>
 	struct TAttributeTraits<FLinearColor> : public TCommonAttributeTraits<TColorAttribute<FLinearColor>> {};

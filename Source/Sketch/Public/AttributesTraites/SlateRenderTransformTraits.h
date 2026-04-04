@@ -24,10 +24,10 @@ namespace sketch
 
 	struct FSlateRenderTransformAttribute : public IAttributeImplementation
 	{
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
-		virtual bool Equals(const IAttributeImplementation& Other) const override;
-		virtual void Reinitialize(const IAttributeImplementation& From) override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
+		SKETCH_API virtual bool Equals(const IAttributeImplementation& Other) const override;
+		SKETCH_API virtual void Reinitialize(const IAttributeImplementation& From) override;
 
 
 		TOptional<float> GetTranslationX() const { return Translation.X; }

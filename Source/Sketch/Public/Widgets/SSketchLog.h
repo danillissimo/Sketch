@@ -38,14 +38,14 @@ public:
 		SLATE_ARGUMENT_DEFAULT(const sketch::HeaderTool::FLog*, Log) = nullptr;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
+	SKETCH_API void Construct(const FArguments& InArgs);
 
 	/** 
 	 * This widget is STreeView based, and STreeView doesn't have any means to update immediately.
 	 * What makes synchronizing with an async log an unstraightforward task.
 	 */
-	void Rebuild(const sketch::HeaderTool::FLog& Log);
-	void Reset();
+	SKETCH_API void Rebuild(const sketch::HeaderTool::FLog& Log);
+	SKETCH_API void Reset();
 
 private:
 	void OnGetChildren(sketch::Private::FLogItemId ItemId, TArray<sketch::Private::FLogItemId>& Children);

@@ -7,8 +7,8 @@ namespace sketch
 	struct FOptionalSizeAttribute : public TCommonAttributeImplementation<FOptionalSize>
 	{
 		using TCommonAttributeImplementation::TCommonAttributeImplementation;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 	};
 
 	template <>

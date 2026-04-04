@@ -15,9 +15,9 @@ namespace sketch
 	public:
 		virtual ~IAttributeImplementation() = default;
 
-		virtual TSharedRef<SWidget> MakeEditor();
-		virtual FString GenerateCode() const;
-		TOptional<FString> TryGenerateCode() const;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor();
+		SKETCH_API virtual FString GenerateCode() const;
+		SKETCH_API TOptional<FString> TryGenerateCode() const;
 		virtual bool Equals(const IAttributeImplementation& Other) const { return true; }
 		/** @note You'll probably want to call OnValueChanged right after */
 		virtual void Reinitialize(const IAttributeImplementation& From) {}

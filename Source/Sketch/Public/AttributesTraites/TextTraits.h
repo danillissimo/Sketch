@@ -8,8 +8,8 @@ namespace sketch
 	{
 		using Super = TCommonAttributeImplementation<FText>;
 		using Super::Super;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 		virtual bool Equals(const IAttributeImplementation& Other) const override;
 	};
 

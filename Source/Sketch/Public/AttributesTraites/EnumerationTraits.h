@@ -34,8 +34,8 @@ namespace sketch
 
 	struct FEnumerationAttribute : public TCommonAttributeImplementation<uint64>
 	{
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 
 		FEnumerationAttribute(uint64 InValue, const Private::FEnum& Enum)
 			: TCommonAttributeImplementation<uint64>(InValue)

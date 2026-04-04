@@ -9,12 +9,12 @@ namespace sketch
 		using Super = TCommonAttributeImplementation<T>;
 		using Super::Super;
 		using Super::Value;
-		virtual TSharedRef<SWidget> MakeEditor() override;
-		virtual FString GenerateCode() const override;
+		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
+		SKETCH_API virtual FString GenerateCode() const override;
 	};
 
-	extern template struct TFractionalAttribute<float>;
-	extern template struct TFractionalAttribute<double>;
+	extern template SKETCH_API struct TFractionalAttribute<float>;
+	extern template SKETCH_API struct TFractionalAttribute<double>;
 
 	template <>
 	struct TAttributeTraits<float> : public TCommonAttributeTraits<TFractionalAttribute<float>> {};

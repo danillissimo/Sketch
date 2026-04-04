@@ -13,8 +13,8 @@ public:
 		SLATE_ARGUMENT_DEFAULT(SSketchAttributeCollection*, AttributeCollection) = nullptr;
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs);
-	void SetRoot(SSketchWidget* Root);
+	SKETCH_API void Construct(const FArguments& InArgs);
+	SKETCH_API void SetRoot(SSketchWidget* Root);
 
 private:
 	void Rebuild();
