@@ -39,7 +39,6 @@ public class Sketch : ModuleRules
 		{
 			PrivateDependencyModuleNames.AddRange(new string[]
 			{
-				"PropertyEditor", // Used literally for a single button template
 				"UnrealEd", // Used for source code navigation, can be potentially replaced with direct access to SourceCodeAccess module
 				"WorkspaceMenuStructure", // Used to add submenu to the "Tools" menu
 				"StatusBar",

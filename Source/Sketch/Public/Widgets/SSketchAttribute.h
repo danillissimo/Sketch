@@ -32,7 +32,7 @@ private:
 	bool TryPatchCode(bool bRemoveSketchInvocation);
 	FReply PatchCode();
 	FReply CopyCode();
-	void Reset();
+	FReply Reset();
 	EVisibility GetResetButtonVisibility() const;
 	FReply OnBrowseSourceCode() const;
 

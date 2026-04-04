@@ -69,12 +69,6 @@ void SSketchAttribute::Construct(
 		return !Header->GetColumns()[Index].bIsVisible ? EVisibility::Collapsed : Controller.Get(true) ? EVisibility::Visible : EVisibility::Hidden;
 	};
 
-	// Create reset button
-	TSharedRef<SWidget> ResetButton = PropertyCustomizationHelpers::MakeResetButton(
-		FSimpleDelegate::CreateSP(this, &SSketchAttribute::Reset)
-	);
-	ResetButton->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &SSketchAttribute::GetResetButtonVisibility));
-
 	// Make content
 	ChildSlot
 	[
@@ -184,7 +178,16 @@ void SSketchAttribute::Construct(
 				.AutoWidth()
 				.VAlign(VAlign_Center)
 				[
-					ResetButton
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+					.OnClicked(this, &SSketchAttribute::Reset)
+					.Visibility(this, &SSketchAttribute::GetResetButtonVisibility)
+					.ToolTipText(LOCTEXT("ResetButtonToolTipText", "Reset Element to Default Value"))
+					.HAlign(HAlign_Center)
+					[
+						SNew(SImage)
+						.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+					]
 				]
 			]
 		]
@@ -300,14 +303,15 @@ FReply SSketchAttribute::CopyCode()
 	return FReply::Handled();
 }
 
-void SSketchAttribute::Reset()
+FReply SSketchAttribute::Reset()
 {
 	const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin();
-	if (!Attribute) [[unlikely]] return;
+	if (!Attribute) [[unlikely]] return FReply::Handled();
 
 	Attribute->GetValue()->Reinitialize(*Attribute->GetDefaultValue());
 	EditorContainer->SetContent(Attribute->GetValue()->MakeEditor());
 	Attribute->GetValue()->OnValueChanged.Broadcast();
+	return FReply::Handled();
 }
 
 EVisibility SSketchAttribute::GetResetButtonVisibility() const
