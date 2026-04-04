@@ -61,11 +61,12 @@ T& FindAttribute(SSketchWidget& SketchWidget, const FName& Name)
 void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 {
 	WidgetPreview = SNew(SSketchWidget).bRoot(true).bAttachTarget(false);
-	static const FName EditableTextClassName(SL"EditableText");
-	static const FName BoxClassName(SL"Box");
 	auto& Core = FSketchCore::Get();
 	[&]
 	{
+		static const FName EditableTextClassName(SL"EditableText");
+		static const FName BoxClassName(SL"Box");
+
 		FName BoxFactoryCategory;
 		int BoxFactoryIndex = INDEX_NONE;
 		FName EditableTextFactoryCategory;
@@ -92,7 +93,7 @@ void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 						FindAttribute<sketch::FMarginAttribute>(*WidgetPreview, SL"Padding").SetValue(FMargin{ 8.f });
 						auto UniqueSlots = WidgetPreview->CollectUniqueSlots();
 						UniqueSlots[0]->AssignFactory(EditableTextFactoryCategory, EditableTextFactoryIndex, true);
-						FindAttribute<sketch::FTextAttribute>(*UniqueSlots[0], SL"TEXT").SetValue(WidgetEditorDocumentation);
+						FindAttribute<sketch::FTextAttribute>(*UniqueSlots[0], SL"Text").SetValue(WidgetEditorDocumentation);
 						FindAttribute<sketch::FBooleanAttribute>(*UniqueSlots[0], SL"IsReadOnly").SetValue(true);
 						FindAttribute<sketch::TColorAttribute<FSlateColor>>(*UniqueSlots[0], SL"ColorAndOpacity").SetValue(FLinearColor(1, 1, 1, .75f));
 						return;
