@@ -48,6 +48,8 @@ namespace sketch
 		bool operator==(const FSourceLocation& Other) const { return FileName == Other.FileName && FunctionName == Other.FunctionName; }
 	};
 
+
+
 	/** Contains operated data and all information necessary to manipulate Sketch attributes and patch code */
 	struct FAttribute : public TSharedFromThis<FAttribute>
 	{
@@ -92,6 +94,8 @@ namespace sketch
 		uint32 Column = 0;
 		FName Name;
 	};
+
+
 
 	struct FConstAttributeCollection
 	{
@@ -197,6 +201,8 @@ namespace sketch
 		~TAttributeReader();
 	};
 
+
+
 	struct FFactory
 	{
 		FName Name;
@@ -208,27 +214,6 @@ namespace sketch
 		TFunction<FSlotBase&(SWidget& Widget, const FName& SlotType)> ConstructDynamicSlot;
 		TFunction<void(SWidget& Widget, const FName& SlotType, int Index, FSlotBase& Slot)> DestroyDynamicSlot;
 	};
-
-	/** 
-	 * Every widget factory should end (or begin) from calling this macro - it sets up attributes inherited by each widget from SWidget 
-	 * @todo Move this to SketchHeaderToolTypes.h
-	 */
-#define SKETCH_WIDGET_FACTORY_BOILERPLATE()\
-	 ToolTipText(Sketch("ToolTipText",                         FText                            {}))\
-	/*.ToolTip(Sketch("ToolTip",                                 TSharedPtr<IToolTip>             {}))*/\
-	.Cursor(Sketch("Cursor",                                   TOptional<EMouseCursor::Type>    {}))\
-	.IsEnabled(Sketch("IsEnabled",                             bool                             { true }))\
-	.Visibility(Sketch("Visibility",                           EVisibility                      { EVisibility::Visible }))\
-	.ForceVolatile(Sketch("ForceVolatile",                     bool                             { false }))\
-	.Clipping(Sketch("Clipping",                               EWidgetClipping                  { EWidgetClipping::Inherit }))\
-	.PixelSnappingMethod(Sketch("PixelSnappingMethod",         EWidgetPixelSnapping             { EWidgetPixelSnapping::Inherit }))\
-	.FlowDirectionPreference(Sketch("FlowDirectionPreference", EFlowDirectionPreference         { EFlowDirectionPreference::Inherit }))\
-	.RenderOpacity(Sketch("RenderOpacity",                     float                            { 1.f }))\
-	.RenderTransform(Sketch("RenderTransform",                 TOptional<FSlateRenderTransform> {}))\
-	.RenderTransformPivot(Sketch("RenderTransformPivot",       FVector2D                        {}))\
-	/*.Tag(Sketch("Tag",                                         FName                            {}))*/\
-	/*.AccessibleParams(Sketch("AccessibleParams",               TOptional<FAccessibleWidgetData> {}))*/\
-	/*.AccessibleText(Sketch("AccessibleText",                   FText                            {}))*/
 
 	struct FFactoryHandle
 	{

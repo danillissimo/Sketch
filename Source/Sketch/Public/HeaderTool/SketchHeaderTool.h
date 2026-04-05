@@ -121,27 +121,6 @@ namespace sketch::HeaderTool::Private
 		sketch::FStringView ToView(const sketch::FStringView& Code) const { return { &Code[0] + Start + 1, Length() - 2 }; }
 	};
 
-	/** Nice try. Sadly failed to implement without deep code analysis in a one-pass algorithm */
-	// enum EExpressionType
-	// {
-	// 	ET_Unknown,      // Should never actually appear
-	// 	ET_Preprocessor, // Anything beginning with a "#"
-	// 	ET_Comment,      // Comments, obviously
-	// 	ET_Subscope,     // Anything surrounded by "{}"
-	// 	ET_Functional,   // Anything surrounded by "()"
-	// 	ET_Subscript,    // Anything surrounded by "[]"
-	// 	ET_Generic,      // Everything from ending of last generic expression (including empty expressions) followed by "{}" or ending with a ";"
-	//
-	// 	// ET_TemplateArguments, // Anything surrounded by "<>" - can't really differ them from comparison operators without deep analysis
-	// };
-	// struct FExpression
-	// {
-	// 	EExpressionType Type = ET_Unknown;
-	// 	int Start = INDEX_NONE;
-	// 	int End = INDEX_NONE;
-	// 	int Length() const { return End - Start; }
-	// };
-
 	struct FIndex
 	{
 		FIndex() = default;

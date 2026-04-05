@@ -5,6 +5,28 @@
 
 class SSketchWidget;
 
+
+/**
+ * Every widget factory should end with calling this macro - it sets up attributes inherited by each widget from SWidget
+ */
+#define SKETCH_WIDGET_FACTORY_BOILERPLATE()\
+	 ToolTipText(Sketch("ToolTipText",                         FText                            {}))\
+	/*.ToolTip(Sketch("ToolTip",                                 TSharedPtr<IToolTip>             {}))*/\
+	.Cursor(Sketch("Cursor",                                   TOptional<EMouseCursor::Type>    {}))\
+	.IsEnabled(Sketch("IsEnabled",                             bool                             { true }))\
+	.Visibility(Sketch("Visibility",                           EVisibility                      { EVisibility::Visible }))\
+	.ForceVolatile(Sketch("ForceVolatile",                     bool                             { false }))\
+	.Clipping(Sketch("Clipping",                               EWidgetClipping                  { EWidgetClipping::Inherit }))\
+	.PixelSnappingMethod(Sketch("PixelSnappingMethod",         EWidgetPixelSnapping             { EWidgetPixelSnapping::Inherit }))\
+	.FlowDirectionPreference(Sketch("FlowDirectionPreference", EFlowDirectionPreference         { EFlowDirectionPreference::Inherit }))\
+	.RenderOpacity(Sketch("RenderOpacity",                     float                            { 1.f }))\
+	.RenderTransform(Sketch("RenderTransform",                 TOptional<FSlateRenderTransform> {}))\
+	.RenderTransformPivot(Sketch("RenderTransformPivot",       FVector2D                        {}))\
+	/*.Tag(Sketch("Tag",                                         FName                            {}))*/\
+	/*.AccessibleParams(Sketch("AccessibleParams",               TOptional<FAccessibleWidgetData> {}))*/\
+	/*.AccessibleText(Sketch("AccessibleText",                   FText                            {}))*/
+
+
 namespace sketch::HeaderTool
 {
 	class FUniqueSlotMeta : public ISlateMetaData

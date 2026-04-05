@@ -158,134 +158,6 @@ sketch::HeaderTool::Private::FIndex::FIndex(const sketch::FStringView& Code, FLo
 	}
 }
 
-// FIndex::FIndex(const FString& Code)
-// {
-// 	Scopes.Reserve(256);
-// 	Lines.Reserve(Code.Len() / 16 + 1);
-// 	Lines.Push(0);
-// 	Expressions.Reserve(Lines.Num());
-// 	struct FScope
-// 	{
-// 		int DeclarationIndex = INDEX_NONE;
-// 		TCHAR ExpectedBracket = 0;
-// 		int LastExpressionEnding = -1;
-// 	};
-// 	TArray<FScope, TInlineAllocator<32>> ScopeStack;
-// 	ScopeStack.Reserve(32);
-// 	ScopeStack.Push({}); // Global scope
-//
-// 	auto RegisterLine = [&](int NewLineIndex) { Lines.Push(NewLineIndex); };
-// 	for (int i = 0; i < Code.Len() - 1;)
-// 	{
-// 		if (TChar<TCHAR>::IsWhitespace(Code[i]))
-// 		{
-// 			if (Code[i] == TCHAR('\n'))
-// 				Lines.Push(i);
-// 			++i;
-// 			continue;
-// 		}
-//
-// 		if (IsDirective(Code, i))
-// 		{
-// 			const int PreprocessorExpressionEnding = CeilPos(Code, SkipDirective(Code, i, RegisterLine));
-// 			Expressions.Emplace(ET_Preprocessor, i, PreprocessorExpressionEnding);
-// 			i = PreprocessorExpressionEnding;
-// 			continue;
-// 		}
-//
-// 		{
-// 			const ECommentType CommentType = DetectCommentType(Code, i);
-// 			if (CommentType != CT_None)
-// 			{
-// 				int CommentEnding;
-// 				if (CommentType == CT_SingleLine)
-// 				{
-// 					CommentEnding = FindSingleLineCommentEnding(Code, i, RegisterLine);
-// 				}
-// 				else
-// 				{
-// 					check(CommentType == CT_MultiLine);
-// 					CommentEnding = FindMultiLineCommentEnding(Code, i, RegisterLine);
-// 				}
-// 				CommentEnding = CeilPos(Code, CommentEnding);
-// 				Expressions.Emplace(ET_Comment, i, CommentEnding);
-// 				i = CommentEnding;
-// 				continue;
-// 			}
-// 		}
-//
-// 		{
-// 			constexpr std::array OpeningBrackets = { TCHAR('{'), TCHAR('('), TCHAR('['), };
-// 			constexpr std::array ClosingBrackets = { TCHAR('}'), TCHAR(')'), TCHAR(']'), };
-// 			constexpr std::array BracketsTypes = { ET_Subscope, ET_Functional, ET_Subscript, };
-// 			for (int j = 0; j < OpeningBrackets.size(); ++j)
-// 			{
-// 				if (Code[i] == OpeningBrackets[j])
-// 				{
-// 					ScopeStack.Emplace(Expressions.Num(), ClosingBrackets[j], i);
-// 					Expressions.Emplace(BracketsTypes[j], i, INDEX_NONE);
-// 					++i;
-// 					goto next_char;
-// 				}
-// 			}
-// 			for (int j = 0; j < ClosingBrackets.size(); ++j)
-// 			{
-// 				if (Code[i] == ClosingBrackets[j])
-// 				{
-// 					// Make sure there's a pair
-// 					if (ScopeStack.Num() == 1) [[unlikely]] goto reset;
-//
-// 					// Make sure the pair is correct
-// 					const FScope Bracket = ScopeStack.Pop(EAllowShrinking::No);
-// 					if (Bracket.ExpectedBracket != ClosingBrackets[j]) [[unlikely]] goto reset;
-//
-// 					// If this is a subscope ending, and there's still an unfinished expression
-// 					// somewhere before - then it's a function implementation ending, and is an
-// 					// ending of an expression like ";"
-// 					// If this is a subscope ending, and first previous complete subscope before
-// 					// first previous incomplete subscope (if any) is of other type - then this
-// 					// is an ending of function implementation, both regular or lambda, and is an
-// 					// ending of an expression like ";"
-// 					if (BracketsTypes[j] == ET_Subscope)
-// 					{
-// 						for (int k = Bracket.DeclarationIndex - 1; k >= 0; --k)
-// 						{
-// 							[] {};
-// 							if (Expressions[k].Type == ET_Functional || Expressions[k].Type == ET_Subscript)
-// 							{
-// 								if (Expressions[k].End != INDEX_NONE)
-// 								{
-// 								}
-// 								break;
-// 							}
-// 						}
-// 					}
-//
-// 					Expressions[Bracket.DeclarationIndex].End = i;
-// 					++i;
-// 					goto next_char;
-// 				}
-// 			}
-// 		}
-//
-// 		if (Code[i] == TCHAR(';'))
-// 		{
-// 			Expressions.Emplace(ET_Generic, ScopeStack.Top().LastExpressionEnding + 1, i);
-// 			ScopeStack.Top().LastExpressionEnding = i;
-// 			continue;
-// 		}
-//
-// 	next_char:
-// 		continue;
-// 	}
-// 	return;
-//
-// reset:
-// 	Expressions.Reset();
-// 	Scopes.Reset();
-// 	Lines.Reset();
-// }
-
 sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosition(int Position) const
 {
 	if (Position > Lines.Last()) [[unlikely]]
@@ -1544,6 +1416,155 @@ sketch::FStringView sketch::HeaderTool::TryGetModuleName(sketch::FStringView Inc
 }
 
 #pragma endregion ~ Generation
+
+/** Nice try. Sadly failed to implement without deep code analysis in a one-pass algorithm */
+// enum EExpressionType
+// {
+// 	ET_Unknown,      // Should never actually appear
+// 	ET_Preprocessor, // Anything beginning with a "#"
+// 	ET_Comment,      // Comments, obviously
+// 	ET_Subscope,     // Anything surrounded by "{}"
+// 	ET_Functional,   // Anything surrounded by "()"
+// 	ET_Subscript,    // Anything surrounded by "[]"
+// 	ET_Generic,      // Everything from ending of last generic expression (including empty expressions) followed by "{}" or ending with a ";"
+//
+// 	// ET_TemplateArguments, // Anything surrounded by "<>" - can't really differ them from comparison operators without deep analysis
+// };
+// struct FExpression
+// {
+// 	EExpressionType Type = ET_Unknown;
+// 	int Start = INDEX_NONE;
+// 	int End = INDEX_NONE;
+// 	int Length() const { return End - Start; }
+// };
+//
+// FIndex::FIndex(const FString& Code)
+// {
+// 	Scopes.Reserve(256);
+// 	Lines.Reserve(Code.Len() / 16 + 1);
+// 	Lines.Push(0);
+// 	Expressions.Reserve(Lines.Num());
+// 	struct FScope
+// 	{
+// 		int DeclarationIndex = INDEX_NONE;
+// 		TCHAR ExpectedBracket = 0;
+// 		int LastExpressionEnding = -1;
+// 	};
+// 	TArray<FScope, TInlineAllocator<32>> ScopeStack;
+// 	ScopeStack.Reserve(32);
+// 	ScopeStack.Push({}); // Global scope
+//
+// 	auto RegisterLine = [&](int NewLineIndex) { Lines.Push(NewLineIndex); };
+// 	for (int i = 0; i < Code.Len() - 1;)
+// 	{
+// 		if (TChar<TCHAR>::IsWhitespace(Code[i]))
+// 		{
+// 			if (Code[i] == TCHAR('\n'))
+// 				Lines.Push(i);
+// 			++i;
+// 			continue;
+// 		}
+//
+// 		if (IsDirective(Code, i))
+// 		{
+// 			const int PreprocessorExpressionEnding = CeilPos(Code, SkipDirective(Code, i, RegisterLine));
+// 			Expressions.Emplace(ET_Preprocessor, i, PreprocessorExpressionEnding);
+// 			i = PreprocessorExpressionEnding;
+// 			continue;
+// 		}
+//
+// 		{
+// 			const ECommentType CommentType = DetectCommentType(Code, i);
+// 			if (CommentType != CT_None)
+// 			{
+// 				int CommentEnding;
+// 				if (CommentType == CT_SingleLine)
+// 				{
+// 					CommentEnding = FindSingleLineCommentEnding(Code, i, RegisterLine);
+// 				}
+// 				else
+// 				{
+// 					check(CommentType == CT_MultiLine);
+// 					CommentEnding = FindMultiLineCommentEnding(Code, i, RegisterLine);
+// 				}
+// 				CommentEnding = CeilPos(Code, CommentEnding);
+// 				Expressions.Emplace(ET_Comment, i, CommentEnding);
+// 				i = CommentEnding;
+// 				continue;
+// 			}
+// 		}
+//
+// 		{
+// 			constexpr std::array OpeningBrackets = { TCHAR('{'), TCHAR('('), TCHAR('['), };
+// 			constexpr std::array ClosingBrackets = { TCHAR('}'), TCHAR(')'), TCHAR(']'), };
+// 			constexpr std::array BracketsTypes = { ET_Subscope, ET_Functional, ET_Subscript, };
+// 			for (int j = 0; j < OpeningBrackets.size(); ++j)
+// 			{
+// 				if (Code[i] == OpeningBrackets[j])
+// 				{
+// 					ScopeStack.Emplace(Expressions.Num(), ClosingBrackets[j], i);
+// 					Expressions.Emplace(BracketsTypes[j], i, INDEX_NONE);
+// 					++i;
+// 					goto next_char;
+// 				}
+// 			}
+// 			for (int j = 0; j < ClosingBrackets.size(); ++j)
+// 			{
+// 				if (Code[i] == ClosingBrackets[j])
+// 				{
+// 					// Make sure there's a pair
+// 					if (ScopeStack.Num() == 1) [[unlikely]] goto reset;
+//
+// 					// Make sure the pair is correct
+// 					const FScope Bracket = ScopeStack.Pop(EAllowShrinking::No);
+// 					if (Bracket.ExpectedBracket != ClosingBrackets[j]) [[unlikely]] goto reset;
+//
+// 					// If this is a subscope ending, and there's still an unfinished expression
+// 					// somewhere before - then it's a function implementation ending, and is an
+// 					// ending of an expression like ";"
+// 					// If this is a subscope ending, and first previous complete subscope before
+// 					// first previous incomplete subscope (if any) is of other type - then this
+// 					// is an ending of function implementation, both regular or lambda, and is an
+// 					// ending of an expression like ";"
+// 					if (BracketsTypes[j] == ET_Subscope)
+// 					{
+// 						for (int k = Bracket.DeclarationIndex - 1; k >= 0; --k)
+// 						{
+// 							[] {};
+// 							if (Expressions[k].Type == ET_Functional || Expressions[k].Type == ET_Subscript)
+// 							{
+// 								if (Expressions[k].End != INDEX_NONE)
+// 								{
+// 								}
+// 								break;
+// 							}
+// 						}
+// 					}
+//
+// 					Expressions[Bracket.DeclarationIndex].End = i;
+// 					++i;
+// 					goto next_char;
+// 				}
+// 			}
+// 		}
+//
+// 		if (Code[i] == TCHAR(';'))
+// 		{
+// 			Expressions.Emplace(ET_Generic, ScopeStack.Top().LastExpressionEnding + 1, i);
+// 			ScopeStack.Top().LastExpressionEnding = i;
+// 			continue;
+// 		}
+//
+// 	next_char:
+// 		continue;
+// 	}
+// 	return;
+//
+// reset:
+// 	Expressions.Reset();
+// 	Scopes.Reset();
+// 	Lines.Reset();
+// }
 
 #undef CONCAT
 

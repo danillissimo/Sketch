@@ -12,20 +12,6 @@ FSketchCore& FSketchCore::Get()
 void FSketchCore::Initialize()
 {
 	RegisterBuiltinFactories();
-
-	// auto& Slate = FSlateApplication::Get();
-	// Slate.OnPostTick().AddLambda(
-	// 	[this](float)
-	// 	{
-	// 		for (auto& [Source, Context] : Attributes)
-	// 		{
-	// 			for (const TSharedPtr<FAttribute>& Attribute : Context)
-	// 			{
-	// 				Attribute->StaleCountdown -= Attribute->StaleCountdown == 0 ? 0 : 1;
-	// 			}
-	// 		}
-	// 	}
-	// );
 }
 
 void FSketchCore::Shutdown() {}

@@ -141,38 +141,4 @@ void sketch::FSlateRenderTransformAttribute::Reinitialize(const IAttributeImplem
 	Angle = Other.Angle;
 }
 
-
-// void qr_decomposition_2x2(double A[2][2], double Q[2][2], double R[2][2]) {
-// 	double a = A[0][0];
-// 	double b = A[0][1];
-// 	double c = A[1][0];
-// 	double d = A[1][1];
-//
-// 	double cos_theta, sin_theta;
-//
-// 	if (c == 0) {
-// 		// A is already upper triangular, Q is identity
-// 		cos_theta = 1.0;
-// 		sin_theta = 0.0;
-// 	}
-// 	else {
-// 		// Calculate the angle for Givens rotation
-// 		double r = std::sqrt(a * a + c * c);
-// 		cos_theta = a / r;
-// 		sin_theta = -c / r; // Note: we use -c/r for standard Givens rotation
-// 	}
-//
-// 	// Construct the Q matrix (rotation matrix G)
-// 	Q[0][0] = cos_theta;
-// 	Q[0][1] = -sin_theta;
-// 	Q[1][0] = sin_theta;
-// 	Q[1][1] = cos_theta;
-//
-// 	// Construct R = Q_transpose * A (or simply G_transpose * A)
-// 	R[0][0] = cos_theta * a + sin_theta * c;
-// 	R[0][1] = cos_theta * b + sin_theta * d;
-// 	R[1][0] = 0.0; // By design, this element becomes zero
-// 	R[1][1] = -sin_theta * b + cos_theta * d;
-// }
-
 #undef LOCTEXT_NAMESPACE

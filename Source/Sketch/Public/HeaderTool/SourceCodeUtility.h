@@ -179,28 +179,6 @@ namespace sketch::SourceCode::Comment
 	constexpr auto GSkip = [](const sketch::FStringView& Code, int Position, const auto& OnNewLine) { return Comment::Skip(Code, Position, OnNewLine); };
 
 	constexpr int Filter(const sketch::FStringView& Code, int Position) { return Skip(Code, Position, [](int) {}); }
-
-	// /** @return Indices of first and last comment characters, or { INDEX_NONE, INDEX_NONE } */
-	// inline FInt32Interval Find(const sketch::FStringView& Code, int Position)
-	// {
-	// 	for (int i = Position; i < Code.Len() - 1; ++i)
-	// 	{
-	// 		int CommentEnding = INDEX_NONE;
-	// 		const ECommentType CommentType = DetectType(Code, i);
-	// 		switch (CommentType)
-	// 		{
-	// 		case CT_None: continue;
-	// 		case CT_SingleLine:
-	// 			CommentEnding = SingleLineEnding(Code, i);
-	// 			break;
-	// 		case CT_MultiLine:
-	// 			CommentEnding = MultiLineEnding(Code, i);
-	// 			break;
-	// 		}
-	// 		return FInt32Interval(i, CommentEnding == INDEX_NONE ? Code.Len() - 1 : CommentEnding - 1);
-	// 	}
-	// 	return { INDEX_NONE, INDEX_NONE };
-	// }
 }
 
 /*************************************************************************************************/
@@ -421,25 +399,6 @@ namespace sketch::SourceCode::String
 		}
 		return INDEX_NONE;
 	}
-
-	// template <ESearchCase::Type SearchCase = ESearchCase::CaseSensitive>
-	// constexpr int FindLast(
-	// 	const sketch::FStringView& Code,
-	// 	int InitialPosition,
-	// 	const sketch::FStringView& String
-	// )
-	// {
-	// 	int LastMatch = Find<SearchCase>(Code, InitialPosition, String);
-	// 	if (LastMatch == INDEX_NONE) [[unlikely]] return INDEX_NONE;
-	//
-	// 	for (;;)
-	// 	{
-	// 		const int NextMatch = Find(Code, LastMatch + 1, String, SearchCase);
-	// 		if (NextMatch == INDEX_NONE) break;
-	// 		LastMatch = NextMatch;
-	// 	}
-	// 	return LastMatch;
-	// }
 }
 
 /*************************************************************************************************/
@@ -541,39 +500,6 @@ namespace sketch::SourceCode
 		}
 		return Code.Len();
 	}
-
-	/**
-	 * Assuming InitialPosition points to a beginning of an expression, finds first character that does not
-	 * belong to this expression
-	 * @return INDEX_NONE on source code errors
-	 * @todo Piece of crap, doesn't consider string literals or comments. Will be removed once sure unneeded
-	 */
-	// constexpr int ExpressionFilter(const sketch::FStringView& Code, int InitialPosition = 0)
-	// {
-	// 	for (int i = InitialPosition; i < Code.Len(); ++i)
-	// 	{
-	// 		// Check brackets first as IsGraph returns true for them
-	// 		constexpr std::array OpeningBrackets = { TCHAR('('), TCHAR('['), TCHAR('{') };
-	// 		constexpr std::array ClosingBrackets = { TCHAR(')'), TCHAR(']'), TCHAR('}') };
-	// 		for (int j = 0; j < OpeningBrackets.size(); ++j)
-	// 		{
-	// 			if (Code[i] == OpeningBrackets[j])
-	// 			{
-	// 				i = Bracket::FindPaired(Code, i, OpeningBrackets[j], ClosingBrackets[j]);
-	// 				if (i == INDEX_NONE) [[unlikely]] return INDEX_NONE;
-	// 				goto next_iteration;
-	// 			}
-	// 		}
-	//
-	// 		if (IsGraph(Code[i])) continue;
-	//
-	// 		return i;
-	//
-	// 	next_iteration:
-	// 		continue;
-	// 	}
-	// 	return Code.Len();
-	// }
 
 	constexpr int NameFilter(const sketch::FStringView& Code, int InitialPosition = 0)
 	{
@@ -812,12 +738,6 @@ namespace sketch::SourceCode
 
 	template <class T>
 	concept CSegment = TIsSegment<T>::Value == true;
-
-	// struct FPartialMatchResult
-	// {
-	// 	EMatchResult Result = MR_Failure;
-	// 	int NextMatchablePosition = INDEX_NONE;
-	// };
 }
 
 namespace sketch::SourceCode::Private
@@ -1039,12 +959,6 @@ namespace sketch::SourceCode
 		AdvancementFilterType AdvancementFilter;
 		sketch::TTuple<SegmentTypes...> Segments;
 	};
-
-	// template <CFilter FilterType, CSegment... SegmentTypes>
-	// TMatchIterator<FilterType, decltype(&NoFilter), SegmentTypes...> MakeMatcher(const sketch::FStringView& Code, FilterType&& MatcherFilter, SegmentTypes&&... Segments)
-	// {
-	// 	return TMatchIterator<FilterType, decltype(&NoFilter), SegmentTypes...>(Code, ::MoveTemp(MatcherFilter), ::MoveTemp(Segments)...);
-	// }
 }
 
 /*************************************************************************************************/
@@ -1052,34 +966,6 @@ namespace sketch::SourceCode
 /*************************************************************************************************/
 namespace sketch::SourceCode::Matcher
 {
-	// template <int Tag, class T>
-	// constexpr auto Make(T&& Implementation, ESegmentType Type = ST_Required)
-	// {
-	// 	using ReturnType = std::invoke_result_t<T, sketch::FStringView, int>;
-	// 	if constexpr (std::is_same_v<int, ReturnType>)
-	// 	{
-	// 		auto Wrapper = [I = ::MoveTempIfPossible(Implementation)](const sketch::FStringView& Code, int Position)-> TMatch<Tag>
-	// 		{
-	// 			int Result = I(Code, Position);
-	// 			return Result == INDEX_NONE ? TMatch<Tag>{} : TMatch<Tag>{ FLocalStringView{ Position, Result } };
-	// 		};
-	// 		return TSegment<Tag, decltype(Wrapper)>(::MoveTemp(Wrapper), Type);
-	// 	}
-	// 	else if constexpr (std::is_same_v<FLocalStringView, ReturnType>)
-	// 	{
-	// 		auto Wrapper = [I = ::MoveTempIfPossible(Implementation)](const sketch::FStringView& Code, int Position)-> TMatch<Tag>
-	// 		{
-	// 			FLocalStringView Result = I(Code, Position);
-	// 			return TMatch<Tag>{ Result };
-	// 		};
-	// 		return TSegment<Tag, decltype(Wrapper)>(::MoveTemp(Wrapper), Type);
-	// 	}
-	// 	else
-	// 	{
-	// 		return TSegment<Tag, std::decay_t<T>>{ ::MoveTempIfPossible(Implementation), Type };
-	// 	}
-	// }
-
 	template <int Tag>
 	constexpr TMatch<Tag> MakeMatch(const sketch::FStringView& Code, int InitialPosition, int Position)
 	{
