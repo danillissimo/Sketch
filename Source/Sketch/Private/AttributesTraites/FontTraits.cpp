@@ -7,6 +7,7 @@
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "Widgets/Views/STreeView.h"
+#include "SIdList.h"
 
 #define LOCTEXT_NAMESPACE "Sketch.SFontEditor"
 
@@ -38,6 +39,8 @@ struct FFontId
 		Name.AppendString(Result);
 		return Result;
 	}
+
+	bool ContainsText(const FString& Text) const { return Name.ToString().Contains(Text); }
 
 	friend uint32 GetTypeHash(const FFontId& Id) { return HashCombineFast(GetTypeHash(Id.Style), GetTypeHash(Id.Name)); }
 	bool operator==(const FFontId& Other) const { return Style == Other.Style && Name == Other.Name; }
@@ -154,6 +157,20 @@ public:
 			}
 		}
 
+		auto Menu = SNew(SIdList<FFontId>)
+			.Items(&GetFonts())
+			.OnIdSelected(this, &SFontEditor::OnFontSelected)
+			.OnGenerateRow_Static(
+				[](const FFontId& FontId, TAttribute<FText>&& TextToHighlight) -> TSharedRef<SWidget>
+				{
+					return SNew(STextBlock)
+						.Text(FText::FromString(FontId.ToString()))
+						.Font(FontId.GetFont())
+						.OverflowPolicy(ETextOverflowPolicy::Clip)
+						.HighlightText(MoveTemp(TextToHighlight));
+				}
+			);
+
 		// Make content
 		ChildSlot
 		[
@@ -169,28 +186,10 @@ public:
 					.Text(FText::FromString(Font.ToString()))
 					.Font(Font.GetFont())
 				]
+				.OnComboBoxOpened(Menu, &SIdList<FFontId>::SetUserFocus)
 				.MenuContent()
 				[
-					SNew(SBox)
-					.MaxDesiredWidth(400)
-					[
-						SNew(SListView<FFontId>)
-						.ListItemsSource(&GetFonts())
-						.OnGenerateRow_Static(
-							[](FFontId FontId, const TSharedRef<STableViewBase>& List)-> TSharedRef<ITableRow>
-							{
-								return SNew(STableRow<FFontId>, List)
-									.Padding(4)
-									[
-										SNew(STextBlock)
-										.Text(FText::FromString(FontId.ToString()))
-										.Font(FontId.GetFont())
-										.OverflowPolicy(ETextOverflowPolicy::Clip)
-									];
-							}
-						)
-						.OnSelectionChanged(this, &SFontEditor::OnFontSelected)
-					]
+					MoveTemp(Menu)
 				]
 			]
 
@@ -206,12 +205,8 @@ public:
 	}
 
 private:
-	void OnFontSelected(FFontId NewFont, ESelectInfo::Type SelectInfo)
+	void OnFontSelected(const FFontId& NewFont)
 	{
-		// Make sure it's a selection
-		if (SelectInfo == ESelectInfo::Type::OnNavigation)
-			return;
-
 		// Update self
 		Font = NewFont;
 
