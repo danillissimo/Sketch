@@ -15,9 +15,14 @@ namespace sketch::Sandbox
 		Core.StopRedirectingNewAttributes();
 	}
 
+	SKETCH_API void DeferItemInitialization(TFunction<void()>&& Initializer);
+
 	template <class T>
 	struct TItemInitializer
 	{
-		TItemInitializer(const TCHAR* Name, const std::source_location& SL = std::source_location::current()) { MakeAttribute<T>(Name, SL); }
+		TItemInitializer(const TCHAR* Name, const std::source_location& SL = std::source_location::current())
+		{
+			Sandbox::DeferItemInitialization([=] { MakeAttribute<T>(Name, SL); });
+		}
 	};
 }
