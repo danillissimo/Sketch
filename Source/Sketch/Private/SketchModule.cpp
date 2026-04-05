@@ -63,7 +63,7 @@ void FSketchModule::StartupModule()
 					}
 				)
 			)
-			.SetDisplayName(LOCTEXT("SketchSandboxTabName", "Sketch Sandbox"))
+			.SetDisplayName(LOCTEXT("SketchAttributesTabName", "Sketch Attributes"))
 			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "ClassIcon.SlateBrushAsset"))
 			.SetGroup(SketchMenu.ToSharedRef());
 		GlobalTabManager
