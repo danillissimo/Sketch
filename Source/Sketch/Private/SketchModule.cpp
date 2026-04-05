@@ -35,6 +35,8 @@ void FSketchModule::StartupModule()
 	// Core
 	FSketchCore::Initialize();
 
+	if (IsRunningCommandlet()) return;
+
 	// Style
 	FSketchStyle::Initialize();
 	FSketchStyle::ReloadTextures();
@@ -142,23 +144,26 @@ void FSketchModule::StartupModule()
 
 void FSketchModule::ShutdownModule()
 {
-	// Commands
-	if (auto* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>(TEXT("MainFrame")))
+	if (!IsRunningCommandlet())
 	{
-		FSketchCommands& SketchCommands = FSketchCommands::Get();
-		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenWidgetEditor);
-		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenSandbox);
-		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenHeaderTool);
+		// Commands
+		if (auto* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>(TEXT("MainFrame")))
+		{
+			FSketchCommands& SketchCommands = FSketchCommands::Get();
+			MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenWidgetEditor);
+			MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenSandbox);
+			MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenHeaderTool);
+		}
+		FSketchCommands::Unregister();
+
+		// Tabs
+		const TSharedRef<FGlobalTabmanager>& GlobalTabManager = FGlobalTabmanager::Get();
+		GlobalTabManager->UnregisterNomadTabSpawner(WidgetEditorTabName);
+		GlobalTabManager->UnregisterNomadTabSpawner(SandboxTabName);
+		GlobalTabManager->UnregisterNomadTabSpawner(HeaderToolTabName);
+
+		FSketchStyle::Shutdown();
 	}
-	FSketchCommands::Unregister();
-
-	// Tabs
-	const TSharedRef<FGlobalTabmanager>& GlobalTabManager = FGlobalTabmanager::Get();
-	GlobalTabManager->UnregisterNomadTabSpawner(WidgetEditorTabName);
-	GlobalTabManager->UnregisterNomadTabSpawner(SandboxTabName);
-	GlobalTabManager->UnregisterNomadTabSpawner(HeaderToolTabName);
-
-	FSketchStyle::Shutdown();
 
 	// Core
 	FSketchCore::Shutdown();
