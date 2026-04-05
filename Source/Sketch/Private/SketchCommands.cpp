@@ -16,7 +16,8 @@ FSketchCommands::FSketchCommands()
 void FSketchCommands::RegisterCommands()
 {
 	UI_COMMAND(OpenWidgetEditor, "Widget editor", "Open the Sketch widget editor tab", EUserInterfaceActionType::Button, FInputChord());
-	UI_COMMAND(OpenSandbox, "Sandbox", "Open the Sketch sandbox tab", EUserInterfaceActionType::Button, FInputChord());
+	// Default similar to "open widget reflector"
+	UI_COMMAND(OpenSandbox, "Sandbox", "Open the Sketch sandbox tab", EUserInterfaceActionType::Button, FInputChord(EKeys::W, EModifierKey::Control | EModifierKey::Shift | EModifierKey::Alt));
 	UI_COMMAND(OpenHeaderTool, "Header tool", "Open the Sketch header tool tab", EUserInterfaceActionType::Button, FInputChord());
 }
 

@@ -13,8 +13,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
-	void RegisterMenus();
-
 	TSharedPtr<FUICommandList> Commands;
 	TSharedPtr<FWorkspaceItem> SketchMenu;
 };

@@ -1,31 +1,20 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
 #pragma once
-
 #include "Styling/SlateStyle.h"
 
-/**  */
+/** @note Currently unused, but will probably be in the future, so let it hang around */
 class FSketchStyle
 {
 public:
-
-	static void Initialize();
-
-	static void Shutdown();
-
-	/** reloads textures used by slate renderer */
-	static void ReloadTextures();
-
-	/** @return The Slate style set for the Shooter game */
 	static const ISlateStyle& Get();
 
+	static void Initialize();
+	static void Shutdown();
+	static void ReloadTextures();
 	static FName GetStyleSetName();
 
 private:
-
-	static TSharedRef< class FSlateStyleSet > Create();
+	static TSharedRef<FSlateStyleSet> Create();
 
 private:
-
-	static TSharedPtr< class FSlateStyleSet > StyleInstance;
+	static TSharedPtr<FSlateStyleSet> StyleInstance;
 };

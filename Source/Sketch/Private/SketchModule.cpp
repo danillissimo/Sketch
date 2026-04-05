@@ -5,10 +5,10 @@
 #include "SketchSandbox.h"
 #include "SketchStyle.h"
 #include "StatusBarSubsystem.h"
-#include "ToolMenus.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "HeaderTool/SourceCodeUtility.h"
+#include "Interfaces/IMainFrameModule.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderTool.h"
 #include "Widgets/SSketchSanbox.h"
@@ -32,54 +32,6 @@ TAttribute<FSlateFontInfo> sketch::Private::DefaultFont()
 
 void FSketchModule::StartupModule()
 {
-	using namespace sketch::SourceCode;
-	enum { root, simple_text, complex_text, complex_text_a, complex_text_brackets, complex_text_b };
-	auto ses = Match(
-		TEXT("q"),
-		0,
-		&NoFilter,
-		Matcher::String(TEXT("ab"), ST_Optional),
-		Matcher::String(TEXT("q"))
-	);
-	// static_assert(ses.MatchResult == MR_Success);
-	auto lal = sketch::MakeTuple(123, "a", 1.23);
-	__nop();
-	static constexpr auto quack = Match(
-		TEXT("q"),
-		0,
-		&NoFilter,
-		Matcher::String<0>(TEXT("a")),
-		Matcher::Subsequence(
-			ST_Optional,
-			Matcher::String<1>(TEXT("q"))
-			// Matcher::Subsequence(
-			// 	ST_Optional,
-			// 	Matcher::String<2>(TEXT("q")),
-			// 	Matcher::Subsequence(
-			// 		ST_Optional,
-			// 		Matcher::String<3>(TEXT("q"))
-			// 	)
-			// )
-		)
-	);
-	constexpr int qwe = []() constexpr
-	{
-		int a = 0, b = 0;
-		auto tie = sketch::Tie(a, b);
-		// auto tie = std::tie(a, b);
-		return tie.Get<0>() + tie.Get<1>();
-		// return 0;
-		// return std::get<0>(tie) + std::get<1>(tie);
-	}();
-	constexpr auto aaq = quack.Get<1>()/*.View(TEXT("q"))*/;
-	// static constexpr TMatcher m(
-	// 	TEXT("q"),
-	// 	Matcher::ClassDeclaration<{}>()
-	// );
-	// static_assert(m.Match.MatchResult == MR_Success);
-	// constexpr auto& lal = ses.Get<root>();
-	// ses.Components
-
 	// Core
 	FSketchCore::Initialize();
 
@@ -185,44 +137,31 @@ void FSketchModule::StartupModule()
 			FExecuteAction::CreateStatic([] { FGlobalTabmanager::Get()->TryInvokeTab(HeaderToolTabName); })
 		);
 	}
-
-	// Menus
-	// UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FSketchModule::RegisterMenus));
+	IMainFrameModule::Get().GetMainFrameCommandBindings()->Append(Commands.ToSharedRef());
 }
 
 void FSketchModule::ShutdownModule()
 {
-	UToolMenus::UnRegisterStartupCallback(this);
-	UToolMenus::UnregisterOwner(this);
-
-	FGlobalTabmanager::Get()->UnregisterNomadTabSpawner(WidgetEditorTabName);
-
+	// Commands
+	if (auto* MainFrame = FModuleManager::LoadModulePtr<IMainFrameModule>(TEXT("MainFrame")))
+	{
+		FSketchCommands& SketchCommands = FSketchCommands::Get();
+		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenWidgetEditor);
+		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenSandbox);
+		MainFrame->GetMainFrameCommandBindings()->UnmapAction(SketchCommands.OpenHeaderTool);
+	}
 	FSketchCommands::Unregister();
+
+	// Tabs
+	const TSharedRef<FGlobalTabmanager>& GlobalTabManager = FGlobalTabmanager::Get();
+	GlobalTabManager->UnregisterNomadTabSpawner(WidgetEditorTabName);
+	GlobalTabManager->UnregisterNomadTabSpawner(SandboxTabName);
+	GlobalTabManager->UnregisterNomadTabSpawner(HeaderToolTabName);
 
 	FSketchStyle::Shutdown();
 
+	// Core
 	FSketchCore::Shutdown();
-}
-
-void FSketchModule::RegisterMenus()
-{
-	// Owner will be used for cleanup in call to UToolMenus::UnregisterOwner
-	FToolMenuOwnerScoped OwnerScoped(this);
-
-	UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.MainMenu.Window");
-	FToolMenuSection& Section = Menu->FindOrAddSection("WindowLayout");
-	Section.AddSubMenu(
-		TEXT("Sketch"),
-		LOCTEXT("SketchMenuName", "Sketch"),
-		FText::GetEmpty(),
-		FNewToolMenuDelegate::CreateLambda([this](UToolMenu* Menu)
-		{
-			FToolMenuSection& Section = Menu->AddSection(TEXT("Sketch"));
-			Section.AddMenuEntryWithCommandList(FSketchCommands::Get().OpenWidgetEditor, Commands);
-			Section.AddMenuEntryWithCommandList(FSketchCommands::Get().OpenSandbox, Commands);
-			Section.AddMenuEntryWithCommandList(FSketchCommands::Get().OpenHeaderTool, Commands);
-		})
-	);
 }
 
 #undef LOCTEXT_NAMESPACE
