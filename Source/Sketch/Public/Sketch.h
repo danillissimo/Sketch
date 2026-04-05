@@ -1,4 +1,10 @@
 #pragma once
+#ifndef WITH_SKETCH
+#error "WITH_SKETCH is not defined, fix Sketch.Build.cs"
+#endif
+#if !WITH_SKETCH
+#include "NoSketch.h"
+#else
 #include "SketchCore.h"
 #include "AttributesTraites/AllTraits.h"
 
@@ -257,3 +263,4 @@ inline sketch::FFactory* sketch::FFactoryHandle::Resolve() const
 // 	}
 // 	return 0;
 // }
+#endif

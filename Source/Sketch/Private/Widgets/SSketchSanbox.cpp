@@ -54,7 +54,7 @@ static const FText SandboxDocumentation = LOCTEXT(
 	"And then collects all of this invocations right in this window - above this text.\n"
 	"It might be empty right now, so here's a quick start for You:\n"
 	"- Link Sketch to Your module by adding 'Sketch.SetupFor(this, Target);' to Your Module.Build.cs file\n"
-	"- Add '#include SketchHeader' (yes, exactly like this - SketchHeader is a macro defined by Sketch.SetupFor) to any file\n"
+	"- Add '#include \"Sketch.h\"' to any file\n"
 	"- Replace some hardcoded thing in this file with something like \"Sketch(\"AttributeName\", %default_value%)\"\n"
 	"- Invoke Live Coding, probably ? Ctrl + alt + F11. Just saying.\n"
 	"- Make Your Sketched code work\n"

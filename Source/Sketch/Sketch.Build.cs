@@ -31,6 +31,8 @@ public class Sketch : ModuleRules
 			"WorkspaceMenuStructure", // Used to add submenu to the "Tools" menu
 			"StatusBar",
 		});
+
+		PrivateDefinitions.Add("WITH_SKETCH=1");
 	}
 
 	public static void SetupFor(ModuleRules Module, ReadOnlyTargetRules Target)
@@ -38,14 +40,14 @@ public class Sketch : ModuleRules
 		if (Target.bBuildEditor && Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			Module.PrivateDependencyModuleNames.Add("Sketch");
-			Module.PrivateDefinitions.Add("SketchHeader=\"Sketch.h\"");
+			Module.PrivateDefinitions.Add("WITH_SKETCH=1");
 			// Works, but not currently supported by resharper
 			// Module.ForceIncludeFiles.Add("Sketch.h");
 		}
 		else
 		{
 			Module.PrivateIncludePathModuleNames.Add("Sketch");
-			Module.PrivateDefinitions.Add("SketchHeader=\"NoSketch.h\"");
+			Module.PrivateDefinitions.Add("WITH_SKETCH=0");
 		}
 	}
 }
