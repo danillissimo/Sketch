@@ -30,7 +30,7 @@ private:
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName FactoriesType, FName SlotType, int SlotIndex);
 
-	static void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
+	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
 	static void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
 	static void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	static void OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);

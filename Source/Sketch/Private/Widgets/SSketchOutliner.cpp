@@ -282,7 +282,7 @@ void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SS
 		FMenuEntryParams Entry;
 		Entry.IconOverride = FSlateIcon("CoreStyle", "Icons.Delete");
 		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearWidget, WeakWidget);
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnClearWidget, WeakWidget);
 		Menu.AddMenuEntry(Entry);
 	}
 
@@ -361,7 +361,10 @@ void SSketchOutliner::ListFactoriesOfType(
 void SSketchOutliner::OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget)
 {
 	if (TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin())
-		Widget->UnassignFactory(false);
+	{
+		Widget->UnassignFactory(true);
+		OnSketchUpdated();
+	}
 }
 
 void SSketchOutliner::OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType)
@@ -414,17 +417,20 @@ void SSketchOutliner::OnFactorySelected(
 			const auto* TypedSlots = Widget->GetDynamicSlots().Find(SlotType);
 			if (!TypedSlots || !TypedSlots->IsValidIndex(SlotIndex)) [[unlikely]] return;
 
-			Widget->AssignDynamicSlot(SlotType, SlotIndex, FactoryType, FactoryIndex, false);
+			Widget->AssignDynamicSlot(SlotType, SlotIndex, FactoryType, FactoryIndex, true);
+			OnSketchUpdated();
 		}
 		else
 		{
 			const int NewSlotIndex = Widget->AddDynamicSlot(SlotType, true);
-			Widget->AssignDynamicSlot(SlotType, NewSlotIndex, FactoryType, FactoryIndex, false);
+			Widget->AssignDynamicSlot(SlotType, NewSlotIndex, FactoryType, FactoryIndex, true);
+			OnSketchUpdated();
 		}
 	}
 	else
 	{
-		Widget->AssignFactory(FactoryType, FactoryIndex, false);
+		Widget->AssignFactory(FactoryType, FactoryIndex, true);
+		OnSketchUpdated();
 	}
 	Tree->SetItemExpansion(WeakWidget, true);
 }
