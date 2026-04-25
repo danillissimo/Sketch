@@ -11,7 +11,7 @@ namespace sketch::Sandbox
 	{
 		FSketchCore& Core = FSketchCore::Get();
 		Core.RedirectNewAttributesInto(GetMutable());
-		static_cast<T>(Sketch(Name, SL));
+		Sketch(Name, SL).operator T();
 		Core.StopRedirectingNewAttributes();
 	}
 

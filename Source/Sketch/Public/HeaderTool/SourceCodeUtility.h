@@ -518,7 +518,7 @@ namespace sketch::SourceCode
 	{
 		auto IsAlwaysAlone = [](TCHAR Char)
 		{
-			constexpr auto AlwaysAlone = {
+			auto AlwaysAlone = {
 				TCHAR('('), TCHAR(')'),
 				TCHAR('['), TCHAR(']'),
 				TCHAR('{'), TCHAR('}'),

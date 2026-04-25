@@ -7,7 +7,7 @@
 static sketch::FHeaderToolAttributeFilter GVector2Filter([](FStringView Attribute)
 {
 	// Special cases
-	constexpr std::initializer_list<FStringView> SpecialCases = {
+	static constexpr std::initializer_list<FStringView> SpecialCases = {
 		TEXT("FVector"),
 		TEXT("FVector2D"),
 		TEXT("FVector4"),
