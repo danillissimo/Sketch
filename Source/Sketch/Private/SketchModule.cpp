@@ -30,6 +30,29 @@ TAttribute<FSlateFontInfo> sketch::Private::DefaultFont()
 
 
 
+void AddStatusBar(TSharedRef<SDockTab> Tab, TSharedRef<SVerticalBox> Content, const TCHAR* StatusBarId)
+{
+	auto Task = [C = &Content.Get(), T = &Tab.Get(), StatusBarId](double, float)
+	{
+		// It can happen that Header Tool tab gets instanced before main editor window
+		// When UStatusBarSubsystem is not instanced yet
+		// This fixes it
+		if (UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
+		{
+			C->AddSlot().AutoHeight()
+			[
+				StatusBarSubsystem->MakeStatusBarWidget(StatusBarId, StaticCastSharedRef<SDockTab>(T->AsShared()))
+			];
+			return EActiveTimerReturnType::Stop;
+		}
+		return EActiveTimerReturnType::Continue;
+	};
+	if (Task(0, 0) == EActiveTimerReturnType::Continue)
+	{
+		Tab->RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateLambda(MoveTemp(Task)));
+	}
+}
+
 void FSketchModule::StartupModule()
 {
 	// Core
@@ -71,12 +94,19 @@ void FSketchModule::StartupModule()
 				WidgetEditorTabName,
 				FOnSpawnTab::CreateStatic([](const FSpawnTabArgs& Args)
 				{
-					return SNew(SDockTab)
-						.TabRole(NomadTab)
+					TSharedRef<SDockTab> Tab = SNew(SDockTab).TabRole(NomadTab);
+					TSharedRef<SVerticalBox> Content =
+						SNew(SVerticalBox)
+
+						+ SVerticalBox::Slot()
+						.FillHeight(1)
 						[
 							SNew(SSketchWidgetEditor)
 							.ContentPadding(FMargin(4, 0, 4, 4))
 						];
+					Tab->SetContent(Content);
+					AddStatusBar(Tab, Content, TEXT("Sketch.WidgetEditorStatusBar"));
+					return Tab;
 				})
 			)
 			.SetDisplayName(LOCTEXT("SketchWidgetEditorTabName", "Sketch Widget Editor"))
@@ -98,21 +128,7 @@ void FSketchModule::StartupModule()
 							.ContentPadding(FMargin(4, 0))
 						];
 					Tab->SetContent(Content);
-					Tab->RegisterActiveTimer(0, FWidgetActiveTimerDelegate::CreateLambda([C = &Content.Get(), T = &Tab.Get()](double, float)
-					{
-						// It can happen that Header Tool tab gets instanced before main editor window
-						// When UStatusBarSubsystem is not instanced yet
-						// This fixes it
-						if (UStatusBarSubsystem* StatusBarSubsystem = GEditor->GetEditorSubsystem<UStatusBarSubsystem>())
-						{
-							C->AddSlot().AutoHeight()
-							[
-								StatusBarSubsystem->MakeStatusBarWidget(TEXT("Sketch.HeaderToolStatusBar"), StaticCastSharedRef<SDockTab>(T->AsShared()))
-							];
-							return EActiveTimerReturnType::Stop;
-						}
-						return EActiveTimerReturnType::Continue;
-					}));
+					AddStatusBar(Tab, Content, TEXT("Sketch.HeaderToolStatusBar"));
 					return Tab;
 				})
 			)
