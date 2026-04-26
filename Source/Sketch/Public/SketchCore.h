@@ -1,6 +1,8 @@
 #pragma once
 #include "SketchTypes.h"
 
+struct FSlateFontInfo;
+
 class FSketchCore : FNoncopyable
 {
 public:

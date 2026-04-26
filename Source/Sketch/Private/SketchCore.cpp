@@ -1,6 +1,7 @@
 #include "SketchCore.h"
 
 #include "Factories/BuiltinFactories.h"
+#include "Styling/CoreStyle.h"
 #include "Widgets/SSketchWidget.h"
 
 FSketchCore& FSketchCore::Get()

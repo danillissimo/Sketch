@@ -327,6 +327,11 @@ sketch::FBrushAttribute::FBrushAttribute(const FSlateBrush* InBrush)
 	}
 }
 
+const FSlateBrush* sketch::FBrushAttribute::GetValue() const
+{
+	return Brush ? Brush : FCoreStyle::Get().GetDefaultBrush();
+}
+
 FString sketch::FBrushAttribute::GenerateBaseCode() const
 {
 	FString Result = TEXT("FSlateIcon(");
