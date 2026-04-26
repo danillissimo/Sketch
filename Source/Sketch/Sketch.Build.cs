@@ -35,9 +35,9 @@ public class Sketch : ModuleRules
 		PrivateDefinitions.Add("WITH_SKETCH=1");
 	}
 
-	public static void SetupFor(ModuleRules Module, ReadOnlyTargetRules Target)
+	public static void SetupFor(ModuleRules Module, ReadOnlyTargetRules Target, bool? bUseSketch = null)
 	{
-		if (Target.bBuildEditor && Target.Configuration != UnrealTargetConfiguration.Shipping)
+        if (bUseSketch.GetValueOrDefault(Target.bBuildEditor && Target.Configuration != UnrealTargetConfiguration.Shipping))
 		{
 			Module.PrivateDependencyModuleNames.Add("Sketch");
 			Module.PrivateDefinitions.Add("WITH_SKETCH=1");
