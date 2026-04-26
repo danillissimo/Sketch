@@ -1,7 +1,7 @@
 #include "AttributesTraites/TextTraits.h"
 
 #include "Sketch.h"
-#include "HeaderTool/StringLiteral.h"
+#include "SketchStringLiteral.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 static sketch::FHeaderToolAttributeFilter GTextFilter([](FStringView Attribute)

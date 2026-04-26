@@ -1,7 +1,7 @@
 #include "AttributesTraites/NameTraits.h"
 
 #include "Sketch.h"
-#include "HeaderTool/StringLiteral.h"
+#include "SketchStringLiteral.h"
 #include "Widgets/Input/SEditableTextBox.h"
 
 static sketch::FHeaderToolAttributeFilter GNameFilter([](FStringView Attribute)

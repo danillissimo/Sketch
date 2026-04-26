@@ -2,8 +2,8 @@
 
 #include <array>
 
+#include "SketchStringLiteral.h"
 #include "HeaderTool/SourceCodeUtility.h"
-#include "HeaderTool/StringLiteral.h"
 #include "AttributesTraites/AttributesTraits.h"
 #include "HeaderTool/SketchWidgetFactoryTools.h"
 #include "Misc/FileHelper.h"

@@ -1,6 +1,6 @@
 #include "HeaderTool/SourceCodeUtility.h"
 
-#include "HeaderTool/StringLiteral.h"
+#include "SketchStringLiteral.h"
 #include "Math/Interval.h"
 
 sketch::SourceCode::FProcessedString sketch::SourceCode::CleanCode(const sketch::FStringView& Code)

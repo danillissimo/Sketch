@@ -1,7 +1,7 @@
 #include "AttributesTraites/OptionalSizeTraits.h"
 
 #include "Sketch.h"
-#include "HeaderTool/StringLiteral.h"
+#include "SketchStringLiteral.h"
 #include "Widgets/Input/SCheckBox.h"
 #include "Widgets/Input/SSpinBox.h"
 

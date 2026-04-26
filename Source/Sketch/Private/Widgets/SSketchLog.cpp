@@ -1,8 +1,8 @@
 #include "Widgets/SSketchLog.h"
 
 #include "Sketch.h"
+#include "SketchStringLiteral.h"
 #include "SourceCodeNavigation.h"
-#include "HeaderTool/StringLiteral.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "Widgets/Input/SButton.h"
 

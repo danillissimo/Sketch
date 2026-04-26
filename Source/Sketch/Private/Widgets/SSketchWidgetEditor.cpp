@@ -1,11 +1,11 @@
 #include "Widgets/SSketchWidgetEditor.h"
 
 #include "SketchCore.h"
+#include "SketchStringLiteral.h"
 #include "AttributesTraites/BooleanTraits.h"
 #include "AttributesTraites/ColorTraits.h"
 #include "AttributesTraites/MarginTraits.h"
 #include "AttributesTraites/TextTraits.h"
-#include "HeaderTool/StringLiteral.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderRow.h"
