@@ -43,6 +43,15 @@ void SSketchOutliner::Rebuild()
 	[
 		SNew(SVerticalBox)
 
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SAssignNew(Hint, STextBlock)
+			.Text(LOCTEXT("EditHint", "Note: right click row to edit it"))
+			.Font(FCoreStyle::GetDefaultFontStyle("Italic", 6.75))
+			.ColorAndOpacity(FLinearColor{ 1, 1, 1, 0.5 })
+		]
+
 		+ SVerticalBox::Slot().AutoHeight()
 		[
 			SNew(STextBlock)
@@ -55,7 +64,7 @@ void SSketchOutliner::Rebuild()
 			SAssignNew(Tree, STreeView<TWeakPtr<SSketchWidget>>)
 			.TreeItemsSource(&RootAsArray)
 			.OnGetChildren_Static(&SSketchOutliner::OnGetChildren)
-			.OnGenerateRow_Static(&SSketchOutliner::OnGenerateRow)
+			.OnGenerateRow(this, &SSketchOutliner::OnGenerateRow)
 			.OnSelectionChanged(this, &SSketchOutliner::OnSelectionChanged)
 			.OnContextMenuOpening(this, &SSketchOutliner::OnMakeContextMenu)
 		]
@@ -89,31 +98,90 @@ void SSketchOutliner::OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeak
 	}
 }
 
-TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner)
+class SSketchOutlinerRow : public SCompoundWidget
 {
-	TSharedPtr<SSketchWidget> Item = InItem.Pin();
-	if (!Item) [[unlikely]] return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
-		[
-			SNew(SBox)
-			.VAlign(VAlign_Center)
-			.Content()
-			[
-				SNew(STextBlock)
-				.Text(INVTEXT("ERROR"))
-			]
-		];
+public:
+	SLATE_BEGIN_ARGS(SSketchOutlinerRow) {}
+	SLATE_END_ARGS()
 
-	const sketch::FFactoryHandle& Factory = Item->GetContentFactory();
-	FString Name;
-	Name.Reserve(64);
-	const FName Tag = Item->GetTag();
-	if (!Tag.IsNone())
+	void Construct(const FArguments& InArgs, SSketchOutliner* Owner, TWeakPtr<SSketchWidget> InItem)
 	{
-		Tag.AppendString(Name);
-		Name += TEXT(": ");
-	}
-	Factory.Name.AppendString(Name);
-	return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
+		// Sanitize
+		TSharedPtr<SSketchWidget> Item = InItem.Pin();
+		if (!Item) [[unlikely]]
+		{
+			ChildSlot
+			[
+				SNew(SBox)
+				.VAlign(VAlign_Center)
+				.Content()
+				[
+					SNew(STextBlock)
+					.Text(INVTEXT("ERROR"))
+				]
+
+			];
+			return;
+		}
+
+		// Determine factory name
+		const sketch::FFactoryHandle& FactoryHandle = Item->GetContentFactory();
+		FString Name;
+		Name.Reserve(64);
+		const FName UniqueSlotName = Item->GetTag();
+		if (!UniqueSlotName.IsNone())
+		{
+			UniqueSlotName.AppendString(Name);
+			Name += TEXT(": ");
+		}
+		FactoryHandle.Name.AppendString(Name);
+
+		// Make "add slot" button
+		FName SlotType;
+		if (const sketch::FFactory* Factory = FactoryHandle.Resolve(); Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
+		{
+			sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
+			if (!SlotTypes.IsEmpty())
+			{
+				SlotType = SlotTypes[0];
+			}
+		}
+		TSharedRef<SMenuAnchor> MenuAnchor =
+			SNew(SMenuAnchor)
+			.OnGetMenuContent(Owner, &SSketchOutliner::MakeNewSlotMenu, InItem, SlotType)
+			.Visibility(SlotType.IsNone() ? EVisibility::Hidden : EVisibility::Visible);
+		constexpr FLinearColor ThreeThirdsWhite{ 1, 1, 1, 0.75 };
+		TSharedRef<SButton> AddSlotButton =
+			SNew(SButton)
+			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.ToolTipText(LOCTEXT("AddSlot", "Add slot"))
+			.OnClicked_Lambda([WeakMenuAnchor = SharedThis(&MenuAnchor.Get()).ToWeakPtr()]()-> FReply
+			{
+				if (TSharedPtr<SMenuAnchor> MenuAnchor = WeakMenuAnchor.Pin()) [[likely]]
+				{
+					MenuAnchor->SetIsOpen(true);
+				}
+				return FReply::Handled();
+			})
+			[
+				SNew(SImage)
+				.Image(FSlateIcon("CoreStyle", "Icons.PlusCircle").GetIcon())
+				.ColorAndOpacity(ThreeThirdsWhite)
+			];
+		MenuAnchor->SetContent(MoveTemp(AddSlotButton));
+
+		// Determine owning slot type
+		SSketchWidget::FSlotReference OwningSlot;
+		SSketchWidget* Parent = Item->GetParent();
+		FOnClicked OnRemoveSlot;
+		if (Parent)
+		{
+			OwningSlot = Parent->FindSlotFor(Item.Get());
+			OnRemoveSlot.BindSP(Owner, &SSketchOutliner::OnRemoveSlotWithReply, Parent->AsWeakSubobject(Parent), OwningSlot.Type, OwningSlot.Index);
+		}
+
+		// Make full widget
+		ChildSlot
 		[
 			SNew(SHorizontalBox)
 
@@ -127,17 +195,69 @@ TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InI
 
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
-			.VAlign(VAlign_Center)
 			[
-				SNew(SButton)
-				.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-				.ToolTipText(LOCTEXT("CopyToClipboard", "Copy to clipboard"))
-				.OnClicked_Static(&SSketchOutliner::OnExportRow, InItem)
+				SAssignNew(Controls, SHorizontalBox)
+				.Visibility(EVisibility::Hidden)
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
 				[
-					SNew(SImage)
-					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+					.ToolTipText(LOCTEXT("RemoveSlot", "Remove slot"))
+					.OnClicked(MoveTemp(OnRemoveSlot))
+					.Visibility(OwningSlot.Data ? EVisibility::Visible : EVisibility::Hidden)
+					[
+						SNew(SImage)
+						.Image(FSlateIcon("CoreStyle", "GenericCommands.Delete").GetIcon())
+						.ColorAndOpacity(ThreeThirdsWhite)
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					MoveTemp(MenuAnchor)
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				[
+					SNew(SButton)
+					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+					.ToolTipText(LOCTEXT("CopyToClipboard", "Copy to clipboard"))
+					.OnClicked_Static(&SSketchOutliner::OnExportRow, InItem)
+					[
+						SNew(SImage)
+						.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Themes.Export").GetIcon())
+					]
 				]
 			]
+		];
+	}
+
+	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		Controls->SetVisibility(EVisibility::Visible);
+	}
+
+	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
+	{
+		Controls->SetVisibility(EVisibility::Hidden);
+	}
+
+private:
+	TSharedPtr<SWidget> Controls;
+};
+
+TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner)
+{
+	return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
+		[
+			SNew(SSketchOutlinerRow, this, InItem)
 		];
 }
 
@@ -179,7 +299,7 @@ void SSketchOutliner::OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelect
 			if (Item->IsRoot()) return false;
 			SSketchWidget* SlotContainer = Item->GetParent();
 			if (!SlotContainer) return false;
-			SSketchWidget::FSlot* Slot = SlotContainer->FindSlotFor(Item.Get());
+			SSketchWidget::FSlot* Slot = SlotContainer->FindSlotFor(Item.Get()).Data;
 			if (!Slot) return false;
 			Collection->SetSlotAttributes(Slot->Attributes);
 			return true;
@@ -197,6 +317,10 @@ void SSketchOutliner::OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelect
 
 TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 {
+	// Remove hint
+	Hint->SetVisibility(EVisibility::Collapsed);
+
+	// Sanitize
 	TArray<TWeakPtr<SSketchWidget>> SelectedItems = Tree->GetSelectedItems();
 	if (SelectedItems.Num() != 1) [[unlikely]] return nullptr;
 	TSharedPtr<SSketchWidget> Item = SelectedItems[0].Pin();
@@ -208,7 +332,7 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	{
 		// First list new slot controls
 		static const FName NAME_Slots = TEXT("Slots");
-		Menu.BeginSection(NAME_Slots, LOCTEXT("lots", "Slots"));
+		Menu.BeginSection(NAME_Slots, LOCTEXT("Slots", "Slots"));
 		const sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
 		for (const FName& SlotType : SlotTypes)
 		{
@@ -216,7 +340,7 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 			FString Label = TEXT("New ");
 			SlotType.AppendString(Label);
 			Entry.LabelOverride = FText::FromString(Label);
-			Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnMakeEmptySlot, SelectedItems[0], SlotType);
+			Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnMakeEmptySlot, SelectedItems[0], SlotType);
 			Entry.EntryBuilder.BindSP(this, &SSketchOutliner::MakeNewSlotMenu, SelectedItems[0], SlotType);
 			Entry.bIsSubMenu = true;
 
@@ -245,6 +369,34 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 		// }
 	}
 
+	// Detect owning slot type
+	SSketchWidget::FSlotReference Slot;
+	SSketchWidget* Parent = Item->GetParent();
+	if (Parent)[[likely]]
+	{
+		Slot = Parent->FindSlotFor(Item.Get());
+	}
+
+	// List slot controls when present
+	if (!Slot.Type.IsNone())
+	{
+		{
+			FMenuEntryParams Entry;
+			Entry.IconOverride = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.DiffersFromDefault");
+			Entry.LabelOverride = LOCTEXT("Clear", "Clear");
+			Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnClearWidget, Item.ToWeakPtr());
+			Menu.AddMenuEntry(Entry);
+		}
+		{
+			FMenuEntryParams Entry;
+			Entry.IconOverride = FSlateIcon("CoreStyle", "GenericCommands.Delete");
+			Entry.LabelOverride = LOCTEXT("Remove", "Remove");
+			Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnRemoveSlot, Parent->AsWeakSubobject(Parent), Slot.Type, Slot.Index);
+			Menu.AddMenuEntry(Entry);
+		}
+	}
+
+	// List factories
 	static const FName NAME_Factories = TEXT("factories");
 	Menu.BeginSection(NAME_Factories, LOCTEXT("Factories", "Factories"));
 	ListFactoriesIfAppropriate(Menu, Item, NAME_None, INDEX_NONE);
@@ -258,10 +410,17 @@ void SSketchOutliner::MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = LOCTEXT("Empty", "Empty");
-		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnMakeEmptySlot, Widget, Type);
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnMakeEmptySlot, Widget, Type);
 		Menu.AddMenuEntry(Entry);
 	}
 	ListFactoriesIfAppropriate(Menu, Widget, Type, INDEX_NONE);
+}
+
+TSharedRef<SWidget> SSketchOutliner::MakeNewSlotMenu(TWeakPtr<SSketchWidget> Widget, FName Type)
+{
+	FMenuBuilder Menu(true, nullptr);
+	MakeNewSlotMenu(Menu, Widget, Type);
+	return Menu.MakeWidget();
 }
 
 void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
@@ -277,15 +436,6 @@ void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SS
 	}
 
 	const bool bNewSlot = !SlotType.IsNone() && SlotIndex == INDEX_NONE;
-	if (Widget->GetContentFactory().IsValid() && !bNewSlot)
-	{
-		FMenuEntryParams Entry;
-		Entry.IconOverride = FSlateIcon("CoreStyle", "Icons.Delete");
-		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnClearWidget, WeakWidget);
-		Menu.AddMenuEntry(Entry);
-	}
-
 	if (!Widget->GetContentFactory().IsValid() || bNewSlot)
 	{
 		ListFactories(Menu, WeakWidget, SlotType, SlotIndex);
@@ -299,23 +449,6 @@ void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SS
 		Menu.AddMenuEntry(Entry);
 	}
 }
-
-// void SSketchOutliner::MakeExistingSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type, int Index)
-// {
-// 	{
-// 		FMenuEntryParams Entry;
-// 		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-// 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnClearExistingSlot, Widget, Type, Index);
-// 		Menu.AddMenuEntry(Entry);
-// 	}
-// 	{
-// 		FMenuEntryParams Entry;
-// 		Entry.LabelOverride = LOCTEXT("Remove", "Remove");
-// 		Entry.DirectActions.ExecuteAction.BindStatic(&SSketchOutliner::OnRemoveSlot, Widget, Type, Index);
-// 		Menu.AddMenuEntry(Entry);
-// 	}
-// 	ListFactories(Menu, Widget, Type, Index);
-// }
 
 void SSketchOutliner::ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
@@ -374,7 +507,8 @@ void SSketchOutliner::OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName 
 	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
 	if (!Widget) [[unlikely]] return;
 
-	Widget->AddDynamicSlot(SlotType, false);
+	Widget->AddDynamicSlot(SlotType, true);
+	OnSketchUpdated();
 }
 
 void SSketchOutliner::OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
@@ -385,7 +519,8 @@ void SSketchOutliner::OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FN
 	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
 	if (!Widget) [[unlikely]] return;
 
-	Widget->ReleaseDynamicSlot(SlotType, SlotIndex, false);
+	Widget->ReleaseDynamicSlot(SlotType, SlotIndex, true);
+	OnSketchUpdated();
 }
 
 void SSketchOutliner::OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
@@ -396,7 +531,14 @@ void SSketchOutliner::OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName Slo
 	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
 	if (!Widget) [[unlikely]] return;
 
-	Widget->RemoveDynamicSlot(SlotType, SlotIndex, false);
+	Widget->RemoveDynamicSlot(SlotType, SlotIndex, true);
+	OnSketchUpdated();
+}
+
+FReply SSketchOutliner::OnRemoveSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
+{
+	OnRemoveSlot(WeakWidget, SlotType, SlotIndex);
+	return FReply::Handled();
 }
 
 void SSketchOutliner::OnFactorySelected(

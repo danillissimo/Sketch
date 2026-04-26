@@ -21,9 +21,16 @@ public:
 
 	FSimpleMulticastDelegate OnModification;
 
-	sketch::FFactory::FUniqueSlots CollectUniqueSlots() const { return CollectUniqueSlots(GetContent()); }
 	struct FSlot;
-	FSlot* FindSlotFor(SSketchWidget* Widget);
+	struct FSlotReference
+	{
+		FName Type;
+		int Index = INDEX_NONE;
+		FSlot* Data = nullptr;
+	};
+
+	sketch::FFactory::FUniqueSlots CollectUniqueSlots() const { return CollectUniqueSlots(GetContent()); }
+	FSlotReference FindSlotFor(SSketchWidget* Widget);
 	/** @return First owning SSketchWidget, or this if is a root, nullptr on failure */
 	SSketchWidget* GetParent() const;
 	SSketchWidget* FindRoot() const;

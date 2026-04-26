@@ -17,30 +17,34 @@ public:
 	SKETCH_API void SetRoot(SSketchWidget* Root);
 
 private:
+	friend class SSketchOutlinerRow;
+
 	void Rebuild();
 
 	static void OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeakPtr<SSketchWidget>>& Children);
-	static TSharedRef<ITableRow> OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner);
+	TSharedRef<ITableRow> OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner);
 	static FReply OnExportRow(TWeakPtr<SSketchWidget> InItem);
 	void OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelectInfo::Type SelectionType);
 
 	TSharedPtr<SWidget> OnMakeContextMenu();
 	void MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type);
+	TSharedRef<SWidget> MakeNewSlotMenu(TWeakPtr<SSketchWidget> Widget, FName Type);
 	void ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName FactoriesType, FName SlotType, int SlotIndex);
 
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
-	static void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
-	static void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
-	static void OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
+	void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	void OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	FReply OnRemoveSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
-
 
 	void OnSketchUpdated();
 
 	TArray<TWeakPtr<SSketchWidget>> RootAsArray;
 	FDelegateHandle RootListener;
+	TSharedPtr<SWidget> Hint;
 	TSharedPtr<STreeView<TWeakPtr<SSketchWidget>>> Tree;
 
 	TWeakPtr<SSketchAttributeCollection> WeakCollection;

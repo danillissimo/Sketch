@@ -14,19 +14,19 @@ SLATE_IMPLEMENT_WIDGET(SSketchWidget)
 void SSketchWidget::PrivateRegisterAttributes(FSlateAttributeDescriptor::FInitializer&)
 {}
 
-SSketchWidget::FSlot* SSketchWidget::FindSlotFor(SSketchWidget* Widget)
+SSketchWidget::FSlotReference SSketchWidget::FindSlotFor(SSketchWidget* Widget)
 {
 	for (auto& [Type,TypedSlots] : Slots)
 	{
-		for (FSlot& Slot : TypedSlots)
+		for (auto SlotIt = TypedSlots.CreateIterator(); SlotIt; ++SlotIt)
 		{
-			if (Slot.Widget.Get() == Widget)
+			if (SlotIt->Widget.Get() == Widget)
 			{
-				return &Slot;
+				return { Type, SlotIt.GetIndex(), &*SlotIt };
 			}
 		}
 	}
-	return nullptr;
+	return {};
 }
 
 SSketchWidget* SSketchWidget::GetParent() const
