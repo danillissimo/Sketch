@@ -34,7 +34,7 @@ public:
 			[
 
 				SAssignNew(SpinBox, SSpinBox<float>)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.Delta(1.f)
 				.Value(this, &SOptionalSizeEditor::GetValue)
 				.OnValueChanged(this, &SOptionalSizeEditor::OnValueChanged)

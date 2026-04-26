@@ -38,14 +38,6 @@ sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t
 
 
 
-namespace sketch
-{
-	namespace Private
-	{
-		TAttribute<FSlateFontInfo> DefaultFont();
-	}
-}
-
 template <class T, class... ConstructorArgTypes>
 TAttribute<T> FSketchCore::MakeSlateAttribute(sketch::TAttributeInitializer<ConstructorArgTypes...>& Initializer)
 {

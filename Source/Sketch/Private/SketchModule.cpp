@@ -7,9 +7,7 @@
 #include "StatusBarSubsystem.h"
 #include "WorkspaceMenuStructure.h"
 #include "WorkspaceMenuStructureModule.h"
-#include "HeaderTool/SourceCodeUtility.h"
 #include "Interfaces/IMainFrameModule.h"
-#include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchHeaderTool.h"
 #include "Widgets/SSketchSanbox.h"
 #include "Widgets/SSketchWidgetEditor.h"
@@ -20,15 +18,6 @@
 static const FName WidgetEditorTabName("SketchWidgetEditor");
 static const FName SandboxTabName("SketchSandbox");
 static const FName HeaderToolTabName("SketchHeaderTool");
-
-
-
-TAttribute<FSlateFontInfo> sketch::Private::DefaultFont()
-{
-	return Sketch("Font", FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont")));
-}
-
-
 
 void AddStatusBar(TSharedRef<SDockTab> Tab, TSharedRef<SVerticalBox> Content, const TCHAR* StatusBarId)
 {

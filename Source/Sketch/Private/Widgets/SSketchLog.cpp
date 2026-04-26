@@ -262,7 +262,7 @@ TSharedRef<SWidget> SSketchLog::MakeMessageSourceButton(sketch::Private::FLogIte
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(FString::FromInt(Message.Source.Line) + TEXT("::") + FString::FromInt(Message.Source.Column)))
-			.Font(sketch::Private::DefaultFont())
+			.Font(FSketchCore::GetDefaultFont())
 			.Justification(ETextJustify::Center)
 		];
 }

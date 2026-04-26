@@ -89,7 +89,7 @@ void SSketchAttribute::Construct(
 				[
 					SNew(STextBlock)
 					.Text(FText::FromString(FString::FromInt(Attribute.GetLine()) + TEXT("::") + FString::FromInt(Attribute.GetColumn())))
-					.Font(sketch::Private::DefaultFont())
+					.Font(FSketchCore::GetDefaultFont())
 					.Justification(ETextJustify::Center)
 					.OverflowPolicy(ETextOverflowPolicy::Clip)
 				]
@@ -103,7 +103,7 @@ void SSketchAttribute::Construct(
 				[
 					SNew(STextBlock)
 					.Text(FText::FromName(Attribute.GetName()))
-					.Font(sketch::Private::DefaultFont())
+					.Font(FSketchCore::GetDefaultFont())
 					.Visibility(GetSlotVisibility(1, InArgs._ShowName))
 				]
 
@@ -126,7 +126,7 @@ void SSketchAttribute::Construct(
 			[
 				SNew(STextBlock)
 				.Text(this, &SSketchAttribute::GetNumUsers)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.Justification(ETextJustify::Center)
 				.OverflowPolicy(ETextOverflowPolicy::Clip)
 				.Visibility(GetSlotVisibility(3, InArgs._ShowNumUsers))

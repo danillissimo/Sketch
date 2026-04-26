@@ -37,7 +37,7 @@ public:
 			.FillWidth(1)
 			[
 				SAssignNew(x1, SSpinBox<float>)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.MinValue(0)
 				.MaxFractionalDigits(1)
 				.Value(Margin.Left)
@@ -58,7 +58,7 @@ public:
 			.FillWidth(1)
 			[
 				SAssignNew(x2, SSpinBox<float>)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.MinValue(0)
 				.MaxFractionalDigits(1)
 				.Value(Margin.Top)
@@ -80,7 +80,7 @@ public:
 			.FillWidth(1)
 			[
 				SAssignNew(x3, SSpinBox<float>)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.MinValue(0)
 				.MaxFractionalDigits(1)
 				.Value(Margin.Right)
@@ -93,7 +93,7 @@ public:
 			.FillWidth(1)
 			[
 				SAssignNew(x4, SSpinBox<float>)
-				.Font(sketch::Private::DefaultFont())
+				.Font(FSketchCore::GetDefaultFont())
 				.MinValue(0)
 				.MaxFractionalDigits(1)
 				.Value(Margin.Bottom)

@@ -16,6 +16,12 @@ void FSketchCore::Initialize()
 
 void FSketchCore::Shutdown() {}
 
+TAttribute<FSlateFontInfo> FSketchCore::GetDefaultFont()
+{
+	// Sketch("Font", FAppStyle::Get().GetFontStyle(TEXT("PropertyWindow.NormalFont")));
+	return FCoreStyle::GetDefaultFontStyle("Regular", 8);
+}
+
 void FSketchCore::ClearStaleAttributes()
 {
 	bool bRemovedAnything = false;

@@ -8,6 +8,8 @@ public:
 	SKETCH_API static void Initialize();
 	SKETCH_API static void Shutdown();
 
+	SKETCH_API static TAttribute<FSlateFontInfo> GetDefaultFont();
+
 	using FNomadAttributes = TMap<const sketch::FSourceLocation, const sketch::FConstAttributeCollection>;
 	const FNomadAttributes& GetNomadAttributes() const { return (FNomadAttributes&)Attributes; }
 
