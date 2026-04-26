@@ -5,6 +5,7 @@
 #include "SketchTypes.h"
 #include "SourceCodeNavigation.h"
 #include "Framework/Application/SlateApplication.h"
+#include "HAL/FileManagerGeneric.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "HeaderTool/SourceCodeUtility.h"
 #include "Misc/FileHelper.h"
@@ -327,8 +328,49 @@ FReply SSketchAttribute::OnBrowseSourceCode() const
 {
 	if (const TSharedPtr<sketch::FAttribute> Attribute = WeakAttribute.Pin()) [[likely]]
 	{
+		// Fix up internal Sketch path for non-local builds
+		FString FileName = Attribute->GetSourceLocation().FileName.ToString();
+		FileName.ReplaceCharInline(TCHAR('/'), TCHAR('\\'));
+		if (const int SketchPathStart = FileName.Find(TEXT("\\Sketch\\Source\\Sketch\\")); SketchPathStart != INDEX_NONE)
+		{
+			if (!FPaths::FileExists(FileName))
+			{
+				TArray<FString> Folders;
+				IFileManager& FileManager = FFileManagerGeneric::Get();
+				FileManager.FindFilesRecursive(
+					Folders,
+					*(FPaths::ProjectDir() / TEXT("Plugins")),
+					TEXT("Sketch"),
+					false,
+					true,
+					false);
+				if (Folders.IsEmpty())
+				{
+					FileManager.FindFilesRecursive(
+						Folders,
+						*(FPaths::EngineDir() / TEXT("Plugins")),
+						TEXT("Sketch"),
+						false,
+						true,
+						false);
+				}
+				for (FString& Folder : Folders)
+				{
+					Folder.ReplaceCharInline(TCHAR('/'), TCHAR('\\'));
+					Folder.RemoveFromEnd(TEXT("\\Sketch"));
+					Folder.Append(FStringView(&FileName[SketchPathStart], FileName.Len() - SketchPathStart));
+					if (FPaths::FileExists(Folder))
+					{
+						FileName = FPaths::ConvertRelativePathToFull(MoveTemp(Folder));
+						break;
+					}
+				}
+			}
+		}
+
+		// Now browse the file
 		FSourceCodeNavigation::OpenSourceFile(
-			Attribute->GetSourceLocation().FileName.ToString(),
+			FileName,
 			Attribute->GetLine(),
 			Attribute->GetColumn()
 		);
