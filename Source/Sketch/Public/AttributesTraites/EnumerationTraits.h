@@ -158,7 +158,7 @@ namespace sketch
 			return std::integer_sequence<int, LastA - As - 1 ..., Bs...>{};
 		}
 
-		using TestedValues = decltype(Concat(std::make_integer_sequence<int, 1>(), std::make_integer_sequence<int, 256>()));
+		using TestedValues = decltype(Concat(std::make_integer_sequence<int, 1>(), std::make_integer_sequence<int, 31>()));
 
 		static consteval int GetNumMembers()
 		{
