@@ -1,11 +1,10 @@
 #pragma once
-#include <source_location>
-
 #include "Misc/Attribute.h"
 #include "Misc/TVariant.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 #include "SketchNoUniqueAddress.h"
+#include "Misc/SourceLocation.h"
 
 class SWidget;
 class FSlotBase;
@@ -28,9 +27,9 @@ namespace sketch
 	/** Partial Sketch attribute source path, that may be shared by multiple attributes */
 	struct FSourceLocation
 	{
-		FSourceLocation(const std::source_location& SourceLocation = std::source_location::current())
-			: FileName(SourceLocation.file_name())
-			, FunctionName(SourceLocation.function_name())
+		FSourceLocation(const UE::FSourceLocation& SourceLocation = UE::FSourceLocation::Current())
+			: FileName(SourceLocation.GetFileName())
+			, FunctionName(SourceLocation.GetFunctionName())
 		// , Line(SourceLocation.line())
 		// , Column(SourceLocation.column())
 		{

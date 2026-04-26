@@ -10,31 +10,31 @@
 
 
 // Template generator is in the end of the file
-inline sketch::TAttributeInitializer<> Sketch(FName AttributeName, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<>{ AttributeName, MakeTuple(), S, S.line(), S.column() }; }
+inline sketch::TAttributeInitializer<> Sketch(FName AttributeName, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<>{ AttributeName, MakeTuple(), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0>
-sketch::TAttributeInitializer<std::decay_t<AT0>> Sketch(FName AttributeName, AT0&& A0, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>>{ AttributeName, MakeTuple(std::forward<AT0>(A0)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>> Sketch(FName AttributeName, AT0&& A0, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>>{ AttributeName, MakeTuple(std::forward<AT0>(A0)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2, class AT3>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2, class AT3, class AT4>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5, class AT6>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6)), S, S.GetLine(), S.GetColumn() }; }
 
 template <class AT0, class AT1, class AT2, class AT3, class AT4, class AT5, class AT6, class AT7>
-sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, AT7&& A7, const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6), std::forward<AT7>(A7)), S, S.line(), S.column() }; }
+sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>> Sketch(FName AttributeName, AT0&& A0, AT1&& A1, AT2&& A2, AT3&& A3, AT4&& A4, AT5&& A5, AT6&& A6, AT7&& A7, const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<std::decay_t<AT0>, std::decay_t<AT1>, std::decay_t<AT2>, std::decay_t<AT3>, std::decay_t<AT4>, std::decay_t<AT5>, std::decay_t<AT6>, std::decay_t<AT7>>{ AttributeName, MakeTuple(std::forward<AT0>(A0), std::forward<AT1>(A1), std::forward<AT2>(A2), std::forward<AT3>(A3), std::forward<AT4>(A4), std::forward<AT5>(A5), std::forward<AT6>(A6), std::forward<AT7>(A7)), S, S.GetLine(), S.GetColumn() }; }
 
 
 
@@ -235,9 +235,9 @@ inline sketch::FFactory* sketch::FFactoryHandle::Resolve() const
 //  std::cout << "inline ";
 // 	std::cout << "sketch::TAttributeInitializer<";
 // 	std::cout << "> Sketch(FName AttributeName, ";
-// 	std::cout << "const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<";
+// 	std::cout << "const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<";
 // 	std::cout << ">{ AttributeName, MakeTuple(";
-// 	std::cout << "), S, S.line(), S.column() }; }\n";
+// 	std::cout << "), S, S.GetLine(), S.GetColumn() }; }\n";
 // 	for (int i = 0; i < 8; ++i)
 // 	{
 // 		std::cout << "template <";
@@ -247,11 +247,11 @@ inline sketch::FFactory* sketch::FFactoryHandle::Resolve() const
 // 		printArgTypes("std::decay_t<", i, ">");
 // 		std::cout << "> Sketch(FName AttributeName, ";
 // 		printArgs(i);
-// 		std::cout << "const std::source_location& S = std::source_location::current()) { return sketch::TAttributeInitializer<";
+// 		std::cout << "const UE::FSourceLocation& S = UE::FSourceLocation::Current()) { return sketch::TAttributeInitializer<";
 // 		printArgTypes("std::decay_t<", i, ">");
 // 		std::cout << ">{ AttributeName, MakeTuple(";
 // 		printTupleArgs(i);
-// 		std::cout << "), S, S.line(), S.column() }; }\n";
+// 		std::cout << "), S, S.GetLine(), S.GetColumn() }; }\n";
 // 	}
 // 	return 0;
 // }

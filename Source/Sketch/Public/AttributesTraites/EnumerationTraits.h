@@ -1,10 +1,10 @@
 #pragma once
-#include <source_location>
 #include <string>
 #include <array>
 
 #include "AttributesTraits.h"
 #include "Layout/Visibility.h"
+#include "Misc/SourceLocation.h"
 
 #ifdef __clang__
 #pragma clang diagnostic push
@@ -64,15 +64,15 @@ namespace sketch
 		static constexpr char ClosingBrace = _MSC_VER ? '>' : ']';
 		static constexpr char OpeningBrace = _MSC_VER ? '<' : ' ';
 
-		static consteval int GetEnumNameSize(const std::source_location& SourceLocation = std::source_location::current())
+		static consteval int GetEnumNameSize(const UE::FSourceLocation& SourceLocation = UE::FSourceLocation::Current())
 		{
-			for (int i = std::char_traits<char>::length(SourceLocation.function_name()); i >= 0; --i)
+			for (int i = std::char_traits<char>::length(SourceLocation.GetFunctionName()); i >= 0; --i)
 			{
-				if (SourceLocation.function_name()[i] == ClosingBrace)
+				if (SourceLocation.GetFunctionName()[i] == ClosingBrace)
 				{
 					for (int j = i - 1; j >= 0; --j)
 					{
-						const char CurrentChar = SourceLocation.function_name()[j];
+						const char CurrentChar = SourceLocation.GetFunctionName()[j];
 						if (CurrentChar == OpeningBrace || CurrentChar == ' ') return i - j - 1;
 					}
 				}
@@ -82,16 +82,16 @@ namespace sketch
 
 		static consteval auto GetEnumName()
 		{
-			constexpr std::source_location SourceLocation = std::source_location::current();
+			constexpr UE::FSourceLocation SourceLocation = UE::FSourceLocation::Current();
 			constexpr int Size = GetEnumNameSize(SourceLocation);
 			std::array<TCHAR, Size> Result;
-			for (int i = std::char_traits<char>::length(SourceLocation.function_name()); i >= 0; --i)
+			for (int i = std::char_traits<char>::length(SourceLocation.GetFunctionName()); i >= 0; --i)
 			{
-				if (SourceLocation.function_name()[i] == ClosingBrace)
+				if (SourceLocation.GetFunctionName()[i] == ClosingBrace)
 				{
 					for (int j = 0; j < Size; ++j)
 					{
-						Result[Size - j - 1] = SourceLocation.function_name()[i - j - 1];
+						Result[Size - j - 1] = SourceLocation.GetFunctionName()[i - j - 1];
 					}
 					break;
 				}
@@ -117,17 +117,17 @@ namespace sketch
 			// void ses()[with auto v = (qwe)2]
 			// void __cdecl ses<aa>(void)
 			// void __cdecl ses<(enum qwe)0x2>(void)
-			constexpr std::source_location SourceLocation = std::source_location::current();
-			for (int i = std::char_traits<char>::length(SourceLocation.function_name()); i >= 0; --i)
+			constexpr UE::FSourceLocation SourceLocation = UE::FSourceLocation::Current();
+			for (int i = std::char_traits<char>::length(SourceLocation.GetFunctionName()); i >= 0; --i)
 			{
-				if (SourceLocation.function_name()[i] == ClosingBrace)
+				if (SourceLocation.GetFunctionName()[i] == ClosingBrace)
 				{
 					for (int j = i - 1; j >= 0; --j)
 					{
-						if (!IsAlnum(SourceLocation.function_name()[j]))
+						if (!IsAlnum(SourceLocation.GetFunctionName()[j]))
 						{
 							// Must be -1, but leave this extra char for string terminator
-							return IsDigit(SourceLocation.function_name()[j + 1]) ? 0 : i - j;
+							return IsDigit(SourceLocation.GetFunctionName()[j + 1]) ? 0 : i - j;
 						}
 					}
 				}
@@ -140,13 +140,13 @@ namespace sketch
 		{
 			constexpr int Size = GetMemberNameSize<Value>();
 			std::array<TCHAR, Size> Result;
-			for (int i = std::char_traits<char>::length(std::source_location::current().function_name()); i >= 0; --i)
+			for (int i = std::char_traits<char>::length(UE::FSourceLocation::Current().GetFunctionName()); i >= 0; --i)
 			{
-				if (std::source_location::current().function_name()[i] == ClosingBrace)
+				if (UE::FSourceLocation::Current().GetFunctionName()[i] == ClosingBrace)
 				{
 					for (int j = 0; j < Size; ++j)
 					{
-						Result[Size - j - 1] = std::source_location::current().function_name()[i - j];
+						Result[Size - j - 1] = UE::FSourceLocation::Current().GetFunctionName()[i - j];
 					}
 					break;
 				}

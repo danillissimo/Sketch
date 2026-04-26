@@ -7,7 +7,7 @@ namespace sketch::Sandbox
 	inline FConstAttributeCollection Get() { return GetMutable(); }
 
 	template <class T>
-	void MakeAttribute(const TCHAR* Name, const std::source_location& SL = std::source_location::current())
+	void MakeAttribute(const TCHAR* Name, const UE::FSourceLocation& SL = UE::FSourceLocation::Current())
 	{
 		FSketchCore& Core = FSketchCore::Get();
 		Core.RedirectNewAttributesInto(GetMutable());
@@ -20,7 +20,7 @@ namespace sketch::Sandbox
 	template <class T>
 	struct TItemInitializer
 	{
-		TItemInitializer(const TCHAR* Name, const std::source_location& SL = std::source_location::current())
+		TItemInitializer(const TCHAR* Name, const UE::FSourceLocation& SL = UE::FSourceLocation::Current())
 		{
 			Sandbox::DeferItemInitialization([=] { MakeAttribute<T>(Name, SL); });
 		}
