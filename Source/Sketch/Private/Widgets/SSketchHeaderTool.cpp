@@ -20,7 +20,7 @@ const static FText HeaderToolDocumentation = LOCTEXT(
 	"Documentation",
 	"Welcome to Sketch Header Tool!\n"
 	"\n"
-	"Here You can generate reflection for Your native widgets, to be used by Sketch widget editor.\n"
+	"Here you can generate reflection for your native widgets, to be used by Sketch widget editor.\n"
 	"Just specify paths below (or use predefined path picker to the right of them) and hit the \"Run\" button.\n"
 	"Note that Sketch Header Tool is rather a source code scraper then a compiler.\n"
 	"So it might fail in complex cases, but is always a good starting point.\n"
@@ -32,7 +32,7 @@ const static FText HeaderToolDocumentation = LOCTEXT(
 	"But unsupported attributes are commented out during code generation.\n"
 	"To register an attribute as supported, use 'sketch::FHeaderToolAttributeFilter'.\n"
 	"Look into existing attributes' implementations for examples.\n"
-	"Note that it takes a function as initializer, not just a plain string, so You can add support to types of any complexity.\n"
+	"Note that it takes a function as initializer, not just a plain string, so you can add support to types of any complexity.\n"
 	"\n"
 	"\n"
 	"========================================================Edge cases========================================================\n"
@@ -41,7 +41,7 @@ const static FText HeaderToolDocumentation = LOCTEXT(
 	"- Class is a template\n"
 	"- Code scraper actually fails, and it's just not worth fixing.\n"
 	"All of them can be fixed by introducing explicit overrides.\n"
-	"Explicit overrides enforces code generator to ignore values provided by code scraper and output whatever You specified in an override.\n"
+	"Explicit overrides enforces code generator to ignore values provided by code scraper and output whatever you specified in an override.\n"
 	"To add one, check out 'sketch::HeaderTool::GOverrides' and its entry type 'FOverride'.\n"
 );
 
