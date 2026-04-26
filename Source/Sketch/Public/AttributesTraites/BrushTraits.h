@@ -15,7 +15,7 @@ namespace sketch
 		SKETCH_API FBrushAttribute(const FSlateBrush* Brush);
 		FBrushAttribute(const FBrushAttribute&) = default;
 		FBrushAttribute(FBrushAttribute&&) = default;
-		const FSlateBrush* GetValue() const { return Brush; }
+		const FSlateBrush* GetValue() const { return Brush ? Brush : FCoreStyle::Get().GetDefaultBrush(); }
 		FString GenerateBaseCode() const;
 
 		const FSlateBrush* Brush = nullptr;
