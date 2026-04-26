@@ -2,6 +2,8 @@
 #include <type_traits>
 #include <cstring>
 
+#include "SketchNoUniqueAddress.h"
+
 namespace sketch
 {
 	/** A simple tuple, but with FULL constexpr support */
@@ -104,7 +106,7 @@ namespace sketch
 		}
 
 		ItemType Item;
-		[[no_unique_address]]
+		[[SKETCH_NO_UNIQUE_ADDRESS]]
 		TTuple<ItemTypes...> Next;
 
 	private:

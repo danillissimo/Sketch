@@ -3,7 +3,11 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"
 
-struct sketch::HeaderTool::FLog;
+namespace sketch::HeaderTool
+{
+	struct FLog;
+}
+
 
 namespace sketch::Private
 {

@@ -6,6 +6,11 @@
 #include "AttributesTraits.h"
 #include "Layout/Visibility.h"
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wenum-constexpr-conversion"
+#endif
+
 namespace sketch
 {
 	namespace Private
@@ -259,3 +264,7 @@ namespace sketch
 		static EVisibility GetValue(const IAttributeImplementation& Attribute);
 	};
 }
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif

@@ -7,6 +7,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
 #include "Containers/UnrealString.h"
+#include "SketchNoUniqueAddress.h"
 
 /**
  * Mantras of this file:
@@ -607,7 +608,7 @@ namespace sketch::SourceCode
 	struct TMatch<InTag, T...> : FMatchHeader
 	{
 		static constexpr int Tag = InTag;
-		[[no_unique_address]]
+		[[SKETCH_NO_UNIQUE_ADDRESS]]
 		sketch::TTuple<T...> Components;
 
 		template <int Tag, bool bRoot = true>
@@ -652,7 +653,7 @@ namespace sketch::SourceCode
 		constexpr const auto& Get() const { return const_cast<TMatch*>(this)->Get<Tag>(); }
 
 		template <CMatch... ComponentTypes>
-		static constexpr auto Make(FLocalStringView Value, sketch::TTuple<ComponentTypes...>&& Components) { return TMatch<InTag, ComponentTypes...>{ Value, MR_Skipped, nullptr, {}, ::MoveTemp(Components) }; }
+		static constexpr auto Make(FLocalStringView Value, sketch::TTuple<ComponentTypes...>&& Components) { return TMatch<InTag, ComponentTypes...>{ { Value, MR_Skipped, nullptr, {} }, ::MoveTemp(Components) }; }
 	};
 
 
@@ -676,7 +677,7 @@ namespace sketch::SourceCode
 		 * - InitialProvidedPosition on mismatch
 		 * - INDEX_NONE on source code errors
 		 */
-		[[no_unique_address]]
+		[[SKETCH_NO_UNIQUE_ADDRESS]]
 		T Matcher;
 		ESegmentType Type = ST_Required;
 		static constexpr int Tag = InTag;
@@ -969,7 +970,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag>
 	constexpr TMatch<Tag> MakeMatch(const sketch::FStringView& Code, int InitialPosition, int Position)
 	{
-		return Position != INDEX_NONE ? TMatch<Tag>{ FLocalStringView::Make(InitialPosition, Position, Code) } : TMatch<Tag>{};
+		return Position != INDEX_NONE ? TMatch<Tag>{ { FLocalStringView::Make(InitialPosition, Position, Code) } } : TMatch<Tag>{};
 	}
 
 	template <int Tag>
@@ -983,7 +984,7 @@ namespace sketch::SourceCode::Matcher
 	}
 
 	template <int Tag>
-	constexpr TMatch<Tag> MakeMismatch(int InitialPosition) { return TMatch<Tag>{ FLocalStringView{ InitialPosition, InitialPosition } }; }
+	constexpr TMatch<Tag> MakeMismatch(int InitialPosition) { return TMatch<Tag>{ { FLocalStringView{ InitialPosition, InitialPosition } } }; }
 
 	template <int Tag = -1>
 	constexpr auto OneOf(ESegmentType Type, CSegment auto&&... Segments)

@@ -40,6 +40,12 @@ sketch::SourceCode::FProcessedString sketch::SourceCode::CleanCode(const sketch:
 	return { Result, MoveTemp(Result) };
 }
 
+template <typename T>
+FORCEINLINE constexpr T CopyTempConstexpr(const T& Val)
+{
+	return Val;
+}
+
 TArray<sketch::SourceCode::FArgument> sketch::SourceCode::ParseArguments(const sketch::FStringView& Code)
 {
 	TArray<FArgument> Result;
@@ -74,7 +80,7 @@ TArray<sketch::SourceCode::FArgument> sketch::SourceCode::ParseArguments(const s
 						ST_Optional,
 						// Yes, this will fail if default value contains any kind of comparisons in its top-level scope
 						// But templates are kinda undetectable without full code analysis
-						CombinedFilter(&Bracket::ArgumentFilter, &Bracket::TemplateFilter, &Bracket::SubscopeFilter, CopyTemp(EverythingUntilComma)),
+						CombinedFilter(&Bracket::ArgumentFilter, &Bracket::TemplateFilter, &Bracket::SubscopeFilter, CopyTempConstexpr(EverythingUntilComma)),
 						Matcher::String<CommaTag>(SL",")
 					)
 				)

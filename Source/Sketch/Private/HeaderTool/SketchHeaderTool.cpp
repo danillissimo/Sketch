@@ -32,6 +32,11 @@
 #define AANY(Value) 0, Value
 #define AEXP(Value) {}, EXPR(Value)
 
+#ifdef __clang__
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wmissing-declarations"
+#endif
+
 #pragma endregion ~ Live code to string helpers
 
 /*************************************************************************************************/
@@ -1285,7 +1290,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 
 		// Constructor
 		Code
-			<< SL"\t" << EXPRT(Factory.ConstructDynamicSlot = [](SWidget& Widget, const FName& SlotType) -> ::FSlotBase&, { return *(FSlotBase*)nullptr; }) << SL"\r\n"
+			<< SL"\t" << EXPRT(Factory.ConstructDynamicSlot = [](SWidget& Widget, const FName& SlotType) -> ::FSlotBase&, { return *(FSlotBase*)1; }) << SL"\r\n"
 			<< SL"\t{\r\n"
 			<< SL"\t\tcheck(SlotType == TEXT(\"" << Class.DynamicSlots[0].Type << SL"\"));\r\n"
 			<< SL"\t\t" << Class.Name << SL"::" << Class.DynamicSlots[0].Type << SL"* Slot;\r\n"
@@ -1341,7 +1346,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 			}
 		}
 	}
-	[[maybe_unused]] FSketchCore& Core = *(FSketchCore*)nullptr;
+	[[maybe_unused]] FSketchCore& Core = *(FSketchCore*)1;
 	[[maybe_unused]] FFactory Factory;
 	Code << SL"\t" << EXPR(FSketchCore& Core = FSketchCore::Get();) << SL"\r\n";
 	Code << SL"\t" << CALL(Core.RegisterFactory, ASTR(CategoryView), AEXP(MoveTemp(Factory))) << SL";\r\n";
@@ -1582,3 +1587,7 @@ sketch::FStringView sketch::HeaderTool::TryGetModuleName(sketch::FStringView Inc
 #undef APTR
 #undef AANY
 #undef AEXP
+
+#ifdef __clang__
+#pragma clang diagnostic pop
+#endif

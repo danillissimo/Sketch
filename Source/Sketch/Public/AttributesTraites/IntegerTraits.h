@@ -24,6 +24,6 @@ namespace sketch
 	extern template SKETCH_API struct TIntegerAttribute<int64>;
 
 	template <class T>
-		requires std::is_integral_v<T> && !std::is_same_v<T, bool>
+		requires (std::is_integral_v<T> && !std::is_same_v<T, bool>)
 	struct TAttributeTraits<T> : public TCommonAttributeTraits<TIntegerAttribute<T>> {};
 }

@@ -38,7 +38,7 @@ TSharedRef<SWidget> sketch::TVectorAttribute<T, NumComponents>::MakeEditor()
 {
 	using TVectorInputBox = SNumericVectorInputBox<T, Private::TVector<T, NumComponents>, NumComponents>;
 	auto Arguments =
-		TVectorInputBox::FArguments()
+		typename TVectorInputBox::FArguments()
 		.AllowSpin(true)
 		.SpinDelta(0.1)
 		.bColorAxisLabels(true)

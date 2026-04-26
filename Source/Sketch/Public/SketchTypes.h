@@ -5,6 +5,7 @@
 #include "Misc/TVariant.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
+#include "SketchNoUniqueAddress.h"
 
 class SWidget;
 class FSlotBase;
@@ -164,7 +165,7 @@ namespace sketch
 	struct TAttributeInitializer
 	{
 		FName AttributeName;
-		[[no_unique_address]] // 'Cause it may be empty
+		[[SKETCH_NO_UNIQUE_ADDRESS]] // 'Cause it may be empty
 		::TTuple<ConstructorArgTypes...> ConstructorArgs;
 		FSourceLocation SourceLocation = { NoInit };
 		uint32 Line = 0;
