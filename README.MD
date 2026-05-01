@@ -1,18 +1,21 @@
 # Quick start
 1. Install the plugin
 2. Add `Sketch.SetupFor(this, Target);` to your `Module.Build.cs`
-3. Add `#include "Sketch.h"` in your source file
-4. Replace any constant in this file with `Sketch("VarName", %default_variable_value%)`
+3. Add `#include "Sketch.h"` to your `cpp` file
+4. Replace any constant in this `cpp` file with `Sketch("VarName", %default_variable_value%)`
 5. Run your code and open `Tools->Sketch->SketchAttributes` to edit it
 
 Note: Sketch Attributes window is also accessible globally through `Ctrl + Alt + Shift + W`; chord
 can be customized via editor settings.
 
 # Features
-- Interactive editor for normally unreachable things
-- Common stuff picker - colors (including Slate), fonts, icons
-- Slate widget reflection generator
+- Interactive editor for normally unreachable things and common stuff picker - colors (including
+  Slate), fonts, icons
+  ![Sketch attributes window](Docs/SketchAttributes.gif)
 - WYSIWYG Slate editor
+  ![Sketch widget editor window](Docs/SketchWidgetEditor.gif)
+- Slate widget reflection generator
+  ![Sketch header tool window](Docs/SketchHeaderTool.gif)
 - Export of values and designs as code to clipboard or directly into source file
 
 Detailed info on API or extensions can be found inside relevant plugin windows or here:
@@ -53,4 +56,3 @@ Not that important, but might be of use:
 - "[Magic-enum](https://github.com/Neargye/magic_enum)"-like [compile-time enum reflection](https://github.com/danillissimo/Sketch/blob/main/Source/Sketch/Private/AttributesTraites/EnumerationTraits.cpp)
 - [`SL`](https://github.com/danillissimo/Sketch/blob/main/Source/Sketch/Public/SketchStringLiteral.h) -
   macro to be used as a prefix for strings to replace bulky Unreal `TEXT` macro
-
