@@ -295,11 +295,16 @@ FString SSketchWidget::GenerateCode() const
 		sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(GetContent());
 		for (SSketchWidget* UniqueSlot : UniqueSlots)
 		{
-			Result += TEXT("\r\n.");
-			UniqueSlot->GetTag().AppendString(Result);
-			Result += TEXT("()\r\n[\r\n\t");
-			Result += UniqueSlot->GenerateCode();
-			Result += TEXT("\r\n]");
+			if (UniqueSlot->GetContentFactory().IsValid())
+			{
+				Result += TEXT("\r\n.");
+				UniqueSlot->GetTag().AppendString(Result);
+				Result += TEXT("()\r\n[\r\n\t");
+				FString SlotContent = UniqueSlot->GenerateCode();
+				SlotContent.ReplaceInline(TEXT("\r\n"), TEXT("\r\n\t"), ESearchCase::CaseSensitive);
+				Result += SlotContent;
+				Result += TEXT("\r\n]");
+			}
 		}
 	}
 
