@@ -20,7 +20,9 @@
 			"Name": "Sketch",
 			"Type": "Editor",
 			"LoadingPhase": "Default",
-			"PlatformAllowList": ["Win64"]
+			"PlatformAllowList": [
+				"Win64"
+			]
 		}
 	]
 }
