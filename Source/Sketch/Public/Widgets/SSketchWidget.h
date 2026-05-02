@@ -17,7 +17,7 @@ public:
 	SWidget& GetContent() const { return Overlay->GetChildren()->GetChildAt(0).Get(); }
 	const TArray<TSharedPtr<sketch::FAttribute>>& GetAttributes() const { return Attributes; }
 	const sketch::FFactoryHandle& GetContentFactory() const { return ContentFactory; }
-	const auto& GetDynamicSlots() const { return Slots; }
+	const auto& GetDynamicSlots() const { return DynamicSlots; }
 
 	FSimpleMulticastDelegate OnModification;
 
@@ -30,7 +30,7 @@ public:
 	};
 
 	sketch::FFactory::FUniqueSlots CollectUniqueSlots() const { return CollectUniqueSlots(GetContent()); }
-	FSlotReference FindSlotFor(SSketchWidget* Widget);
+	FSlotReference FindDynamicSlotFor(SSketchWidget* Widget);
 	/** @return First owning SSketchWidget, or this if is a root, nullptr on failure */
 	SSketchWidget* GetParent() const;
 	SSketchWidget* FindRoot() const;
@@ -108,7 +108,7 @@ private:
 	bool bRoot = false;
 	sketch::FFactoryHandle ContentFactory;
 	TArray<TSharedPtr<sketch::FAttribute>> Attributes;
-	TMap<FName, TArray<FSlot, TInlineAllocator<1>>, TInlineSetAllocator<1>> Slots;
+	TMap<FName, TArray<FSlot, TInlineAllocator<1>>, TInlineSetAllocator<1>> DynamicSlots;
 
 	TSharedPtr<SOverlay> Overlay;
 	TSharedPtr<SBorder> Border;

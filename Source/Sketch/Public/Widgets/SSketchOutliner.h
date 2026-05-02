@@ -36,8 +36,8 @@ private:
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
 	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
 	void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
-	void OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
-	FReply OnRemoveSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	void OnRemoveDynamicSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	FReply OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 
 	void OnSketchUpdated();

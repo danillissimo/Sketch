@@ -14,9 +14,9 @@ SLATE_IMPLEMENT_WIDGET(SSketchWidget)
 void SSketchWidget::PrivateRegisterAttributes(FSlateAttributeDescriptor::FInitializer&)
 {}
 
-SSketchWidget::FSlotReference SSketchWidget::FindSlotFor(SSketchWidget* Widget)
+SSketchWidget::FSlotReference SSketchWidget::FindDynamicSlotFor(SSketchWidget* Widget)
 {
-	for (auto& [Type,TypedSlots] : Slots)
+	for (auto& [Type,TypedSlots] : DynamicSlots)
 	{
 		for (auto SlotIt = TypedSlots.CreateIterator(); SlotIt; ++SlotIt)
 		{
@@ -108,7 +108,7 @@ void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bo
 
 void SSketchWidget::UnassignFactory()
 {
-	for (auto& [Type, TypedSlots] : Slots)
+	for (auto& [Type, TypedSlots] : DynamicSlots)
 		for (int Index = TypedSlots.Num() - 1; Index >= 0; Index--)
 			RemoveDynamicSlot(Type, Index, true);
 
@@ -138,7 +138,7 @@ void SSketchWidget::RebuildWidget()
 	Core.StopRedirectingNewAttributes();
 
 	// Restore dynamic slots
-	for (auto& [Type, TypedSlots] : Slots)
+	for (auto& [Type, TypedSlots] : DynamicSlots)
 	{
 		for (FSlot& Slot : TypedSlots)
 		{
@@ -166,7 +166,7 @@ void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
 	// Or at least slots occupying indices larger than the one to be remade
 	// So kill all slots starting from the requested one, and then remake them all back
 	sketch::FFactory* Factory = ContentFactory.Resolve();
-	auto& TypedSlots = Slots[Type];
+	auto& TypedSlots = DynamicSlots[Type];
 	SWidget& Content = *Overlay->GetChildren()->GetChildAt(0);
 	for (int i = TypedSlots.Num() - 1; i >= Index; --i)
 	{
@@ -198,7 +198,7 @@ void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
 int SSketchWidget::AddDynamicSlot(const FName& Type, bool bSuppressModificationEvent)
 {
 	// Make slot container
-	auto& TypedSlots = Slots.FindOrAdd(Type);
+	auto& TypedSlots = DynamicSlots.FindOrAdd(Type);
 	FSlot& Slot = TypedSlots.Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
 	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
@@ -235,7 +235,7 @@ void SSketchWidget::AssignDynamicSlot(
 	bool bSuppressModificationEvent
 )
 {
-	FSlot& Slot = Slots[Type][Index];
+	FSlot& Slot = DynamicSlots[Type][Index];
 	if (Slot.Widget->ContentFactory.IsValid())
 	{
 		ReleaseDynamicSlot(Type, Index, bSuppressModificationEvent);
@@ -246,7 +246,7 @@ void SSketchWidget::AssignDynamicSlot(
 
 void SSketchWidget::ReleaseDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent)
 {
-	auto& TypedSlots = Slots[Type];
+	auto& TypedSlots = DynamicSlots[Type];
 	FSlot& Slot = TypedSlots[Index];
 	Slot.Widget->UnassignFactory(bSuppressModificationEvent);
 	BroadcastModification(bSuppressModificationEvent);
@@ -255,7 +255,7 @@ void SSketchWidget::ReleaseDynamicSlot(const FName& Type, int Index, bool bSuppr
 void SSketchWidget::RemoveDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent)
 {
 	sketch::FFactory* Factory = ContentFactory.Resolve();
-	auto& TypedSlots = Slots[Type];
+	auto& TypedSlots = DynamicSlots[Type];
 	FSlot& Slot = TypedSlots[Index];
 	Factory->DestroyDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Type, Index, *Slot.Slot);
 	TypedSlots.RemoveAt(Index);
@@ -309,7 +309,7 @@ FString SSketchWidget::GenerateCode() const
 	}
 
 	// Add all dynamic slots
-	for (const auto& [Type, TypedSlots] : Slots)
+	for (const auto& [Type, TypedSlots] : DynamicSlots)
 	{
 		for (const FSlot& Slot : TypedSlots)
 		{
@@ -559,7 +559,7 @@ void SSketchWidget::FinalizeOverlayRebuild()
 void SSketchWidget::OnConstructSlot(FName Name)
 {
 	sketch::FFactory* Factory = ContentFactory.Resolve();
-	FSlot& Slot = Slots.FindOrAdd(Name).Emplace_GetRef();
+	FSlot& Slot = DynamicSlots.FindOrAdd(Name).Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
 	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
 	auto& Core = FSketchCore::Get();
@@ -573,7 +573,7 @@ void SSketchWidget::OnConstructSlot(FName Name)
 void SSketchWidget::OnDestroySlot(FName Type, int Index)
 {
 	sketch::FFactory* Factory = ContentFactory.Resolve();
-	auto& TypedSlots = Slots[Type];
+	auto& TypedSlots = DynamicSlots[Type];
 	FSlot& Slot = TypedSlots[Index];
 	Factory->DestroyDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Type, Index, *Slot.Slot);
 	TypedSlots.RemoveAt(Index);

@@ -176,8 +176,8 @@ public:
 		FOnClicked OnRemoveSlot;
 		if (Parent)
 		{
-			OwningSlot = Parent->FindSlotFor(Item.Get());
-			OnRemoveSlot.BindSP(Owner, &SSketchOutliner::OnRemoveSlotWithReply, Parent->AsWeakSubobject(Parent), OwningSlot.Type, OwningSlot.Index);
+			OwningSlot = Parent->FindDynamicSlotFor(Item.Get());
+			OnRemoveSlot.BindSP(Owner, &SSketchOutliner::OnRemoveDynamicSlotWithReply, Parent->AsWeakSubobject(Parent), OwningSlot.Type, OwningSlot.Index);
 		}
 
 		// Make full widget
@@ -299,7 +299,7 @@ void SSketchOutliner::OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelect
 			if (Item->IsRoot()) return false;
 			SSketchWidget* SlotContainer = Item->GetParent();
 			if (!SlotContainer) return false;
-			SSketchWidget::FSlot* Slot = SlotContainer->FindSlotFor(Item.Get()).Data;
+			SSketchWidget::FSlot* Slot = SlotContainer->FindDynamicSlotFor(Item.Get()).Data;
 			if (!Slot) return false;
 			Collection->SetSlotAttributes(Slot->Attributes);
 			return true;
@@ -523,7 +523,7 @@ void SSketchOutliner::OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FN
 	OnSketchUpdated();
 }
 
-void SSketchOutliner::OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
+void SSketchOutliner::OnRemoveDynamicSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
 	check(!SlotType.IsNone());
 	check(SlotIndex != INDEX_NONE);
@@ -535,9 +535,9 @@ void SSketchOutliner::OnRemoveSlot(TWeakPtr<SSketchWidget> WeakWidget, FName Slo
 	OnSketchUpdated();
 }
 
-FReply SSketchOutliner::OnRemoveSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
+FReply SSketchOutliner::OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
-	OnRemoveSlot(WeakWidget, SlotType, SlotIndex);
+	OnRemoveDynamicSlot(WeakWidget, SlotType, SlotIndex);
 	return FReply::Handled();
 }
 
