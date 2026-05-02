@@ -369,30 +369,42 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 		// }
 	}
 
-	// Detect owning slot type
-	SSketchWidget::FSlotReference Slot;
-	SSketchWidget* Parent = Item->GetParent();
-	if (Parent)[[likely]]
+	// List slot-specific controls
+	if (SSketchWidget* Parent = Item->GetParent())[[likely]]
 	{
-		Slot = Parent->FindSlotFor(Item.Get());
-	}
-
-	// List slot controls when present
-	if (!Slot.Type.IsNone())
-	{
+		// Consider dynamic slot
+		SSketchWidget::FSlotReference Slot = Parent->FindDynamicSlotFor(Item.Get());
+		if (!Slot.Type.IsNone())
 		{
-			FMenuEntryParams Entry;
-			Entry.IconOverride = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.DiffersFromDefault");
-			Entry.LabelOverride = LOCTEXT("Clear", "Clear");
-			Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnClearWidget, Item.ToWeakPtr());
-			Menu.AddMenuEntry(Entry);
+			{
+				FMenuEntryParams Entry;
+				Entry.IconOverride = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.DiffersFromDefault");
+				Entry.LabelOverride = LOCTEXT("Clear", "Clear");
+				Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnClearWidget, Item.ToWeakPtr());
+				Menu.AddMenuEntry(Entry);
+			}
+			{
+				FMenuEntryParams Entry;
+				Entry.IconOverride = FSlateIcon("CoreStyle", "GenericCommands.Delete");
+				Entry.LabelOverride = LOCTEXT("Remove", "Remove");
+				Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnRemoveDynamicSlot, Parent->AsWeakSubobject(Parent), Slot.Type, Slot.Index);
+				Menu.AddMenuEntry(Entry);
+			}
 		}
+		else
 		{
-			FMenuEntryParams Entry;
-			Entry.IconOverride = FSlateIcon("CoreStyle", "GenericCommands.Delete");
-			Entry.LabelOverride = LOCTEXT("Remove", "Remove");
-			Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnRemoveSlot, Parent->AsWeakSubobject(Parent), Slot.Type, Slot.Index);
-			Menu.AddMenuEntry(Entry);
+			// Detect owning unique slot
+			const sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
+			const SSketchWidget* const* Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
+			if (Record)[[likely]]
+			{
+				const int Index = Record - UniqueSlots.GetData();
+				FMenuEntryParams Entry;
+				Entry.IconOverride = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.DiffersFromDefault");
+				Entry.LabelOverride = LOCTEXT("Clear", "Clear");
+				Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnResetUniqueSlot, Parent->AsWeakSubobject(Parent), Index);
+				Menu.AddMenuEntry(Entry);
+			}
 		}
 	}
 
@@ -539,6 +551,19 @@ FReply SSketchOutliner::OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> Wea
 {
 	OnRemoveDynamicSlot(WeakWidget, SlotType, SlotIndex);
 	return FReply::Handled();
+}
+
+void SSketchOutliner::OnResetUniqueSlot(TWeakPtr<SSketchWidget> WeakParent, int Index)
+{
+	if (TSharedPtr<SSketchWidget> Parent = WeakParent.Pin()) [[likely]]
+	{
+		const sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
+		if (UniqueSlots.IsValidIndex(Index))[[likely]]
+		{
+			UniqueSlots[Index]->UnassignFactory(true);
+			OnSketchUpdated();
+		}
+	}
 }
 
 void SSketchOutliner::OnFactorySelected(

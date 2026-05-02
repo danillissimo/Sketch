@@ -38,6 +38,7 @@ private:
 	void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnRemoveDynamicSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	FReply OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	void OnResetUniqueSlot(TWeakPtr<SSketchWidget> WeakParent, int Index);
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 
 	void OnSketchUpdated();
