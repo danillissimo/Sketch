@@ -4,6 +4,7 @@
 #include "SketchStringLiteral.h"
 #include "AttributesTraites/BooleanTraits.h"
 #include "AttributesTraites/ColorTraits.h"
+#include "AttributesTraites/EnumerationTraits.h"
 #include "AttributesTraites/MarginTraits.h"
 #include "AttributesTraites/TextTraits.h"
 #include "Textures/SlateIcon.h"
@@ -106,6 +107,7 @@ void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 						FindAttribute<sketch::FTextAttribute>(*UniqueSlots[0], SL"Text").SetValue(WidgetEditorDocumentation);
 						FindAttribute<sketch::FBooleanAttribute>(*UniqueSlots[0], SL"IsReadOnly").SetValue(true);
 						FindAttribute<sketch::TColorAttribute<FSlateColor>>(*UniqueSlots[0], SL"ColorAndOpacity").SetValue(FLinearColor(1, 1, 1, .75f));
+						FindAttribute<sketch::FEnumerationAttribute>(*UniqueSlots[0], SL"Clipping").SetValue(static_cast<uint64>(EWidgetClipping::OnDemand));
 						return;
 					}
 				}
