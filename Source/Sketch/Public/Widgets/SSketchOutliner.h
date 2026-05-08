@@ -23,6 +23,7 @@ private:
 
 	static void OnGetChildren(TWeakPtr<SSketchWidget> InItem, TArray<TWeakPtr<SSketchWidget>>& Children);
 	TSharedRef<ITableRow> OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner);
+	FReply OnRowKeyDown(const FGeometry& Geometry, const FKeyEvent& Event);
 	static FReply OnExportRow(TWeakPtr<SSketchWidget> InItem);
 	void OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelectInfo::Type SelectionType);
 
@@ -39,8 +40,11 @@ private:
 	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
 	void OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnRemoveDynamicSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
+	void OnRemoveDynamicSlot(SSketchWidget* Widget, FName SlotType, int SlotIndex);
 	FReply OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnResetUniqueSlot(TWeakPtr<SSketchWidget> WeakParent, int Index);
+	void OnResetUniqueSlot(SSketchWidget* WeakParent, int Index);
+	void OnResetRoot();
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 	void OnReplaceByUniqueSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName SlotName);
 	void OnReplaceByDynamicSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName Type, int Index);

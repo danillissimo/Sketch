@@ -67,6 +67,7 @@ void SSketchOutliner::Rebuild()
 			.OnGenerateRow(this, &SSketchOutliner::OnGenerateRow)
 			.OnSelectionChanged(this, &SSketchOutliner::OnSelectionChanged)
 			.OnContextMenuOpening(this, &SSketchOutliner::OnMakeContextMenu)
+			.OnKeyDownHandler(this, &SSketchOutliner::OnRowKeyDown)
 		]
 	];
 }
@@ -274,6 +275,40 @@ TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InI
 		];
 }
 
+FReply SSketchOutliner::OnRowKeyDown(const FGeometry& Geometry, const FKeyEvent& Event)
+{
+	// Sanitize
+	TArray<TWeakPtr<SSketchWidget>> SelectedItems = Tree->GetSelectedItems();
+	if (SelectedItems.Num() != 1) [[unlikely]] return FReply::Unhandled();
+	TSharedPtr<SSketchWidget> Item = SelectedItems[0].Pin();
+	if (!Item) [[unlikely]] return FReply::Unhandled();
+
+	// Handle delete
+	if (Event.GetKey() == EKeys::Delete)
+	{
+		SSketchWidget* Parent = Item->GetParent();
+		if (Item->IsUniqueSlotContainer())
+		{
+			sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
+			const SSketchWidget* const* Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
+			const int Index = Record - UniqueSlots.GetData();
+			OnResetUniqueSlot(Parent, Index);
+		}
+		else if (!Item->IsRoot())
+		{
+			SSketchWidget::FSlotReference Slot = Parent->FindDynamicSlotFor(Item.Get());
+			OnRemoveDynamicSlot(Parent->AsWeakSubobject(Parent), Slot.Type, Slot.Index);
+		}
+		else
+		{
+			OnResetRoot();
+		}
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
 FReply SSketchOutliner::OnExportRow(TWeakPtr<SSketchWidget> InItem)
 {
 	TSharedPtr<SSketchWidget> Item = InItem.Pin();
@@ -426,9 +461,10 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	}
 
 	// List destructive slot commands
-	if (SSketchWidget* Parent = Item->GetParent())[[likely]]
+	if (!Item->IsRoot())[[likely]]
 	{
 		// Consider dynamic slot
+		SSketchWidget* Parent = Item->GetParent();
 		SSketchWidget::FSlotReference Slot = Parent->FindDynamicSlotFor(Item.Get());
 		if (!Slot.Type.IsNone())
 		{
@@ -462,6 +498,14 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 				Menu.AddMenuEntry(Entry);
 			}
 		}
+	}
+	else
+	{
+		FMenuEntryParams Entry;
+		Entry.IconOverride = FSlateIcon(FAppStyle::GetAppStyleSetName(), "PropertyWindow.DiffersFromDefault");
+		Entry.LabelOverride = LOCTEXT("Clear", "Clear");
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnResetRoot);
+		Menu.AddMenuEntry(Entry);
 	}
 
 	// List factories
@@ -651,12 +695,15 @@ void SSketchOutliner::OnClearExistingSlot(TWeakPtr<SSketchWidget> WeakWidget, FN
 
 void SSketchOutliner::OnRemoveDynamicSlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex)
 {
-	check(!SlotType.IsNone());
-	check(SlotIndex != INDEX_NONE);
-
 	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
 	if (!Widget) [[unlikely]] return;
+	OnRemoveDynamicSlot(Widget.Get(), SlotType, SlotIndex);
+}
 
+void SSketchOutliner::OnRemoveDynamicSlot(SSketchWidget* Widget, FName SlotType, int SlotIndex)
+{
+	check(!SlotType.IsNone());
+	check(SlotIndex != INDEX_NONE);
 	Widget->RemoveDynamicSlot(SlotType, SlotIndex, true);
 	OnSketchUpdated();
 }
@@ -671,12 +718,26 @@ void SSketchOutliner::OnResetUniqueSlot(TWeakPtr<SSketchWidget> WeakParent, int 
 {
 	if (TSharedPtr<SSketchWidget> Parent = WeakParent.Pin()) [[likely]]
 	{
-		const sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
-		if (UniqueSlots.IsValidIndex(Index))[[likely]]
-		{
-			UniqueSlots[Index]->UnassignFactory(true);
-			OnSketchUpdated();
-		}
+		OnResetUniqueSlot(Parent.Get(), Index);
+	}
+}
+
+void SSketchOutliner::OnResetUniqueSlot(SSketchWidget* Parent, int Index)
+{
+	const sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
+	if (UniqueSlots.IsValidIndex(Index)) [[likely]]
+	{
+		UniqueSlots[Index]->UnassignFactory(true);
+		OnSketchUpdated();
+	}
+}
+
+void SSketchOutliner::OnResetRoot()
+{
+	if (TSharedPtr<SSketchWidget> Root = RootAsArray[0].Pin()) [[likely]]
+	{
+		Root->UnassignFactory(true);
+		OnSketchUpdated();
 	}
 }
 
