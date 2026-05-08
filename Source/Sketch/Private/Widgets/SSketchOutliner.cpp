@@ -142,7 +142,7 @@ public:
 		FText Tooltip;
 		{
 			const sketch::FFactory* Factory = FactoryHandle.Resolve();
-			if (Item->IsUniqueSlotContainer() && !Factory)
+			if (!Factory)
 			{
 				OnListSlotOptions.BindSP(Owner, &SSketchOutliner::ListFactories, InItem);
 				Tooltip = LOCTEXT("AssignSlot", "Assign slot");
