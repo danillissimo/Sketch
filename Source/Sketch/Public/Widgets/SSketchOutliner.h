@@ -27,12 +27,13 @@ private:
 	void OnSelectionChanged(TWeakPtr<SSketchWidget> InItem, ESelectInfo::Type SelectionType);
 
 	TSharedPtr<SWidget> OnMakeContextMenu();
-	void MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type);
-	TSharedRef<SWidget> MakeNewSlotMenu(TWeakPtr<SSketchWidget> Widget, FName Type);
+	void MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName Type);
+	TSharedRef<SWidget> MakeNewSlotMenu(TWeakPtr<SSketchWidget> WeakWidget, FName Type);
 	void ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
-	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName FactoriesType, FName SlotType, int SlotIndex);
-	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget);
+	TSharedRef<SWidget> ListFactories(TWeakPtr<SSketchWidget> WeakWidget);
+	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName FactoriesType, FName SlotType, int SlotIndex);
+	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget);
 
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
 	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);

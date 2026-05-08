@@ -14,6 +14,7 @@ public:
 	/// Public interface
 	///
 	bool IsRoot() const { return bRoot; }
+	bool IsUniqueSlotContainer() const { return !GetTag().IsNone(); }
 	SWidget& GetContent() const { return Overlay->GetChildren()->GetChildAt(0).Get(); }
 	const TArray<TSharedPtr<sketch::FAttribute>>& GetAttributes() const { return Attributes; }
 	const sketch::FFactoryHandle& GetContentFactory() const { return ContentFactory; }

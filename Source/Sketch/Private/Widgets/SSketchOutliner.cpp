@@ -136,25 +136,38 @@ public:
 		}
 		FactoryHandle.Name.AppendString(Name);
 
-		// Make "add slot" button
-		FName SlotType;
-		if (const sketch::FFactory* Factory = FactoryHandle.Resolve(); Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
+		// Make "add/assign slot" button
+		FOnGetContent OnListSlotOptions;
+		FText Tooltip;
 		{
-			sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
-			if (!SlotTypes.IsEmpty())
+			const sketch::FFactory* Factory = FactoryHandle.Resolve();
+			if (Item->IsUniqueSlotContainer() && !Factory)
 			{
-				SlotType = SlotTypes[0];
+				OnListSlotOptions.BindSP(Owner, &SSketchOutliner::ListFactories, InItem);
+				Tooltip = LOCTEXT("AssignSlot", "Assign slot");
+			}
+			else
+			{
+				if (Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
+				{
+					sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
+					if (!SlotTypes.IsEmpty())
+					{
+						OnListSlotOptions.BindSP(Owner, &SSketchOutliner::MakeNewSlotMenu, InItem, SlotTypes[0]);
+						Tooltip = LOCTEXT("AddSlot", "Add slot");
+					}
+				}
 			}
 		}
 		TSharedRef<SMenuAnchor> MenuAnchor =
 			SNew(SMenuAnchor)
-			.OnGetMenuContent(Owner, &SSketchOutliner::MakeNewSlotMenu, InItem, SlotType)
-			.Visibility(SlotType.IsNone() ? EVisibility::Hidden : EVisibility::Visible);
+			.Visibility(OnListSlotOptions.IsBound() ? EVisibility::Visible : EVisibility::Hidden)
+			.OnGetMenuContent(MoveTemp(OnListSlotOptions));
 		constexpr FLinearColor ThreeThirdsWhite{ 1, 1, 1, 0.75 };
 		TSharedRef<SButton> AddSlotButton =
 			SNew(SButton)
 			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
-			.ToolTipText(LOCTEXT("AddSlot", "Add slot"))
+			.ToolTipText(MoveTemp(Tooltip))
 			.OnClicked_Lambda([WeakMenuAnchor = SharedThis(&MenuAnchor.Get()).ToWeakPtr()]()-> FReply
 			{
 				if (TSharedPtr<SMenuAnchor> MenuAnchor = WeakMenuAnchor.Pin()) [[likely]]
@@ -460,21 +473,21 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	return Menu.MakeWidget();
 }
 
-void SSketchOutliner::MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName Type)
+void SSketchOutliner::MakeNewSlotMenu(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName Type)
 {
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = LOCTEXT("Empty", "Empty");
-		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnMakeEmptySlot, Widget, Type);
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnMakeEmptySlot, WeakWidget, Type);
 		Menu.AddMenuEntry(Entry);
 	}
-	ListFactoriesIfAppropriate(Menu, Widget, Type, INDEX_NONE);
+	ListFactoriesIfAppropriate(Menu, WeakWidget, Type, INDEX_NONE);
 }
 
-TSharedRef<SWidget> SSketchOutliner::MakeNewSlotMenu(TWeakPtr<SSketchWidget> Widget, FName Type)
+TSharedRef<SWidget> SSketchOutliner::MakeNewSlotMenu(TWeakPtr<SSketchWidget> WeakWidget, FName Type)
 {
 	FMenuBuilder Menu(true, nullptr);
-	MakeNewSlotMenu(Menu, Widget, Type);
+	MakeNewSlotMenu(Menu, WeakWidget, Type);
 	return Menu.MakeWidget();
 }
 
@@ -528,9 +541,16 @@ void SSketchOutliner::ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> 
 	}
 }
 
+TSharedRef<SWidget> SSketchOutliner::ListFactories(TWeakPtr<SSketchWidget> WeakWidget)
+{
+	FMenuBuilder Menu(true, nullptr);
+	ListFactories(Menu, WeakWidget, NAME_None, INDEX_NONE);
+	return Menu.MakeWidget();
+}
+
 void SSketchOutliner::ListFactoriesOfType(
 	FMenuBuilder& Menu,
-	TWeakPtr<SSketchWidget> Widget,
+	TWeakPtr<SSketchWidget> WeakWidget,
 	FName FactoriesType,
 	FName SlotType,
 	int SlotIndex
@@ -541,7 +561,7 @@ void SSketchOutliner::ListFactoriesOfType(
 	{
 		FMenuEntryParams Entry;
 		Entry.LabelOverride = FText::FromName(Factory->Name);
-		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnFactorySelected, FactoriesType, Factory.GetIndex(), Widget, SlotType, SlotIndex);
+		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnFactorySelected, FactoriesType, Factory.GetIndex(), WeakWidget, SlotType, SlotIndex);
 		Menu.AddMenuEntry(Entry);
 	}
 }
