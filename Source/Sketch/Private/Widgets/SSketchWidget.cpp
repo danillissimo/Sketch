@@ -78,25 +78,17 @@ void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bo
 	// Reset content
 	Overlay->ClearChildren();
 
-	// Construct new widget
+	// Cache current factory
 	auto& Core = FSketchCore::Get();
 	const sketch::FFactory& Factory = Core.Factories[FactoryType][FactoryIndex];
+	ContentFactory.Type = FactoryType;
+	ContentFactory.Name = Factory.Name;
+
+	// Construct new widget
 	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
 	TSharedRef<SWidget> Widget = Factory.ConstructWidget(nullptr);
 	Core.StopRedirectingNewAttributes();
-
-	// Start listening non-dynamic attributes
-	for (TSharedPtr<sketch::FAttribute>& Attribute : Attributes)
-	{
-		if (!Attribute->IsDynamic()) [[unlikely]]
-		{
-			Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::RebuildWidget);
-		}
-	}
-
-	// Cache current factory
-	ContentFactory.Type = FactoryType;
-	ContentFactory.Name = Factory.Name;
+	StartListeningNonDynamicAttributes();
 
 	// Compose new content
 	Overlay->AddSlot()[MoveTemp(Widget)];
@@ -106,82 +98,48 @@ void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bo
 	BroadcastModification(bSuppressModificationEvent);
 }
 
-void SSketchWidget::UnassignFactory()
+void SSketchWidget::ReplaceBy(SSketchWidget* Widget, bool bSuppressModificationEvent)
 {
-	for (auto& [Type, TypedSlots] : DynamicSlots)
-		for (int Index = TypedSlots.Num() - 1; Index >= 0; Index--)
-			RemoveDynamicSlot(Type, Index, true);
+	// Sanitize
+	check(!Widget->bRoot);
+	check(Widget->ContentFactory.IsValid());
 
-	Attributes.Empty();
+	// Make sure widget doesn't get destroyed while we're working
+	TSharedRef<SSketchWidget> StrongWidget = SharedThis(Widget);
 
-	ContentFactory.Type = NAME_None;
-	ContentFactory.Name = NAME_None;
-}
-
-void SSketchWidget::RebuildWidget()
-{
-	// Some non-dynamic widget attribute was changed
-	// Old widget has to be destroyed, but all of its attributes and slots must be preserved
-	// Do not detach from current attributes cause they will be reused
-
-	// Preserve old content so we can retrieve unique slots from it
-	TSharedRef<SWidget> OldContent = GetContent().AsShared();
-
-	// Reset content
+	// Drop current identity
+	UnassignFactory();
 	Overlay->ClearChildren();
 
-	// Reconstruct widget
-	auto& Core = FSketchCore::Get();
-	const sketch::FFactory& Factory = *Core.Factories[ContentFactory.Type].FindByPredicate([&](const sketch::FFactory& F) { return F.Name == ContentFactory.Name; });
-	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
-	TSharedRef<SWidget> Widget = Factory.ConstructWidget(&*OldContent);
-	Core.StopRedirectingNewAttributes();
+	// Move given widget fields into this
+	ContentFactory = MoveTemp(Widget->ContentFactory);
+	Attributes = MoveTemp(Widget->Attributes);
+	DynamicSlots = MoveTemp(Widget->DynamicSlots);
 
-	// Restore dynamic slots
+	// Move given widget content into this
+	TSharedRef<SWidget> Content = Widget->GetContent().AsShared();
+	Widget->Overlay->ClearChildren();
+	Overlay->AddSlot()[MoveTemp(Content)];
+	FinalizeOverlayRebuild();
+
+	// Start listening all non-dynamic attributes
+	StartListeningNonDynamicAttributes();
 	for (auto& [Type, TypedSlots] : DynamicSlots)
 	{
-		for (FSlot& Slot : TypedSlots)
+		for (auto Slot = TypedSlots.CreateConstIterator(); Slot; ++Slot)
 		{
-			Core.RedirectNewAttributesInto(Slot.Attributes);
-			Slot.Slot = &Factory.ConstructDynamicSlot(*Widget, Type);
-			Core.StopRedirectingNewAttributes();
-			Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
+			for (const TSharedPtr<sketch::FAttribute>& Attribute : *Slot->Attributes)
+			{
+				if (!Attribute->IsDynamic()) [[unlikely]]
+				{
+					Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::OnSlotNonDynamicAttributeChanged, Type, Slot.GetIndex());
+				}
+			}
 		}
 	}
 
-	// Compose new content
-	Overlay->AddSlot()[MoveTemp(Widget)];
-	FinalizeOverlayRebuild();
-}
-
-void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
-{
-	// We don't currently have any means to remake a single slot
-	// And it's unlikely they will ever appear
-	// 'Cause different widgets' slot order is configured differently
-	// And it's very hard to determine correct way to recreate a slot procedurally
-	// But slots are usually stored in a kind of internal stack
-	// So a single slot can be recreated by destroying it and constructing it again at the same depth of the stack
-	// But to access this exact position - the entire city must be purged
-	// Or at least slots occupying indices larger than the one to be remade
-	// So kill all slots starting from the requested one, and then remake them all back
-	sketch::FFactory* Factory = ContentFactory.Resolve();
-	auto& TypedSlots = DynamicSlots[Type];
-	SWidget& Content = *Overlay->GetChildren()->GetChildAt(0);
-	for (int i = TypedSlots.Num() - 1; i >= Index; --i)
-	{
-		FSlot& Slot = TypedSlots[i];
-		Factory->DestroyDynamicSlot(Content, Type, i, *Slot.Slot);
-	}
-	auto& Core = FSketchCore::Get();
-	for (int i = Index; i < TypedSlots.Num(); ++i)
-	{
-		FSlot& Slot = TypedSlots[i];
-		Core.RedirectNewAttributesInto(Slot.Attributes);
-		Slot.Slot = &Factory->ConstructDynamicSlot(Content, Type);
-		Core.StopRedirectingNewAttributes();
-		Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
-	}
+	// Notify whoever
+	BroadcastModification(bSuppressModificationEvent);
 }
 
 void SSketchWidget::UnassignFactory(bool bSuppressModificationEvent)
@@ -241,6 +199,16 @@ void SSketchWidget::AssignDynamicSlot(
 		ReleaseDynamicSlot(Type, Index, bSuppressModificationEvent);
 	}
 	Slot.Widget->AssignFactory(FactoryType, FactoryIndex, bSuppressModificationEvent);
+	BroadcastModification(bSuppressModificationEvent);
+}
+
+void SSketchWidget::ReassignDynamicSlot(const FName& Type, int Index, SSketchWidget* NewWidget, bool bSuppressModificationEvent)
+{
+	auto& TypedSlots = DynamicSlots[Type];
+	FSlot& Slot = TypedSlots[Index];
+	Slot.Slot->DetachWidget();
+	Slot.Widget = SharedThis(NewWidget);
+	Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
 	BroadcastModification(bSuppressModificationEvent);
 }
 
@@ -327,7 +295,7 @@ FString SSketchWidget::GenerateCode() const
 			TSet<sketch::FAttribute::FCustomSloteCodeGenerator> SpecialCases;
 			auto TryAddGenerator = [&SpecialCases](const TSharedPtr<sketch::FAttribute>& Attribute)-> bool
 			{
-				for (const auto& [_,MayBeGenerator] : Attribute->Meta)
+				for (const auto& [_, MayBeGenerator] : Attribute->Meta)
 				{
 					const sketch::FAttribute::FCustomSloteCodeGenerator* Generator = MayBeGenerator.TryGet<sketch::FAttribute::FCustomSloteCodeGenerator>();
 					if (Generator && *Generator)
@@ -554,6 +522,95 @@ void SSketchWidget::FinalizeOverlayRebuild()
 	Overlay->AddSlot()[Border.ToSharedRef()];
 	if (AttachTargetHint)
 		Overlay->AddSlot()[AttachTargetHint.ToSharedRef()];
+}
+
+void SSketchWidget::StartListeningNonDynamicAttributes()
+{
+	for (TSharedPtr<sketch::FAttribute>& Attribute : Attributes)
+	{
+		if (!Attribute->IsDynamic()) [[unlikely]]
+		{
+			Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::RebuildWidget);
+		}
+	}
+}
+
+void SSketchWidget::RebuildWidget()
+{
+	// Some non-dynamic widget attribute was changed
+	// Old widget has to be destroyed, but all of its attributes and slots must be preserved
+	// Do not detach from current attributes cause they will be reused
+
+	// Preserve old content so we can retrieve unique slots from it
+	TSharedRef<SWidget> OldContent = GetContent().AsShared();
+
+	// Reset content
+	Overlay->ClearChildren();
+
+	// Reconstruct widget
+	auto& Core = FSketchCore::Get();
+	const sketch::FFactory& Factory = *Core.Factories[ContentFactory.Type].FindByPredicate([&](const sketch::FFactory& F) { return F.Name == ContentFactory.Name; });
+	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
+	TSharedRef<SWidget> Widget = Factory.ConstructWidget(&*OldContent);
+	Core.StopRedirectingNewAttributes();
+
+	// Restore dynamic slots
+	for (auto& [Type, TypedSlots] : DynamicSlots)
+	{
+		for (FSlot& Slot : TypedSlots)
+		{
+			Core.RedirectNewAttributesInto(Slot.Attributes);
+			Slot.Slot = &Factory.ConstructDynamicSlot(*Widget, Type);
+			Core.StopRedirectingNewAttributes();
+			Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
+		}
+	}
+
+	// Compose new content
+	Overlay->AddSlot()[MoveTemp(Widget)];
+	FinalizeOverlayRebuild();
+}
+
+void SSketchWidget::UnassignFactory()
+{
+	for (auto& [Type, TypedSlots] : DynamicSlots)
+		for (int Index = TypedSlots.Num() - 1; Index >= 0; Index--)
+			RemoveDynamicSlot(Type, Index, true);
+
+	Attributes.Empty();
+
+	ContentFactory.Type = NAME_None;
+	ContentFactory.Name = NAME_None;
+}
+
+void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
+{
+	// We don't currently have any means to remake a single slot
+	// And it's unlikely they will ever appear
+	// 'Cause different widgets' slot order is configured differently
+	// And it's very hard to determine correct way to recreate a slot procedurally
+	// But slots are usually stored in a kind of internal stack
+	// So a single slot can be recreated by destroying it and constructing it again at the same depth of the stack
+	// But to access this exact position - the entire city must be purged
+	// Or at least slots occupying indices larger than the one to be remade
+	// So kill all slots starting from the requested one, and then remake them all back
+	sketch::FFactory* Factory = ContentFactory.Resolve();
+	auto& TypedSlots = DynamicSlots[Type];
+	SWidget& Content = *Overlay->GetChildren()->GetChildAt(0);
+	for (int i = TypedSlots.Num() - 1; i >= Index; --i)
+	{
+		FSlot& Slot = TypedSlots[i];
+		Factory->DestroyDynamicSlot(Content, Type, i, *Slot.Slot);
+	}
+	auto& Core = FSketchCore::Get();
+	for (int i = Index; i < TypedSlots.Num(); ++i)
+	{
+		FSlot& Slot = TypedSlots[i];
+		Core.RedirectNewAttributesInto(Slot.Attributes);
+		Slot.Slot = &Factory->ConstructDynamicSlot(Content, Type);
+		Core.StopRedirectingNewAttributes();
+		Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
+	}
 }
 
 void SSketchWidget::OnConstructSlot(FName Name)

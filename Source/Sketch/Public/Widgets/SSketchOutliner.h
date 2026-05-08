@@ -32,6 +32,7 @@ private:
 	void ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget, FName FactoriesType, FName SlotType, int SlotIndex);
+	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> Widget);
 
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
 	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
@@ -40,6 +41,9 @@ private:
 	FReply OnRemoveDynamicSlotWithReply(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	void OnResetUniqueSlot(TWeakPtr<SSketchWidget> WeakParent, int Index);
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
+	void OnReplaceByUniqueSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName SlotName);
+	void OnReplaceByDynamicSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName Type, int Index);
+	void OnReplaceByChild(SSketchWidget* Widget, SSketchWidget* Child);
 
 	void OnSketchUpdated();
 

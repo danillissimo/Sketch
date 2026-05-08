@@ -326,11 +326,12 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	TSharedPtr<SSketchWidget> Item = SelectedItems[0].Pin();
 	if (!Item) [[unlikely]] return nullptr;
 
-	// List slot controls if content is present and supports slots
+	// List slot creation commands
 	FMenuBuilder Menu(true, nullptr);
-	if (const sketch::FFactory* Factory = Item->GetContentFactory().Resolve(); Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
+	const sketch::FFactory* Factory = Item->GetContentFactory().Resolve();
+	if (Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
 	{
-		// First list new slot controls
+		// List new slot controls
 		static const FName NAME_Slots = TEXT("Slots");
 		Menu.BeginSection(NAME_Slots, LOCTEXT("Slots", "Slots"));
 		const sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
@@ -348,7 +349,7 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 		}
 		Menu.EndSection();
 
-		// Second list all existing slots controls
+		// List all existing slots controls
 		// Menu.AddSeparator(TEXT("existing slots"));
 		// for (auto It = Item->GetDynamicSlots().CreateConstIterator(); It; ++It)
 		// {
@@ -369,7 +370,49 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 		// }
 	}
 
-	// List slot-specific controls
+	// List un/wrap commands
+	if (Factory && (Factory->EnumerateDynamicSlotTypes.IsSet() || Factory->EnumerateUniqueSlots.IsSet()))
+	{
+		const bool bHasNonEmptyDynamicSlots = [&]()
+		{
+			for (const auto& [Type, Slots] : Item->GetDynamicSlots())
+			{
+				for (const SSketchWidget::FSlot& Slot : Slots)
+				{
+					if (Slot.Widget->GetContentFactory().IsValid())
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}();
+		const bool bHasNonEmptyUniqueSlots = [&]()
+		{
+			if (Factory->EnumerateUniqueSlots.IsSet())
+			{
+				sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(Item->GetContent());
+				for (SSketchWidget* UniqueSlot : UniqueSlots)
+				{
+					if (UniqueSlot->GetContentFactory().IsValid())
+					{
+						return true;
+					}
+				}
+			}
+			return false;
+		}();
+		if (bHasNonEmptyDynamicSlots || bHasNonEmptyUniqueSlots)
+		{
+			FMenuEntryParams Entry;
+			Entry.LabelOverride = LOCTEXT("ReplaceWithChild", "Replace with child");
+			Entry.bIsSubMenu = true;
+			Entry.EntryBuilder.BindSP(this, &SSketchOutliner::ListChildrenToBeReplacedBy, SelectedItems[0]);
+			Menu.AddMenuEntry(Entry);
+		}
+	}
+
+	// List destructive slot commands
 	if (SSketchWidget* Parent = Item->GetParent())[[likely]]
 	{
 		// Consider dynamic slot
@@ -503,6 +546,57 @@ void SSketchOutliner::ListFactoriesOfType(
 	}
 }
 
+void SSketchOutliner::ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget)
+{
+	// Sanitize
+	auto Widget = WeakWidget.Pin();
+	sketch::FFactory* Factory = Widget ? Widget->GetContentFactory().Resolve() : nullptr;
+	if (!Widget || !Factory) [[unlikely]]
+	{
+		FMenuEntryParams Entry;
+		Entry.LabelOverride = LOCTEXT("ERROR", "ERROR");
+		Entry.DirectActions.CanExecuteAction.BindStatic([] { return false; });
+		Menu.AddMenuEntry(Entry);
+		return;
+	}
+
+	// List unique slots
+	if (Factory->EnumerateUniqueSlots.IsSet())
+	{
+		sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(Widget->GetContent());
+		for (SSketchWidget* UniqueSlot : UniqueSlots)
+		{
+			if (UniqueSlot->GetContentFactory().IsValid())
+			{
+				FMenuEntryParams Entry;
+				Entry.LabelOverride = FText::FromName(UniqueSlot->GetTag());
+				Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnReplaceByUniqueSlotContent, WeakWidget, UniqueSlot->GetTag());
+				Menu.AddMenuEntry(Entry);
+			}
+		}
+	};
+
+	// List dynamic slots
+	for (const auto& [Type, Slots] : Widget->GetDynamicSlots())
+	{
+		for (auto Slot = Slots.CreateConstIterator(); Slot; ++Slot)
+		{
+			if (sketch::FFactory* SlotFactory = Slot->Widget->GetContentFactory().Resolve())
+			{
+				FMenuEntryParams Entry;
+				FString Label = Type.ToString();
+				Label.Append(TEXT(" #"));
+				Label.AppendInt(Slot.GetIndex());
+				Label.Append(TEXT(" - "));
+				SlotFactory->Name.AppendString(Label);
+				Entry.LabelOverride = FText::FromString(MoveTemp(Label));
+				Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchOutliner::OnReplaceByDynamicSlotContent, WeakWidget, Type, Slot.GetIndex());
+				Menu.AddMenuEntry(Entry);
+			}
+		}
+	}
+}
+
 void SSketchOutliner::OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget)
 {
 	if (TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin())
@@ -600,6 +694,75 @@ void SSketchOutliner::OnFactorySelected(
 		OnSketchUpdated();
 	}
 	Tree->SetItemExpansion(WeakWidget, true);
+}
+
+void SSketchOutliner::OnReplaceByUniqueSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName SlotName)
+{
+	// Sanitize
+	TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin();
+	sketch::FFactory* Factory = Widget ? Widget->GetContentFactory().Resolve() : nullptr;
+	if (!Widget || !Factory) [[unlikely]] return;
+
+	// Locate child and do the job
+	sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(Widget->GetContent());
+	for (SSketchWidget* UniqueSlot : UniqueSlots)
+	{
+		const FName UniqueSlotName = UniqueSlot->GetTag();
+		if (UniqueSlotName == SlotName)
+		{
+			OnReplaceByChild(Widget.Get(), UniqueSlot);
+			break;
+		}
+	}
+}
+
+void SSketchOutliner::OnReplaceByDynamicSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName Type, int Index)
+{
+	if (TSharedPtr<SSketchWidget> Widget = WeakWidget.Pin())
+	{
+		const SSketchWidget::FSlot& ChildWidget = Widget->GetDynamicSlots()[Type][Index];
+		OnReplaceByChild(Widget.Get(), ChildWidget.Widget.Get());
+	}
+}
+
+void SSketchOutliner::OnReplaceByChild(SSketchWidget* Widget, SSketchWidget* Child)
+{
+	// Sanitize
+	sketch::FFactory* Factory = Widget ? Widget->GetContentFactory().Resolve() : nullptr;
+	SSketchWidget* Parent = Widget ? Widget->GetParent() : nullptr;
+	if (!Parent || !Factory) [[unlikely]] return;
+
+	// If we are the root - no looking for a parent slot
+	if (Widget->IsRoot())
+	{
+		Widget->ReplaceBy(Child, true);
+		OnSketchUpdated();
+		return;
+	}
+
+	// Try to locate owning dynamic slot
+	const SSketchWidget::FSlotReference DynamicSlot = Parent->FindDynamicSlotFor(Widget);
+	if (DynamicSlot.Data)
+	{
+		Parent->ReassignDynamicSlot(DynamicSlot.Type, DynamicSlot.Index, Child, true);
+		OnSketchUpdated();
+		return;
+	}
+
+	// Ensure this is a unique parent slot
+	if (Factory->EnumerateUniqueSlots.IsSet())
+	{
+		sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(Widget->GetContent());
+		for (SSketchWidget* UniqueSlot : UniqueSlots)
+		{
+			if (UniqueSlot == Widget)
+			{
+				Widget->ReplaceBy(Child, true);
+				OnSketchUpdated();
+				return;
+			}
+		}
+	}
 }
 
 void SSketchOutliner::OnSketchUpdated()

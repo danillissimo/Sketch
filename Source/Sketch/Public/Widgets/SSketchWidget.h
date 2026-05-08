@@ -36,10 +36,12 @@ public:
 	SSketchWidget* FindRoot() const;
 
 	void AssignFactory(const FName& FactoryType, int FactoryIndex, bool bSuppressModificationEvent);
+	void ReplaceBy(SSketchWidget* Widget, bool bSuppressModificationEvent);
 	void UnassignFactory(bool bSuppressModificationEvent);
 
 	int AddDynamicSlot(const FName& Type, bool bSuppressModificationEvent);
 	void AssignDynamicSlot(const FName& Type, int Index, const FName& FactoryType, int FactoryIndex, bool bSuppressModificationEvent);
+	void ReassignDynamicSlot(const FName& Type, int Index, SSketchWidget* NewWidget, bool bSuppressModificationEvent);
 	void ReleaseDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent);
 	void RemoveDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent);
 
@@ -86,8 +88,9 @@ private:
 	void BroadcastModification(bool bSuppress);
 	void FinalizeOverlayRebuild();
 
-	void UnassignFactory();
+	void StartListeningNonDynamicAttributes();
 	void RebuildWidget();
+	void UnassignFactory();
 
 	void OnSlotNonDynamicAttributeChanged(FName Type, int Index);
 
