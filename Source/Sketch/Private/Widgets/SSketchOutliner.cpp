@@ -380,8 +380,6 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	if (Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
 	{
 		// List new slot controls
-		static const FName NAME_Slots = TEXT("Slots");
-		Menu.BeginSection(NAME_Slots, LOCTEXT("Slots", "Slots"));
 		const sketch::FFactory::FDynamicSlotTypes SlotTypes = Factory->EnumerateDynamicSlotTypes(Item->GetContent());
 		for (const FName& SlotType : SlotTypes)
 		{
@@ -395,7 +393,6 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 
 			Menu.AddMenuEntry(Entry);
 		}
-		Menu.EndSection();
 
 		// List all existing slots controls
 		// Menu.AddSeparator(TEXT("existing slots"));
@@ -519,10 +516,7 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 	}
 
 	// List factories
-	static const FName NAME_Factories = TEXT("factories");
-	Menu.BeginSection(NAME_Factories, LOCTEXT("Factories", "Factories"));
 	ListFactoriesIfAppropriate(Menu, Item, NAME_None, INDEX_NONE);
-	Menu.EndSection();
 
 	return Menu.MakeWidget();
 }
