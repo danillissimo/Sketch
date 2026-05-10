@@ -5,6 +5,11 @@
 class SSketchAttributeCollection;
 class SSketchWidget;
 
+namespace sketch
+{
+	struct FFactory;
+}
+
 class SSketchOutliner : public SCompoundWidget
 {
 public:
@@ -34,7 +39,8 @@ private:
 	void ListFactories(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName SlotType, int SlotIndex);
 	TSharedRef<SWidget> ListFactories(TWeakPtr<SSketchWidget> WeakWidget);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName FactoriesType, FName SlotType, int SlotIndex);
-	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget);
+	void ListReplacementOptions(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget);
+	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, SSketchWidget* Widget, sketch::FFactory& Factory);
 	void ListWrappers(FMenuBuilder& MenuBuilder, TWeakPtr<SSketchWidget> WeakWidget);
 
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
@@ -49,8 +55,10 @@ private:
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 	void OnReplaceByUniqueSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName SlotName);
 	void OnReplaceByDynamicSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName Type, int Index);
-	static void Replace(SSketchWidget* Widget, SSketchWidget* Replacement);
+
+	static void ReplaceWidget(SSketchWidget* Widget, SSketchWidget* Replacement);
 	void Wrap(TWeakPtr<SSketchWidget> WeakWidget, FName FactoryCategory, int FactoryIndex);
+	void ReplaceContainer(TWeakPtr<SSketchWidget> WeakWidget, FName FactoryCategory, int FactoryIndex);
 
 	void OnSketchUpdated();
 

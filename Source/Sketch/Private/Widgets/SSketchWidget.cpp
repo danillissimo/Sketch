@@ -101,7 +101,6 @@ void SSketchWidget::AssignFactory(const FName& FactoryType, int FactoryIndex, bo
 void SSketchWidget::ReplaceBy(SSketchWidget* Widget, bool bSuppressModificationEvent)
 {
 	// Sanitize
-	check(!Widget->bRoot);
 	check(Widget->ContentFactory.IsValid());
 
 	// Make sure widget doesn't get destroyed while we're working
