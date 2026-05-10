@@ -35,6 +35,7 @@ private:
 	TSharedRef<SWidget> ListFactories(TWeakPtr<SSketchWidget> WeakWidget);
 	void ListFactoriesOfType(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget, FName FactoriesType, FName SlotType, int SlotIndex);
 	void ListChildrenToBeReplacedBy(FMenuBuilder& Menu, TWeakPtr<SSketchWidget> WeakWidget);
+	void ListWrappers(FMenuBuilder& MenuBuilder, TWeakPtr<SSketchWidget> WeakWidget);
 
 	void OnClearWidget(TWeakPtr<SSketchWidget> WeakWidget);
 	void OnMakeEmptySlot(TWeakPtr<SSketchWidget> WeakWidget, FName SlotType);
@@ -48,7 +49,8 @@ private:
 	void OnFactorySelected(FName FactoryType, int FactoryIndex, TWeakPtr<SSketchWidget> Widget, FName SlotType, int SlotIndex);
 	void OnReplaceByUniqueSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName SlotName);
 	void OnReplaceByDynamicSlotContent(TWeakPtr<SSketchWidget> WeakWidget, FName Type, int Index);
-	void OnReplaceByChild(SSketchWidget* Widget, SSketchWidget* Child);
+	static void Replace(SSketchWidget* Widget, SSketchWidget* Replacement);
+	void Wrap(TWeakPtr<SSketchWidget> WeakWidget, FName FactoryCategory, int FactoryIndex);
 
 	void OnSketchUpdated();
 
