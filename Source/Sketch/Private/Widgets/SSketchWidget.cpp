@@ -208,6 +208,7 @@ void SSketchWidget::ReassignDynamicSlot(const FName& Type, int Index, SSketchWid
 	FSlot& Slot = TypedSlots[Index];
 	Slot.Slot->DetachWidget();
 	Slot.Widget = SharedThis(NewWidget);
+	Slot.Widget->SetTag(NAME_None);
 	Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
 	BroadcastModification(bSuppressModificationEvent);
 }
