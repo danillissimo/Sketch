@@ -71,7 +71,7 @@ T& FindAttribute(SSketchWidget& SketchWidget, const FName& Name)
 
 void SSketchWidgetEditor::Construct(const FArguments& InArgs)
 {
-	WidgetPreview = SNew(SSketchWidget).bRoot(true).bAttachTarget(false);
+	WidgetPreview = SNew(SSketchWidget).IsRoot(true).IsAttachTarget(false);
 	auto& Core = FSketchCore::Get();
 	[&]
 	{

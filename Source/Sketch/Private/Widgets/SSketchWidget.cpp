@@ -159,7 +159,7 @@ int SSketchWidget::AddDynamicSlot(const FName& Type, bool bSuppressModificationE
 	auto& TypedSlots = DynamicSlots.FindOrAdd(Type);
 	FSlot& Slot = TypedSlots.Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
-	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
+	Slot.Widget = SNew(SSketchWidget).IsAttachTarget(false);
 
 	// Make slot
 	auto& Core = FSketchCore::Get();
@@ -351,16 +351,16 @@ void SSketchWidget::NotifyEditorDetached()
 
 SSketchWidget::FArguments::WidgetArgsType& SSketchWidget::FArguments::SetupAsUniqueSlotContainer(const FName& SlotName)
 {
-	_bRoot = false;
-	_bAttachTarget = false;
+	_IsRoot = false;
+	_IsAttachTarget = false;
 	Tag(SlotName);
 	return *this;
 }
 
 void SSketchWidget::Construct(const FArguments& InArgs)
 {
-	bRoot = InArgs._bRoot;
-	if (InArgs._bAttachTarget)
+	bRoot = InArgs._IsRoot;
+	if (InArgs._IsAttachTarget)
 	{
 		AttachTargetHint =
 			SNew(SBox)
@@ -618,7 +618,7 @@ void SSketchWidget::OnConstructSlot(FName Name)
 	sketch::FFactory* Factory = ContentFactory.Resolve();
 	FSlot& Slot = DynamicSlots.FindOrAdd(Name).Emplace_GetRef();
 	Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
-	Slot.Widget = SNew(SSketchWidget).bAttachTarget(false);
+	Slot.Widget = SNew(SSketchWidget).IsAttachTarget(false);
 	auto& Core = FSketchCore::Get();
 	Core.RedirectNewAttributesInto(Slot.Attributes);
 	Slot.Slot = &Factory->ConstructDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Name);

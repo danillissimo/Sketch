@@ -59,8 +59,8 @@ public:
 	/// Slate
 	///
 	SLATE_BEGIN_ARGS(SSketchWidget) {}
-		SLATE_ARGUMENT_DEFAULT(bool, bRoot) = false;
-		SLATE_ARGUMENT_DEFAULT(bool, bAttachTarget) = true;
+		SLATE_ARGUMENT_DEFAULT(bool, IsRoot) = false;
+		SLATE_ARGUMENT_DEFAULT(bool, IsAttachTarget) = true;
 
 		SKETCH_API WidgetArgsType& SetupAsUniqueSlotContainer(const FName& SlotName);
 	SLATE_END_ARGS()
