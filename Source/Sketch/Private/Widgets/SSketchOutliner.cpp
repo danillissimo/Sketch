@@ -163,7 +163,7 @@ public:
 		}
 		TSharedRef<SMenuAnchor> MenuAnchor =
 			SNew(SMenuAnchor)
-			.Visibility(OnListSlotOptions.IsBound() ? EVisibility::Visible : EVisibility::Hidden)
+			.IsEnabled(OnListSlotOptions.IsBound())
 			.OnGetMenuContent(MoveTemp(OnListSlotOptions));
 		constexpr FLinearColor ThreeThirdsWhite{ 1, 1, 1, 0.75 };
 		TSharedRef<SButton> AddSlotButton =
@@ -198,7 +198,7 @@ public:
 		// Make full widget
 		ChildSlot
 		[
-			SNew(SHorizontalBox)
+			SAssignNew(Content, SHorizontalBox)
 
 			+ SHorizontalBox::Slot()
 			.FillWidth(1)
@@ -206,13 +206,13 @@ public:
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(MoveTemp(Name)))
+				.OverflowPolicy(ETextOverflowPolicy::Ellipsis)
 			]
 
 			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			.FillWidth(0)
 			[
-				SAssignNew(Controls, SHorizontalBox)
-				.Visibility(EVisibility::Hidden)
+				SNew(SHorizontalBox)
 
 				+ SHorizontalBox::Slot()
 				.AutoWidth()
@@ -222,7 +222,7 @@ public:
 					.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.ToolTipText(LOCTEXT("RemoveSlot", "Remove slot"))
 					.OnClicked(MoveTemp(OnRemoveSlot))
-					.Visibility(OwningSlot.Data ? EVisibility::Visible : EVisibility::Hidden)
+					.IsEnabled(!!OwningSlot.Data)
 					[
 						SNew(SImage)
 						.Image(FSlateIcon("CoreStyle", "GenericCommands.Delete").GetIcon())
@@ -256,16 +256,24 @@ public:
 
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
-		Controls->SetVisibility(EVisibility::Visible);
+		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
+
+		Content->GetSlot(1).SetAutoWidth();
 	}
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
 	{
-		Controls->SetVisibility(EVisibility::Hidden);
+		SCompoundWidget::OnMouseLeave(MouseEvent);
+
+		// For some reason, click inside controls triggers mouse leave, while it clearly still over controls
+		if (!(MouseEvent.GetEventPath() && MouseEvent.GetEventPath()->ContainsWidget(Content.Get())))
+		{
+			Content->GetSlot(1).SetFillWidth(0);
+		}
 	}
 
 private:
-	TSharedPtr<SWidget> Controls;
+	TSharedPtr<SHorizontalBox> Content;
 };
 
 TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner)
