@@ -34,7 +34,7 @@ static const FText WidgetEditorDocumentation = LOCTEXT(
 	"\n"
 	"==============================================Limitations========================================\n"
 	"Some things may be represented incorrectly in this editor since Slate was never designed to support a dedicated editor.\n"
-	"E.g.most colors that are white by default are replaced by magenta.\n"
+	"E.g.some colors that are white by default are replaced by fuchsia.\n"
 	"Or default checkerboard brush may unexpectedly appear here and there.\n"
 	"Some of these distortions are produced by Unreal being unaware of what's going on.\n"
 	"Others are introduced intentionally to ensure Sketch stability.\n"
