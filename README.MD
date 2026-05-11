@@ -1,14 +1,17 @@
-# Quick start
+# Sketch
+Unreal Engine plugin providing an editor for hard-to-reach native properties like Slate widget attributes, and a WYSIWYG editor for Slate.
+
+## Quick start
 1. Install the plugin
 2. Add `Sketch.SetupFor(this, Target);` to your `Module.Build.cs`
 3. Add `#include "Sketch.h"` to your `cpp` file
-4. Replace any constant in this `cpp` file with `Sketch("VarName", %default_variable_value%)`
+4. Replace any constant you want to make editable in this `cpp` file with `Sketch("VarName", %default_variable_value%)`
 5. Run your code and open `Tools->Sketch->SketchAttributes` to edit it
 
 Note: Sketch Attributes window is also accessible globally through `Ctrl + Alt + Shift + W`; chord
 can be customized via editor settings.
 
-# Features
+## Features
 - Interactive editor for normally unreachable things and common stuff picker - colors (including
   Slate), fonts, icons
   ![Sketch attributes window](Docs/SketchAttributes.gif)
@@ -23,7 +26,7 @@ Detailed info on API or extensions can be found inside relevant plugin windows o
 - [Sketch widget editor](https://github.com/danillissimo/Sketch/blob/0fb512625e76abe6cf05826a192ea407ba0c5c74/Source/Sketch/Private/Widgets/SSketchWidgetEditor.cpp#L21)
 - [Sketch header tool](https://github.com/danillissimo/Sketch/blob/0fb512625e76abe6cf05826a192ea407ba0c5c74/Source/Sketch/Private/Widgets/SSketchHeaderTool.cpp#L21)
 
-# Purpose
+## Purpose
 Sketch is a tool for un-hardcoding things.
 Its target audience is Slate designers, but can also come in handy for any other programmers.
 It was developed to enable designing Slate UIs in a more natural way - the way UMG and all other
@@ -46,7 +49,7 @@ Sketch also provides Slate widget reflection generator, so any Slate widgets can
 a pair of clicks, rather than by describing everything manually.
 Details can be found inside Sketch widget editor and Sketch header tool windows.
 
-# Internal features
+## Internal features
 Not that important, but might be of use:
 - [Extensible compile-time pattern-matcher](https://github.com/danillissimo/Sketch/blob/0fb512625e76abe6cf05826a192ea407ba0c5c74/Source/Sketch/Public/HeaderTool/SourceCodeUtility.h#L873)
 - [C++ source code scraper](https://github.com/danillissimo/Sketch/blob/main/Source/Sketch/Public/HeaderTool/SourceCodeUtility.h)
