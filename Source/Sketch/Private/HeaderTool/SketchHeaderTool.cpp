@@ -1001,8 +1001,8 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 				FProperty{
 					.CustomEntityInitializationCode = {
 						.View = WidgetDeclaration == INDEX_NONE
-							          ? EXPR(HeaderTool::InitResizingMixinProperties(*Slot, false);)
-							          : EXPR(HeaderTool::InitResizingMixinProperties(*Slot, true);)
+							        ? EXPR(HeaderTool::InitResizingMixinProperties(*Slot, false);)
+							        : EXPR(HeaderTool::InitResizingMixinProperties(*Slot, true);)
 					}
 				}
 			);
@@ -1076,17 +1076,28 @@ inline FString& operator<<(FString& A, int B) { return A.AppendInt(B), A; }
 
 FString& operator<<(FString& A, const sketch::HeaderTool::FProperty& B)
 {
-	const bool bPointerType = B.Type.View.EndsWith(SL"*");
-	if (bPointerType)
-		A << TEXT("(");
-	A << B.Type;
-	if (bPointerType)
-		A << TEXT(")");
-
-	if (bPointerType && B.DefaultValue.View.IsEmpty()) [[unlikely]]
-		A << TEXT(" nullptr ");
+	if (B.DefaultValue.View.IsEmpty())
+	{
+		A << CALL(Sketch, ASTR(B.Name)) << SL".operator " << B.Type << SL"()";
+	}
 	else
-		A << TEXT("( ") << B.DefaultValue << TEXT(" )");
+	{
+		FString Argument;
+		const bool bPointerType = B.Type.View.EndsWith(SL"*");
+		if (bPointerType)
+			Argument << TEXT("(");
+		Argument << B.Type;
+		if (bPointerType)
+			Argument << TEXT(")");
+
+		if (bPointerType && B.DefaultValue.View.IsEmpty()) [[unlikely]]
+			Argument << TEXT(" nullptr ");
+		else
+			Argument << TEXT("( ") << B.DefaultValue << TEXT(" )");
+
+		A << CALL(Sketch, ASTR(B.Name), AANY(Argument));
+	}
+
 	return A;
 }
 
@@ -1219,7 +1230,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 				continue;
 
 			Code << SL"\t\t\t" << TOpt{ !Property.bSupported, SL"// " };
-			Code << SL"." << Property.Name << SL"(" << CALL(Sketch, ASTR(Property.Name), AANY(Property)) << SL")\r\n";
+			Code << SL"." << Property.Name << SL"(" << Property << SL")\r\n";
 		}
 		for (const FSlot& UniqueSlot : Class.NamedSlots)
 		{
@@ -1304,7 +1315,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 
 			Code << SL"\t\t\t\t";
 			Code << TOpt{ !Property.bSupported, SL"// " };
-			Code << SL"." << Property.Name << SL"(" << CALL(Sketch, ASTR(Property.Name), AANY(Property)) << SL")\r\n";
+			Code << SL"." << Property.Name << SL"(" << Property << SL")\r\n";
 		}
 		Code
 			<< SL"\t\t\t;\r\n";
