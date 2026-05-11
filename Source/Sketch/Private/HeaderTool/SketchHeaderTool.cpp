@@ -92,7 +92,7 @@ TMap<FName, TArray<sketch::HeaderTool::FOverride>> sketch::HeaderTool::GOverride
 	{ SL"SViewport", { FOverride::Value(SL"ViewportSize", SL"Arguments.GetDefaultViewportSize()") } },
 	{ SL"SScrollBox", { FOverride::Value(SL"ScrollBarThickness", SL"UE::Slate::FDeprecateVector2DParameter(FVector2f(Arguments._Style->BarThickness, Arguments._Style->BarThickness))") } },
 	{ SL"SSplitter", { FOverride::Type(SL"SizeRule", SL"SSplitter::ESizeRule", SL"FSlot") } },
-	{ SL"SBlock", { FOverride::Value(SL"Text", SL"INVTEXT(\"Sample text\")") } }, // Just a QOL
+	{ SL"STextBlock", { FOverride::Value(SL"Text", SL"INVTEXT(\"Sample text\")") } }, // Just a QOL
 	{ SL"SOverlay", { FOverride::Slot(SL"FOverlaySlot", SP_SlotOperatorsUsesGeneralName) } },
 	{ SL"SNumericDropDown", { FOverride::TemplateSpecializations(GetFractionalNumericSpecializations()) } },
 	{
