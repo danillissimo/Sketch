@@ -165,7 +165,8 @@ public:
 		TSharedRef<SMenuAnchor> MenuAnchor =
 			SNew(SMenuAnchor)
 			.IsEnabled(OnListSlotOptions.IsBound())
-			.OnGetMenuContent(MoveTemp(OnListSlotOptions));
+			.OnGetMenuContent(MoveTemp(OnListSlotOptions))
+			.OnMenuOpenChanged(this, &SSketchOutlinerRow::OnMenuOpenChanged);
 		constexpr FLinearColor ThreeThirdsWhite{ 1, 1, 1, 0.75 };
 		TSharedRef<SButton> AddSlotButton =
 			SNew(SButton)
@@ -255,26 +256,40 @@ public:
 		];
 	}
 
+	void MayBeHideControls()
+	{
+		if (bWantHide && !bMenuOpen)
+		{
+			Content->GetSlot(1).SetFillWidth(0);
+		}
+	}
+
 	virtual void OnMouseEnter(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
 	{
 		SCompoundWidget::OnMouseEnter(MyGeometry, MouseEvent);
 
+		bWantHide = false;
 		Content->GetSlot(1).SetAutoWidth();
+	}
+
+	void OnMenuOpenChanged(bool bOpen)
+	{
+		bMenuOpen = bOpen;
+		MayBeHideControls();
 	}
 
 	virtual void OnMouseLeave(const FPointerEvent& MouseEvent) override
 	{
 		SCompoundWidget::OnMouseLeave(MouseEvent);
 
-		// For some reason, click inside controls triggers mouse leave, while it clearly still over controls
-		if (!(MouseEvent.GetEventPath() && MouseEvent.GetEventPath()->ContainsWidget(Content.Get())))
-		{
-			Content->GetSlot(1).SetFillWidth(0);
-		}
+		bWantHide = true;
+		MayBeHideControls();
 	}
 
 private:
 	TSharedPtr<SHorizontalBox> Content;
+	bool bMenuOpen = false;
+	bool bWantHide = false;
 };
 
 TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner)
