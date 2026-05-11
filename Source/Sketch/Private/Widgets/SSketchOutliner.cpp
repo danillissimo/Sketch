@@ -1,11 +1,12 @@
 #include "Widgets/SSketchOutliner.h"
 
-#include "SketchCore.h"
+#include "Sketch.h"
 #include "SketchStringLiteral.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/SSketchAttributeCollection.h"
 #include "Widgets/SSketchWidget.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "Layout/WidgetPath.h"
 #include "Textures/SlateIcon.h"
 #include "Widgets/Input/SButton.h"
 
@@ -303,7 +304,7 @@ FReply SSketchOutliner::OnRowKeyDown(const FGeometry& Geometry, const FKeyEvent&
 		if (Item->IsUniqueSlotContainer())
 		{
 			sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
-			const SSketchWidget* const* Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
+			SSketchWidget** Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
 			const int Index = Record - UniqueSlots.GetData();
 			OnResetUniqueSlot(Parent, Index);
 		}
@@ -475,7 +476,7 @@ TSharedPtr<SWidget> SSketchOutliner::OnMakeContextMenu()
 		{
 			// Detect owning unique slot
 			const sketch::FFactory::FUniqueSlots UniqueSlots = Parent->CollectUniqueSlots();
-			const SSketchWidget* const* Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
+			SSketchWidget* const* Record = UniqueSlots.FindByPredicate([&](const SSketchWidget* Widget) { return Widget == Item.Get(); });
 			if (Record)[[likely]]
 			{
 				const int Index = Record - UniqueSlots.GetData();

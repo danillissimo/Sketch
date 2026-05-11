@@ -13,17 +13,7 @@ namespace sketch
 		SKETCH_API virtual TSharedRef<SWidget> MakeEditor() override;
 		SKETCH_API virtual FString GenerateCode() const override;
 
-		TColorAttribute() : Super()
-		{
-			if constexpr (std::is_same_v<T, FLinearColor>)
-			{
-				Value = FLinearColor::White;
-			}
-			else
-			{
-				Value = FSlateColor(EStyleColor::White);
-			}
-		}
+		SKETCH_API TColorAttribute();
 	};
 
 	extern template SKETCH_API struct TColorAttribute<FLinearColor>;

@@ -309,6 +309,19 @@ FString sketch::TColorAttribute<T>::GenerateCode() const
 	return Result;
 }
 
+template <class T>
+sketch::TColorAttribute<T>::TColorAttribute() : Super()
+{
+	if constexpr (std::is_same_v<T, FLinearColor>)
+	{
+		Value = FLinearColor::White;
+	}
+	else
+	{
+		Value = FSlateColor(EStyleColor::White);
+	}
+}
+
 template struct sketch::TColorAttribute<FLinearColor>;
 template struct sketch::TColorAttribute<FSlateColor>;
 
