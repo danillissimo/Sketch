@@ -541,7 +541,7 @@ void SSketchOutliner::ListFactoriesIfAppropriate(FMenuBuilder& Menu, TWeakPtr<SS
 	else
 	{
 		FMenuEntryParams Entry;
-		Entry.LabelOverride = LOCTEXT("Replace", "Replace");
+		Entry.LabelOverride = LOCTEXT("New", "New");
 		Entry.bIsSubMenu = true;
 		Entry.EntryBuilder.BindSP(this, &SSketchOutliner::ListFactories, WeakWidget, SlotType, SlotIndex);
 		Menu.AddMenuEntry(Entry);
