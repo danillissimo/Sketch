@@ -279,6 +279,10 @@ private:
 TSharedRef<ITableRow> SSketchOutliner::OnGenerateRow(TWeakPtr<SSketchWidget> InItem, const TSharedRef<STableViewBase>& Owner)
 {
 	return SNew(STableRow<TWeakPtr<SSketchWidget>>, Owner)
+		.OnDragDetected_Static(&SSketchOutliner::OnItemDragDetected, InItem)
+		.OnDragLeave_Static(&SSketchOutliner::OnDragLeaveItem)
+		.OnCanAcceptDrop_Static(&SSketchOutliner::OnCanAcceptDrop)
+		.OnAcceptDrop(this, &SSketchOutliner::OnAcceptDrop)
 		[
 			SNew(SSketchOutlinerRow, this, InItem)
 		];
@@ -1016,6 +1020,218 @@ void SSketchOutliner::ReplaceContainer(TWeakPtr<SSketchWidget> WeakWidget, FName
 
 	// Refresh representation
 	OnSketchUpdated();
+}
+
+class FSketchOutlinerDragDropOperation : public FDragDropOperation
+{
+public:
+	DRAG_DROP_OPERATOR_TYPE(FSketchOutlinerDragDropOperation, FDragDropOperation)
+
+	static TSharedRef<FSketchOutlinerDragDropOperation> New(const TWeakPtr<SSketchWidget>& InWeakWidget)
+	{
+		TSharedRef<FSketchOutlinerDragDropOperation> Operation = MakeShared<FSketchOutlinerDragDropOperation>();
+		Operation->WeakWidget = InWeakWidget;
+		Operation->Construct();
+		return Operation;
+	}
+
+	virtual TSharedPtr<SWidget> GetDefaultDecorator() const override
+	{
+		return SNew(SBorder)
+			.BorderImage(FAppStyle::GetBrush("Graph.ConnectorFeedback.Border"))
+			.Content()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+					SAssignNew(Icon, SImage)
+					.Image(FSlateIcon(FAppStyle::GetAppStyleSetName(), "Graph.ConnectorFeedback.Error").GetIcon())
+				]
+
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(2)
+				[
+					SAssignNew(Text, STextBlock)
+				]
+			];
+	}
+
+	void SetResponse(bool bAcceptable, FText&& Reason)
+	{
+		Icon->SetVisibility(EVisibility::Visible);
+		Icon->SetImage(bAcceptable ? FSlateIcon(FAppStyle::GetAppStyleSetName(), "Graph.ConnectorFeedback.OK").GetIcon() : FSlateIcon(FAppStyle::GetAppStyleSetName(), "Graph.ConnectorFeedback.Error").GetIcon());
+		Text->SetText(MoveTemp(Reason));
+	}
+
+	void SetNoResponse()
+	{
+		Icon->SetVisibility(EVisibility::Collapsed);
+		Text->SetText(INVTEXT("..."));
+	}
+
+	TWeakPtr<SSketchWidget> WeakWidget;
+
+private:
+	mutable TSharedPtr<SImage> Icon;
+	mutable TSharedPtr<STextBlock> Text;
+};
+
+FReply SSketchOutliner::OnItemDragDetected(const FGeometry& Geometry, const FPointerEvent& Event, TWeakPtr<SSketchWidget> WeakWidget)
+{
+	return FReply::Handled().BeginDragDrop(FSketchOutlinerDragDropOperation::New(WeakWidget));
+}
+
+TOptional<EItemDropZone> SSketchOutliner::OnCanAcceptDrop(const FDragDropEvent& Event, EItemDropZone DropZone, TWeakPtr<SSketchWidget> WeakWidget)
+{
+	// Sanitize
+	TSharedPtr<FSketchOutlinerDragDropOperation> Operation = Event.GetOperationAs<FSketchOutlinerDragDropOperation>();
+	TSharedPtr<SSketchWidget> DraggedWidget = Operation ? Operation->WeakWidget.Pin() : nullptr;
+	TSharedPtr<SSketchWidget> HoveredWidget = WeakWidget.Pin();
+	if (!Operation || !DraggedWidget || !HoveredWidget) [[unlikely]] return {};
+
+	// Ensure widget is not dragged over itself
+	if (DraggedWidget == HoveredWidget) [[unlikely]]
+	{
+		Operation->SetResponse(false, {});
+		return {};
+	}
+
+	// Ensure dragged widget is not already within hovered widget
+	if (DraggedWidget->GetParent() == HoveredWidget.Get()) [[unlikely]]
+	{
+		Operation->SetResponse(false, LOCTEXT("WidgetIsAlreadyWithinThisContainer", "Widget is already withing this container"));
+		return {};
+	}
+
+	// Ensure hovered widget is not a child of dragged widget
+	for (SSketchWidget* Parent = HoveredWidget->GetParent(); ; Parent = Parent->GetParent())
+	{
+		if (Parent == DraggedWidget.Get()) [[unlikely]]
+		{
+			Operation->SetResponse(false, LOCTEXT("WidgetCanNotBeMovedIntoItsChild", "Widget can't be moved into its child"));
+			return {};
+		}
+		if (Parent->IsRoot()) break;
+	}
+
+	// Direct drop is only allowed when target supports dynamic slots, or has no factory assigned
+	if (DropZone == EItemDropZone::OntoItem)
+	{
+		const sketch::FFactory* Factory = HoveredWidget->GetContentFactory().Resolve();
+		if (Factory && !Factory->ConstructDynamicSlot.IsSet())
+		{
+			Operation->SetResponse(false, LOCTEXT("TargetDoesNotSupportDynamicSlots", "Target doesn't support dynamic slots"));
+			return {};
+		}
+	}
+
+	// In-between drop is only allowed when a new dynamic slot can be added
+	// And only if drop actually reorders anything
+	EItemDropZone DesiredDropZone = DropZone;
+	if (DropZone != EItemDropZone::OntoItem)
+	{
+		SSketchWidget* NewParent = HoveredWidget->GetParent();
+		sketch::FFactory* Factory = NewParent->GetContentFactory().Resolve();
+		if (!Factory->ConstructDynamicSlot.IsSet())
+		{
+			DesiredDropZone = EItemDropZone::OntoItem;
+		}
+		else
+		{
+			SSketchWidget* CurrentParent = DraggedWidget->GetParent();
+			if (CurrentParent == NewParent)
+			{
+				const SSketchWidget::FSlotReference HoveredSlot = CurrentParent->FindDynamicSlotFor(HoveredWidget.Get());
+				const SSketchWidget::FSlotReference DraggedSlot = CurrentParent->FindDynamicSlotFor(DraggedWidget.Get());
+				const int NewExpectedPosition = HoveredSlot.Index + (DropZone == EItemDropZone::AboveItem ? 0 : 1);
+				if (NewExpectedPosition == DraggedSlot.Index)[[unlikely]]
+				{
+					Operation->SetResponse(false, LOCTEXT("WidgetIsAlreadyAtThisPosition", "Widget is already at this position"));
+					return {};
+				}
+			}
+		}
+	}
+
+	// The rest is safe to do
+	Operation->SetResponse(true, {});
+	return DesiredDropZone;
+}
+
+void SSketchOutliner::OnDragLeaveItem(const FDragDropEvent& Event)
+{
+	if (TSharedPtr<FSketchOutlinerDragDropOperation> Operation = Event.GetOperationAs<FSketchOutlinerDragDropOperation>())[[likely]]
+	{
+		Operation->SetNoResponse();
+	}
+}
+
+FReply SSketchOutliner::OnAcceptDrop(const FDragDropEvent& Event, EItemDropZone DropZone, TWeakPtr<SSketchWidget> WeakWidget)
+{
+	// Sanitize
+	TSharedPtr<FSketchOutlinerDragDropOperation> Operation = Event.GetOperationAs<FSketchOutlinerDragDropOperation>();
+	TSharedPtr<SSketchWidget> DraggedWidget = Operation ? Operation->WeakWidget.Pin() : nullptr;
+	TSharedPtr<SSketchWidget> HoveredWidget = WeakWidget.Pin();
+	if (!Operation || !DraggedWidget || !HoveredWidget) [[unlikely]] return FReply::Unhandled();
+
+	// Remove dragged widget from wherever it was
+	TSharedPtr<SSketchWidget> Buffer;
+	{
+		SSketchWidget* Parent = DraggedWidget->GetParent();
+		if (SSketchWidget::FSlotReference Slot = Parent->FindDynamicSlotFor(DraggedWidget.Get()); Slot.Data)
+		{
+			Buffer = Slot.Data->Widget;
+			Parent->RemoveDynamicSlot(Slot.Type, Slot.Index, true);
+		}
+		else
+		{
+			Buffer = SNew(SSketchWidget).IsAttachTarget(false);
+			Buffer->ReplaceBy(DraggedWidget.Get(), true);
+			DraggedWidget->UnassignFactory(true);
+		}
+	}
+
+	// Handle drop
+	if (DropZone == EItemDropZone::OntoItem)
+	{
+		// Handle direct drop
+		const sketch::FFactory* Factory = HoveredWidget->GetContentFactory().Resolve();
+		if (!Factory)
+		{
+			// Assign empty slot
+			HoveredWidget->ReplaceBy(Buffer.Get(), true);
+		}
+		else
+		{
+			// Move to a new dynamic slot
+			sketch::FFactory::FDynamicSlotTypes DynamicSlotTypes = Factory->EnumerateDynamicSlotTypes(HoveredWidget->GetContent());
+			const int SlotIndex = HoveredWidget->AddDynamicSlot(DynamicSlotTypes[0], true);
+			HoveredWidget->ReassignDynamicSlot(DynamicSlotTypes[0], SlotIndex, Buffer.Get(), true);
+		}
+	}
+	else
+	{
+		// Determine index for the new slot
+		SSketchWidget* Parent = HoveredWidget->GetParent();
+		const sketch::FFactory* Factory = Parent->GetContentFactory().Resolve();
+		const SSketchWidget::FSlotReference Slot = Parent->FindDynamicSlotFor(HoveredWidget.Get());
+		check(Slot.Data);
+		const int NewSlotPosition = Slot.Index + (DropZone == EItemDropZone::AboveItem ? 0 : 1);
+
+		// Determine new slot type
+		sketch::FFactory::FDynamicSlotTypes DynamicSlotTypes = Factory->EnumerateDynamicSlotTypes(HoveredWidget->GetContent());
+
+		// Process in-between drop
+		Parent->InsertDynamicSlot(DynamicSlotTypes[0], NewSlotPosition, true);
+		Parent->ReassignDynamicSlot(DynamicSlotTypes[0], NewSlotPosition, Buffer.Get(), true);
+	}
+
+	// Notify whoever
+	OnSketchUpdated();
+	return FReply::Handled();
 }
 
 void SSketchOutliner::OnSketchUpdated()

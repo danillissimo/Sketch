@@ -41,6 +41,7 @@ public:
 	void UnassignFactory(bool bSuppressModificationEvent);
 
 	int AddDynamicSlot(const FName& Type, bool bSuppressModificationEvent);
+	void InsertDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent);
 	void AssignDynamicSlot(const FName& Type, int Index, const FName& FactoryType, int FactoryIndex, bool bSuppressModificationEvent);
 	void ReassignDynamicSlot(const FName& Type, int Index, SSketchWidget* NewWidget, bool bSuppressModificationEvent);
 	void ReleaseDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent);
@@ -93,6 +94,7 @@ private:
 	void RebuildWidget();
 	void UnassignFactory();
 
+	void HandleSlotUpdate(FName Type, int Index, auto&& Actions);
 	void OnSlotNonDynamicAttributeChanged(FName Type, int Index);
 
 	void OnConstructSlot(FName Name);

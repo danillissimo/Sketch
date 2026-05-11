@@ -60,6 +60,11 @@ private:
 	void Wrap(TWeakPtr<SSketchWidget> WeakWidget, FName FactoryCategory, int FactoryIndex);
 	void ReplaceContainer(TWeakPtr<SSketchWidget> WeakWidget, FName FactoryCategory, int FactoryIndex);
 
+	static FReply OnItemDragDetected(const FGeometry& Geometry, const FPointerEvent& Event, TWeakPtr<SSketchWidget> WeakWidget);
+	static TOptional<EItemDropZone> OnCanAcceptDrop(const FDragDropEvent& Event, EItemDropZone DropZone, TWeakPtr<SSketchWidget> WeakWidget);
+	static void OnDragLeaveItem(const FDragDropEvent& Event);
+	FReply OnAcceptDrop(const FDragDropEvent& Event, EItemDropZone DropZone, TWeakPtr<SSketchWidget> WeakWidget);
+
 	void OnSketchUpdated();
 
 	TArray<TWeakPtr<SSketchWidget>> RootAsArray;

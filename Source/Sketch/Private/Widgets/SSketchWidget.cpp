@@ -184,6 +184,38 @@ int SSketchWidget::AddDynamicSlot(const FName& Type, bool bSuppressModificationE
 	return TypedSlots.Num() - 1;
 }
 
+void SSketchWidget::InsertDynamicSlot(const FName& Type, int Index, bool bSuppressModificationEvent)
+{
+	// Sanitize
+	auto& TypedSlots = DynamicSlots[Type];
+	check(Index <= TypedSlots.Num())
+
+	// 
+	if (Index < TypedSlots.Num())[[likely]]
+	{
+		HandleSlotUpdate(Type, Index, [&]
+		{
+			FSlot& Slot = TypedSlots.InsertDefaulted_GetRef(Index);
+			Slot.Attributes = MakeShared<TArray<TSharedPtr<sketch::FAttribute>>>();
+			Slot.Widget = SNew(SSketchWidget).IsAttachTarget(false);
+		});
+		for (TSharedPtr<sketch::FAttribute>& Attribute : *TypedSlots[Index].Attributes)
+		{
+			if (!Attribute->IsDynamic()) [[unlikely]]
+			{
+				Attribute->GetValue()->OnValueChanged.AddSP(this, &SSketchWidget::OnSlotNonDynamicAttributeChanged, Type, TypedSlots.Num() - 1);
+			}
+		}
+	}
+	else
+	{
+		AddDynamicSlot(Type, true);
+	}
+
+	// Notify whoever
+	BroadcastModification(bSuppressModificationEvent);
+}
+
 void SSketchWidget::AssignDynamicSlot(
 	const FName& Type,
 	int Index,
@@ -583,7 +615,7 @@ void SSketchWidget::UnassignFactory()
 	ContentFactory.Name = NAME_None;
 }
 
-void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
+void SSketchWidget::HandleSlotUpdate(FName Type, int Index, auto&& Actions)
 {
 	// We don't currently have any means to remake a single slot
 	// And it's unlikely they will ever appear
@@ -602,6 +634,9 @@ void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
 		FSlot& Slot = TypedSlots[i];
 		Factory->DestroyDynamicSlot(Content, Type, i, *Slot.Slot);
 	}
+
+	Actions();
+
 	auto& Core = FSketchCore::Get();
 	for (int i = Index; i < TypedSlots.Num(); ++i)
 	{
@@ -611,6 +646,11 @@ void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
 		Core.StopRedirectingNewAttributes();
 		Slot.Slot->AttachWidget(Slot.Widget.ToSharedRef());
 	}
+}
+
+void SSketchWidget::OnSlotNonDynamicAttributeChanged(FName Type, int Index)
+{
+	HandleSlotUpdate(Type, Index, [] {});
 }
 
 void SSketchWidget::OnConstructSlot(FName Name)
