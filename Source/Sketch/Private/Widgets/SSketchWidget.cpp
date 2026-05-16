@@ -1,8 +1,6 @@
 #include "Widgets/SSketchWidget.h"
 
-#include "SketchModule.h"
 #include "Sketch.h"
-#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -427,80 +425,6 @@ void SSketchWidget::Construct(const FArguments& InArgs)
 	FinalizeOverlayRebuild();
 }
 
-FReply SSketchWidget::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	// // When content is present - do not handle left-clicks
-	// TSharedRef<SWidget> Content = Overlay->GetChildren()->GetChildAt(0);
-	// const bool bHasWidget = Content != SNullWidget::NullWidget;
-	// if (bHasWidget && MouseEvent.GetEffectingButton() != EKeys::RightMouseButton)
-	// 	return FReply::Unhandled();
-	//
-	// // List slot controls if content is present and supports slots
-	// FMenuBuilder Menu(true, nullptr);
-	// if (const sketch::FFactory* Factory = ContentFactory.Resolve(); Factory && Factory->EnumerateDynamicSlotTypes.IsSet())
-	// {
-	// 	// First list slot constructors
-	// 	Menu.AddSeparator(TEXT("make slots"));
-	// 	const TArray<sketch::FFactory::FSlotDescriptor> SlotDescriptors = Factory->EnumerateDynamicSlotTypes(Content.Get());
-	// 	for (const sketch::FFactory::FSlotDescriptor& Slot : SlotDescriptors)
-	// 	{
-	// 		FMenuEntryParams Entry;
-	// 		Entry.LabelOverride = FText::FromName(Slot.Name);
-	// 		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchWidget::OnConstructSlot, Slot.Name);
-	//
-	// 		// Remember slots can be unique and already occupied
-	// 		if (Slot.Type == sketch::ST_Unique)
-	// 		{
-	// 			const auto* SlotContent = Slots.Find(Slot.Name);
-	// 			if (SlotContent && !SlotContent->IsEmpty())
-	// 			{
-	// 				Entry.DirectActions.CanExecuteAction.BindStatic([] { return false; });
-	// 			}
-	// 		}
-	//
-	// 		Menu.AddMenuEntry(Entry);
-	// 	}
-	//
-	// 	// Second list all existing slots destructors
-	// 	Menu.AddSeparator(TEXT("remove slots"));
-	// 	for (auto It = Slots.CreateIterator(); It; ++It)
-	// 	{
-	// 		const FName& Type = It->Key;
-	// 		const auto& TypedSlots = It->Value;
-	// 		FString TypeString = Type.ToString();
-	// 		for (auto Slot = TypedSlots.CreateConstIterator(); Slot; ++Slot)
-	// 		{
-	// 			FMenuEntryParams Entry;
-	// 			FString Caption = TypeString + TEXT("#") + FString::FromInt(Slot.GetIndex());
-	// 			Entry.LabelOverride = FText::FromString(Caption);
-	// 			Entry.DirectActions.ExecuteAction.
-	// 			      BindSP(this, &SSketchWidget::OnDestroySlot, Type, Slot.GetIndex());
-	// 		}
-	// 	}
-	//
-	// 	Menu.AddSeparator(TEXT("factories"));
-	// }
-	//
-	// // List factories
-	// const auto& Host = FSketchModule::Get();
-	// for (const auto& [Type, Factory] : Host.Factories)
-	// {
-	// 	Menu.AddSubMenu(
-	// 		FText::FromName(Type),
-	// 		FText::GetEmpty(),
-	// 		FNewMenuDelegate::CreateSP(this, &SSketchWidget::OnListFactoriesOfType, Type)
-	// 	);
-	// }
-	// FSlateApplication::Get().PushMenu(
-	// 	AsShared(),
-	// 	FWidgetPath(),
-	// 	Menu.MakeWidget(),
-	// 	MouseEvent.GetScreenSpacePosition(),
-	// 	FPopupTransitionEffect::TypeInPopup
-	// );
-	return FReply::Handled();
-}
-
 FReply SSketchWidget::OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	if (AttachTargetHint && MouseEvent.IsControlDown() && MouseEvent.IsShiftDown())
@@ -674,36 +598,6 @@ void SSketchWidget::OnDestroySlot(FName Type, int Index)
 	FSlot& Slot = TypedSlots[Index];
 	Factory->DestroyDynamicSlot(*Overlay->GetChildren()->GetChildAt(0), Type, Index, *Slot.Slot);
 	TypedSlots.RemoveAt(Index);
-	BroadcastModification(false);
-}
-
-void SSketchWidget::OnListFactoriesOfType(FMenuBuilder& SubMenu, FName Type)
-{
-	const auto& Core = FSketchCore::Get();
-	for (auto Factory = Core.Factories[Type].CreateConstIterator(); Factory; ++Factory)
-	{
-		FMenuEntryParams Entry;
-		Entry.LabelOverride = FText::FromName(Factory->Name);
-		Entry.DirectActions.ExecuteAction.BindSP(this, &SSketchWidget::OnFactorySelected, Type, Factory.GetIndex());
-		SubMenu.AddMenuEntry(Entry);
-	}
-}
-
-void SSketchWidget::OnFactorySelected(FName Type, int Index)
-{
-	auto& Core = FSketchCore::Get();
-	Overlay->ClearChildren();
-
-	Core.RedirectNewAttributesInto(AsSharedSubobject(&Attributes));
-	const sketch::FFactory& Factory = Core.Factories[Type][Index];
-	ContentFactory.Type = Type;
-	ContentFactory.Name = Factory.Name;
-	TSharedRef<SWidget> Widget = Factory.ConstructWidget(nullptr);
-	Core.StopRedirectingNewAttributes();
-	Overlay->AddSlot()[MoveTemp(Widget)];
-
-	FinalizeOverlayRebuild();
-
 	BroadcastModification(false);
 }
 

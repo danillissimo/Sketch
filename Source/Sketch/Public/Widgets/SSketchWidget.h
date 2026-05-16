@@ -68,7 +68,6 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
-	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnPreviewMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 
 
@@ -99,9 +98,6 @@ private:
 
 	void OnConstructSlot(FName Name);
 	void OnDestroySlot(FName Type, int Index);
-
-	void OnListFactoriesOfType(FMenuBuilder& SubMenu, FName Type);
-	void OnFactorySelected(FName Type, int Index);
 
 	///
 	/// UI logic
