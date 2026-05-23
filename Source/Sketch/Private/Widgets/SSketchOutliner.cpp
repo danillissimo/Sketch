@@ -668,7 +668,10 @@ void SSketchOutliner::ListReplacementOptions(FMenuBuilder& Menu, TWeakPtr<SSketc
 			{
 				if (!Factory->EnumerateUniqueSlots.IsSet()) continue;
 
+				sketch::FAttributeCollection TempAttributes(InPlace);
+				Core.RedirectNewAttributesInto(TempAttributes);
 				TSharedRef<SWidget> WidgetSample = Factory->ConstructWidget(nullptr);
+				Core.StopRedirectingNewAttributes();
 				sketch::FFactory::FUniqueSlots UniqueSlots = Factory->EnumerateUniqueSlots(*WidgetSample);
 				if (UniqueSlots.Num() < TotalSlotsNeeded) continue;
 			}
