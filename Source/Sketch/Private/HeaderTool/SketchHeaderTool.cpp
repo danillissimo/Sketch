@@ -47,21 +47,21 @@
 
 #pragma region Parsing
 
-TArray<sketch::FStringView> GetFractionalNumericSpecializations()
+TArray<FSketchStringView> GetFractionalNumericSpecializations()
 {
 	return {
-		sketch::FStringView(SL"float"),
+		FSketchStringView(SL"float"),
 		// sketch::FStringView(SL"double"),
 	};
 }
 
-TArray<sketch::FStringView> GetAllNumericSpecializations()
+TArray<FSketchStringView> GetAllNumericSpecializations()
 {
 	// No need in littering widget lists with barely different options
 	// A fractional and an integer are enough for design time, and can be clarified manually later
 	return {
-		sketch::FStringView(SL"int"),
-		sketch::FStringView(SL"float"),
+		FSketchStringView(SL"int"),
+		FSketchStringView(SL"float"),
 		// sketch::FStringView(SL"double"),
 		// sketch::FStringView(SL"uint8"),
 		// sketch::FStringView(SL"int8"),
@@ -116,7 +116,7 @@ TMap<FName, TArray<sketch::HeaderTool::FOverride>> sketch::HeaderTool::GOverride
 	{ SL"SBreadcrumbTrail", { FOverride::TemplateSpecializations({ { SL"FString" } }) } },
 };
 
-sketch::HeaderTool::Private::FIndex::FIndex(const sketch::FStringView& Code, FLog& Log)
+sketch::HeaderTool::Private::FIndex::FIndex(const FSketchStringView& Code, FLog& Log)
 {
 	using namespace sketch::SourceCode;
 
@@ -187,13 +187,13 @@ sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosit
 	}
 }
 
-sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosition(const FString& Code, const sketch::FStringView& View) const
+sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosition(const FString& Code, const FSketchStringView& View) const
 {
 	const ptrdiff_t Diff = &View[0] - &Code[0];
 	return LocatePosition(Diff);
 }
 
-sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosition(const FString& Code, const FStringView& View, int Offset) const
+sketch::HeaderTool::FSourceLine sketch::HeaderTool::Private::FIndex::LocatePosition(const FString& Code, const FSketchStringView& View, int Offset) const
 {
 	const ptrdiff_t Diff = &View[0] - &Code[0];
 	return LocatePosition(Diff + Offset);
@@ -241,7 +241,7 @@ int sketch::HeaderTool::Private::FIndex::FindOuterScope(int ScopeIndex) const
 	return Result;
 }
 
-sketch::HeaderTool::Private::FScope sketch::HeaderTool::Private::FIndex::GetScope(const sketch::FStringView& Code, int ScopeIndex)
+sketch::HeaderTool::Private::FScope sketch::HeaderTool::Private::FIndex::GetScope(const FSketchStringView& Code, int ScopeIndex)
 {
 	FScope GlobalScope{ -1, Code.Len() };
 	return ScopeIndex == INDEX_NONE ? GlobalScope : Scopes[ScopeIndex];
@@ -295,14 +295,14 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		// To do it, select code after outer scope beginning, and before widget scop start
 		// An, then, find the very last class declaration there
 		// Don't forget to skip any subscopes on the way
-		sketch::FStringView ClassName;
-		sketch::FStringView TemplateArgs;
-		sketch::FStringView TemplateArgType;
+		FSketchStringView ClassName;
+		FSketchStringView TemplateArgs;
+		FSketchStringView TemplateArgType;
 		const FOverride* TemplateSpecializations = nullptr;
 		{
 			const int OuterScopeIndex = Index.FindOuterScope(ScopeIndex);
 			Private::FScope OuterScope = Index.GetScope(Code, OuterScopeIndex);
-			const sketch::FStringView ClassNameContainer = sketch::FStringView(Code).Mid(OuterScope.Start + 1, Index.Scopes[ScopeIndex].Start - OuterScope.Start - 2);
+			const FSketchStringView ClassNameContainer = FSketchStringView(Code).Mid(OuterScope.Start + 1, Index.Scopes[ScopeIndex].Start - OuterScope.Start - 2);
 			enum { ClassNameTag, TemplateArgsTag, FirstCharAfterTag };
 			auto Pattern = Matcher::ClassDeclaration<{ .TemplateArgumentsTag = TemplateArgsTag, .ClassNameTag = ClassNameTag, .FirstCharAfterClassNameTag = FirstCharAfterTag }>();
 			auto AdvancementFilter = CombinedFilter(&Bracket::SubscopeFilter, &Bracket::ArgumentFilter);
@@ -364,7 +364,7 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		{
 			// Locate "Construct"
 			enum { ArgumentsTag };
-			sketch::FStringView ClassBody(&Code[ArgsEnd], Index.Scopes[ScopeIndex].Length() - 1);
+			FSketchStringView ClassBody(&Code[ArgsEnd], Index.Scopes[ScopeIndex].Length() - 1);
 			TMatcher Matcher(
 				ClassBody,
 				&Bracket::SubscopeFilter,
@@ -381,7 +381,7 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 			}
 
 			// Count its explicit arguments
-			const FStringView AllArguments = Matcher.Match.Get<ArgumentsTag>().Value.ToView(ClassBody);
+			const FSketchStringView AllArguments = Matcher.Match.Get<ArgumentsTag>().Value.ToView(ClassBody);
 			TArray<FArgument> Arguments = ParseArguments(AllArguments);
 			TArrayView<FArgument> AdditionalArguments(Arguments);
 			AdditionalArguments.RightChopInline(1);
@@ -397,10 +397,10 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 		// They begin after "SLATE_BEGIN_ARGS(...):" and ends before first "SLATE_"
 		// Can't rely on figure bracket since they can be used inside initialization list
 		// Offset by (at least) one so SLATE_BEGIN_ARGS doesn't get matched
-		sketch::FStringView SlateProperties(&Code[ArgsStart] + 1, ArgsEnd - ArgsStart - 1);
-		constexpr sketch::FStringView Prefix(TEXT("SLATE_"));
+		FSketchStringView SlateProperties(&Code[ArgsStart] + 1, ArgsEnd - ArgsStart - 1);
+		constexpr FSketchStringView Prefix(TEXT("SLATE_"));
 		int PropertyPosition = String::Find(SlateProperties, 1, Prefix);
-		sketch::FStringView PropertiesInitializers(&SlateProperties[0], PropertyPosition - 1);
+		FSketchStringView PropertiesInitializers(&SlateProperties[0], PropertyPosition - 1);
 
 		// Parse all slate properties
 		{
@@ -538,18 +538,18 @@ bool sketch::HeaderTool::FFileBuilder::Init()
 }
 
 sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
-	const FStringView& Properties,
+	const FSketchStringView& Properties,
 	const SourceCode::FLocalStringView& PropertyBody,
 	bool bDeprecated,
 	bool bExplicitDefaultValue,
-	const FStringView& PropertiesDefaults,
-	const FStringView& SlotType
+	const FSketchStringView& PropertiesDefaults,
+	const FSketchStringView& SlotType
 )
 {
 	// Locate property components
 	using namespace SourceCode;
 	enum { TypeTag, CommaTag, NameTag };
-	FStringView PropertyBodyView = PropertyBody.ToView(Properties);
+	FSketchStringView PropertyBodyView = PropertyBody.ToView(Properties);
 	auto PropertyBodyStructure = Match(
 		PropertyBodyView,
 		0,
@@ -600,7 +600,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 		);
 		if (InitializerMatcher)
 		{
-			sketch::FStringView InitializerView = InitializerMatcher.Match.Get<ValueTag>().Value.ToView(PropertiesDefaults);
+			FSketchStringView InitializerView = InitializerMatcher.Match.Get<ValueTag>().Value.ToView(PropertiesDefaults);
 			InitializerView = InitializerView.Mid(1, InitializerView.Len() - 2);
 			FProcessedString Initializer = CleanCode(InitializerView);
 			if (!Initializer.View.IsEmpty())
@@ -622,7 +622,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 			);
 			if (DefaultValueMatcher.Match.MatchResult == MR_Success)[[likely]]
 			{
-				sketch::FStringView DefaultValueView = Properties.Mid(PropertyBody.FirstAfter, DefaultValueMatcher.Match.Get<SemicolonTag>().Value.FirstOf - PropertyBody.FirstAfter);
+				FSketchStringView DefaultValueView = Properties.Mid(PropertyBody.FirstAfter, DefaultValueMatcher.Match.Get<SemicolonTag>().Value.FirstOf - PropertyBody.FirstAfter);
 				DefaultValueView.TrimStartAndEndInline();
 				DefaultValueView.RemovePrefixInline(SL"=");
 				FProcessedString DefaultValue = CleanCode(DefaultValueView);
@@ -666,12 +666,12 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessProperty(
 }
 
 sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessAttribute(
-	const FStringView& Properties,
+	const FSketchStringView& Properties,
 	const SourceCode::FLocalStringView& PropertyBody,
 	bool bDeprecated,
 	bool bExplicitDefaultValue,
-	const FStringView& PropertiesDefaults,
-	const FStringView SlotType
+	const FSketchStringView& PropertiesDefaults,
+	const FSketchStringView SlotType
 )
 {
 	auto Result = ProcessProperty(Properties, PropertyBody, bDeprecated, bExplicitDefaultValue, PropertiesDefaults, SlotType);
@@ -680,7 +680,7 @@ sketch::HeaderTool::FProperty sketch::HeaderTool::FFileBuilder::ProcessAttribute
 }
 
 sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessUniqueSlot(
-	const FStringView& Properties,
+	const FSketchStringView& Properties,
 	const SourceCode::FLocalStringView& PropertyBody
 )
 {
@@ -693,7 +693,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessUniqueSlot(
 }
 
 sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
-	const FStringView& Properties,
+	const FSketchStringView& Properties,
 	const SourceCode::FLocalStringView& PropertyBody,
 	int ClassScopeIndex
 )
@@ -746,7 +746,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 
 	// Make sure class contains "ReturnType AddSlot(...)"
 	using namespace SourceCode;
-	const FStringView ClassBody = Index.Scopes[ClassScopeIndex].ToView(Code);
+	const FSketchStringView ClassBody = Index.Scopes[ClassScopeIndex].ToView(Code);
 	TArray<FOverride>* Overrides = GOverrides.Find(FName(Classes.Last().Name.View.ToCommonStringView(), FNAME_Find));
 	FOverride* Override = Overrides ? Overrides->FindByPredicate([&](const FOverride& SomeOverride) { return SomeOverride.SlotType == Result.Type; }) : nullptr;
 	if (!Override || !EnumHasAnyFlags(Override->SlotProperties, SP_ConstructorInherited)) [[likely]]
@@ -773,7 +773,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 		// Collect constructor arguments
 		// For now make sure there are none, or all of them has default values
 		// Their support will be implemented later
-		sketch::FStringView ArgsView = ConstructorMatcher.Match.Get<ArgumentsTag>().Value.ToView(ClassBody);
+		FSketchStringView ArgsView = ConstructorMatcher.Match.Get<ArgumentsTag>().Value.ToView(ClassBody);
 		ArgsView.MidInline(1, ArgsView.Len() - 2);
 		ArgsView.TrimStartAndEndInline();
 		TArray<FArgument> Args = ParseArguments(ArgsView);
@@ -823,7 +823,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 	int SlotScopeIndex = INDEX_NONE;
 	FSourceLine SlotClassLocation;
 	{
-		const FStringView SlotDeclarationScope = sketch::FStringView(Code).Mid(
+		const FSketchStringView SlotDeclarationScope = FSketchStringView(Code).Mid(
 			Index.Scopes[ClassScopeIndex].Start + 1,
 			&Properties[0] - &Code[Index.Scopes[ClassScopeIndex].Start] - 2
 		);
@@ -871,10 +871,10 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 		SlotClassLocation = Index.LocatePosition(Code, SlotDeclarationScope, SlotDeclarationMatcher.Match.Get<ClassNameTag>().Value.FirstOf);
 	}
 
-	FStringView SlotProperties;
+	FSketchStringView SlotProperties;
 	{
 		// Parse slot declaration
-		const sketch::FStringView SlotBody = FStringView(Code).Mid(
+		const FSketchStringView SlotBody = FSketchStringView(Code).Mid(
 			Index.Scopes[SlotScopeIndex].Start + 1,
 			Index.Scopes[SlotScopeIndex].Length() - 2
 		);
@@ -947,7 +947,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 			Mixins[MIXIN_Padding] = true;
 			Mixins[MIXIN_Alignment] = true;
 		}
-		for (const sketch::FStringView& Mixin : {
+		for (const FSketchStringView& Mixin : {
 			     SlotClassArgsMatcher.View<FirstMixinTag>(),
 			     SlotClassArgsMatcher.View<SecondMixinTag>(),
 			     SlotClassArgsMatcher.View<ThirdMixinTag>(),
@@ -964,7 +964,7 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 		// Add each mixin attribute
 		if (Mixins[MIXIN_Padding])
 		{
-			constexpr sketch::FStringView MarginName = EXPR(FMargin);
+			constexpr FSketchStringView MarginName = EXPR(FMargin);
 			Result.Properties.Emplace(
 				FProperty{
 					.Type = { .View = MarginName },
@@ -975,8 +975,8 @@ sketch::HeaderTool::FSlot sketch::HeaderTool::FFileBuilder::ProcessDynamicSlot(
 		}
 		if (Mixins[MIXIN_Alignment])
 		{
-			constexpr FStringView HAlignmentName = EXPR(EHorizontalAlignment);
-			constexpr FStringView VAlignmentName = EXPR(EVerticalAlignment);
+			constexpr FSketchStringView HAlignmentName = EXPR(EHorizontalAlignment);
+			constexpr FSketchStringView VAlignmentName = EXPR(EVerticalAlignment);
 			Result.Properties.Emplace(
 				FProperty{
 					.Type = { .View = HAlignmentName },
@@ -1160,7 +1160,7 @@ TArray<sketch::HeaderTool::FFile> sketch::HeaderTool::Scan(FLog& Log, const FStr
 	return Result;
 }
 
-sketch::HeaderTool::FReflectionGenerator::FReflectionGenerator(FStringView RegistrarName)
+sketch::HeaderTool::FReflectionGenerator::FReflectionGenerator(FSketchStringView RegistrarName)
 {
 	// Generate prologue
 	Prologue << TEXT("// Generated by Sketch Header Tool on ") << FDateTime::Now().ToString() << TEXT("\r\n");
@@ -1182,7 +1182,7 @@ void sketch::HeaderTool::FReflectionGenerator::Add(const FClass& Class)
 	const FString& InclusionRoot = *InclusionRootPtr;
 
 	// Prologue
-	FStringView Include(&File.FilePath[InclusionRoot.Len() + 1], File.FilePath.Len() - InclusionRoot.Len() - 1);
+	FSketchStringView Include(&File.FilePath[InclusionRoot.Len() + 1], File.FilePath.Len() - InclusionRoot.Len() - 1);
 	Prologue << SL"#include \"" << Include << SL"\"\r\n";
 
 	{
@@ -1399,11 +1399,11 @@ FString sketch::HeaderTool::FReflectionGenerator::GenerateReflection()
 	return Result;
 }
 
-sketch::FStringView sketch::HeaderTool::TryGetModuleName(sketch::FStringView InclusionRoot, sketch::FStringView FallbackValue)
+FSketchStringView sketch::HeaderTool::TryGetModuleName(FSketchStringView InclusionRoot, FSketchStringView FallbackValue)
 {
-	constexpr sketch::FStringView Public(SL"Public");
-	constexpr sketch::FStringView Private(SL"Private");
-	auto EndsWith = [&InclusionRoot](sketch::FStringView Suffix)
+	constexpr FSketchStringView Public(SL"Public");
+	constexpr FSketchStringView Private(SL"Private");
+	auto EndsWith = [&InclusionRoot](FSketchStringView Suffix)
 	{
 		const int PrecedingCharIndex = InclusionRoot.Len() - 1 - Suffix.Len();
 		return
@@ -1427,7 +1427,7 @@ sketch::FStringView sketch::HeaderTool::TryGetModuleName(sketch::FStringView Inc
 	{
 		if (InclusionRoot[i] == TCHAR('/'))
 		{
-			return FStringView(&InclusionRoot[i + 1], InclusionRoot.Len() - i - 1);
+			return FSketchStringView(&InclusionRoot[i + 1], InclusionRoot.Len() - i - 1);
 		}
 	}
 	return FallbackValue;

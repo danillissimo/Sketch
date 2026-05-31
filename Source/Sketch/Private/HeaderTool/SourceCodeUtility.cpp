@@ -5,7 +5,7 @@
 #include "SketchStringLiteral.h"
 #include "Math/Interval.h"
 
-sketch::SourceCode::FProcessedString sketch::SourceCode::CleanCode(const sketch::FStringView& Code)
+sketch::SourceCode::FProcessedString sketch::SourceCode::CleanCode(const FSketchStringView& Code)
 {
 	// Collect all comments
 	TArray<FInt32Interval, TInlineAllocator<8>> Comments;
@@ -48,12 +48,12 @@ FORCEINLINE constexpr T CopyTempConstexpr(const T& Val)
 	return Val;
 }
 
-TArray<sketch::SourceCode::FArgument> sketch::SourceCode::ParseArguments(const sketch::FStringView& Code)
+TArray<sketch::SourceCode::FArgument> sketch::SourceCode::ParseArguments(const FSketchStringView& Code)
 {
 	TArray<FArgument> Result;
 	Result.Reserve(6);
 
-	static constexpr auto EverythingUntilComma = [](const sketch::FStringView& Code, int Position) constexpr -> int
+	static constexpr auto EverythingUntilComma = [](const FSketchStringView& Code, int Position) constexpr -> int
 	{
 		for (int i = Position; i < Code.Len(); ++i)
 		{

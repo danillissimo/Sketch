@@ -46,9 +46,9 @@ namespace sketch::HeaderTool
 		mutable FSimpleMulticastDelegate OnReset;
 
 		/// Grouping
-		void BeginFile(const sketch::FStringView& FileName) { Files.Emplace(FileName.ToString()), CurrentFile = Files.Num() - 1, OnNewFile.Broadcast(); }
-		void BeginClass(const sketch::FStringView& ClassName) { Classes.Emplace(ClassName.ToString()), CurrentClass = Classes.Num() - 1; }
-		void BeginSlot(const sketch::FStringView& SlotName) { Slots.Emplace(SlotName.ToString()), CurrentSlot = Slots.Num() - 1; }
+		void BeginFile(const FSketchStringView& FileName) { Files.Emplace(FileName.ToString()), CurrentFile = Files.Num() - 1, OnNewFile.Broadcast(); }
+		void BeginClass(const FSketchStringView& ClassName) { Classes.Emplace(ClassName.ToString()), CurrentClass = Classes.Num() - 1; }
+		void BeginSlot(const FSketchStringView& SlotName) { Slots.Emplace(SlotName.ToString()), CurrentSlot = Slots.Num() - 1; }
 		void EndSlot() { End(CurrentSlot, Slots, NumSlotMessages); }
 		void EndClass() { EndSlot(), End(CurrentClass, Classes, NumClassMessages); }
 		void EndFile() { EndClass(), End(CurrentFile, Files, NumFileMessages, &OnFileClosed); }
@@ -120,13 +120,13 @@ namespace sketch::HeaderTool::Private
 		int Length() const { return End - Start; }
 		bool Contains(int Position) const { return Position > Start && Position < End; }
 		bool Contains(const FScope& Scope) const { return Scope.Start > Start && Scope.End < End; }
-		sketch::FStringView ToView(const sketch::FStringView& Code) const { return { &Code[0] + Start + 1, Length() - 2 }; }
+		FSketchStringView ToView(const FSketchStringView& Code) const { return { &Code[0] + Start + 1, Length() - 2 }; }
 	};
 
 	struct FIndex
 	{
 		FIndex() = default;
-		FIndex(const sketch::FStringView& Code, FLog& Log);
+		FIndex(const FSketchStringView& Code, FLog& Log);
 
 		TArray<FScope> Scopes;
 		TArray<int> Lines;
@@ -134,13 +134,13 @@ namespace sketch::HeaderTool::Private
 		bool IsValid() const { return !Lines.IsEmpty() /* File may contain no scopes, but always contains at least one line */; }
 
 		FSourceLine LocatePosition(int Position) const;
-		FSourceLine LocatePosition(const FString& Code, const sketch::FStringView& View) const;
-		FSourceLine LocatePosition(const FString& Code, const FStringView& View, int Offset) const;
+		FSourceLine LocatePosition(const FString& Code, const FSketchStringView& View) const;
+		FSourceLine LocatePosition(const FString& Code, const FSketchStringView& View, int Offset) const;
 		/** @return INDEX_NONE for global scope */
 		int FindScope(int Position) const;
 		/** @return INDEX_NONE for global scope */
 		int FindOuterScope(int ScopeIndex) const;
-		FScope GetScope(const sketch::FStringView& Code, int ScopeIndex);
+		FScope GetScope(const FSketchStringView& Code, int ScopeIndex);
 	};
 }
 
@@ -154,7 +154,7 @@ namespace sketch::HeaderTool
 	{
 		bool IsValid() const { return !Type.View.IsEmpty() && !Name.IsEmpty(); }
 		SourceCode::FProcessedString Type;
-		sketch::FStringView Name;
+		FSketchStringView Name;
 		SourceCode::FProcessedString DefaultValue;
 		SourceCode::FProcessedString CustomArgumentInitializationCode;
 		SourceCode::FProcessedString CustomEntityInitializationCode;
@@ -167,9 +167,9 @@ namespace sketch::HeaderTool
 		bool IsValid() const { return !Name.IsEmpty(); }
 
 		/** */
-		sketch::FStringView Name;
+		FSketchStringView Name;
 		/** Only set for dynamic slots */
-		sketch::FStringView Type;
+		FSketchStringView Type;
 		/** Only set for dynamic slots */
 		TArray<FProperty> Properties;
 	};
@@ -197,19 +197,19 @@ namespace sketch::HeaderTool
 	};
 	struct FOverride
 	{
-		TArray<sketch::FStringView> Specializations;
+		TArray<FSketchStringView> Specializations;
 
-		sketch::FStringView Name;
-		sketch::FStringView TypeOverride;
-		sketch::FStringView ValueOverride;
+		FSketchStringView Name;
+		FSketchStringView TypeOverride;
+		FSketchStringView ValueOverride;
 
-		sketch::FStringView SlotType;
+		FSketchStringView SlotType;
 		ESlotProperties SlotProperties = SP_None;
 
-		static FOverride TemplateSpecializations(TArray<sketch::FStringView>&& Specializations) { return FOverride{ .Specializations = MoveTemp(Specializations) }; }
-		static FOverride Value(sketch::FStringView Property, sketch::FStringView Value, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .ValueOverride = Value, .SlotType = SlotType }; }
-		static FOverride Type(sketch::FStringView Property, sketch::FStringView Type, sketch::FStringView SlotType = {}) { return FOverride{ .Name = Property, .TypeOverride = Type, .SlotType = SlotType }; }
-		static FOverride Slot(sketch::FStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
+		static FOverride TemplateSpecializations(TArray<FSketchStringView>&& Specializations) { return FOverride{ .Specializations = MoveTemp(Specializations) }; }
+		static FOverride Value(FSketchStringView Property, FSketchStringView Value, FSketchStringView SlotType = {}) { return FOverride{ .Name = Property, .ValueOverride = Value, .SlotType = SlotType }; }
+		static FOverride Type(FSketchStringView Property, FSketchStringView Type, FSketchStringView SlotType = {}) { return FOverride{ .Name = Property, .TypeOverride = Type, .SlotType = SlotType }; }
+		static FOverride Slot(FSketchStringView SlotType, int Properties) { return FOverride{ .SlotType = SlotType, .SlotProperties = ESlotProperties(Properties) }; }
 	};
 	extern SKETCH_API TMap<FName, TArray<FOverride>> GOverrides;
 
@@ -233,10 +233,10 @@ namespace sketch::HeaderTool
 
 	private:
 		bool Init();
-		FProperty ProcessProperty(const FStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, bool bDeprecated = false, bool bExplicitDefaultValue = false, const FStringView& PropertiesDefaults = {}, const FStringView& SlotType = {});
-		FProperty ProcessAttribute(const FStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, bool bDeprecated, bool bExplicitDefaultValue, const FStringView& PropertiesDefaults = {}, const sketch::FStringView SlotType = {});
-		FSlot ProcessUniqueSlot(const FStringView& Properties, const SourceCode::FLocalStringView& PropertyBody);
-		FSlot ProcessDynamicSlot(const FStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, int ClassScopeIndex);
+		FProperty ProcessProperty(const FSketchStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, bool bDeprecated = false, bool bExplicitDefaultValue = false, const FSketchStringView& PropertiesDefaults = {}, const FSketchStringView& SlotType = {});
+		FProperty ProcessAttribute(const FSketchStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, bool bDeprecated, bool bExplicitDefaultValue, const FSketchStringView& PropertiesDefaults = {}, const FSketchStringView SlotType = {});
+		FSlot ProcessUniqueSlot(const FSketchStringView& Properties, const SourceCode::FLocalStringView& PropertyBody);
+		FSlot ProcessDynamicSlot(const FSketchStringView& Properties, const SourceCode::FLocalStringView& PropertyBody, int ClassScopeIndex);
 
 		Private::FIndex Index;
 		FLog& Log;
@@ -251,7 +251,7 @@ namespace sketch::HeaderTool
 	///
 	struct SKETCH_API FReflectionGenerator
 	{
-		FReflectionGenerator(FStringView RegistrarName = TEXT("All"));
+		FReflectionGenerator(FSketchStringView RegistrarName = TEXT("All"));
 		void SetFile(const FFile& File, const FString& InclusionRoot) { FilePtr = &File, InclusionRootPtr = &InclusionRoot; }
 		void Add(const FClass& Class);
 		void Add(const FFile& File, const FString& InclusionRoot);
@@ -265,7 +265,7 @@ namespace sketch::HeaderTool
 		FString Epilogue;
 	};
 
-	SKETCH_API sketch::FStringView TryGetModuleName(sketch::FStringView InclusionRoot, sketch::FStringView FallbackValue = TEXT("All"));
+	SKETCH_API FSketchStringView TryGetModuleName(FSketchStringView InclusionRoot, FSketchStringView FallbackValue = TEXT("All"));
 }
 
 #undef FORMATTER

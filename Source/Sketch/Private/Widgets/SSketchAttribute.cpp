@@ -249,14 +249,14 @@ bool SSketchAttribute::TryPatchCode(bool bRemoveSketchInvocation)
 		const FString AttributeName = TEXT("\"") + Attribute->GetName().ToString() + TEXT("\"");
 		for (; InvocationMatcher; ++InvocationMatcher)
 		{
-			sketch::FStringView Args = InvocationMatcher.View<ArgsTag>();
+			FSketchStringView Args = InvocationMatcher.View<ArgsTag>();
 			TMatcher CommaMatcher(Args, CombinedFilter(&Bracket::AnySubscopeFilter, &String::LiteralFilter), Matcher::String(TEXT(",")));
 			if (CommaMatcher) [[likely]]
 			{
-				sketch::FStringView NameArg = Args.Mid(1, CommaMatcher.Position - 1);
+				FSketchStringView NameArg = Args.Mid(1, CommaMatcher.Position - 1);
 				if (NameArg.Contains(AttributeName)) [[likely]]
 				{
-					const sketch::FStringView LineView = Line;
+					const FSketchStringView LineView = Line;
 					FString NewLine;
 					NewLine.Reserve(Line.Len());
 					if (!bRemoveSketchInvocation)

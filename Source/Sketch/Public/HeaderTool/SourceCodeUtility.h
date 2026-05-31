@@ -54,7 +54,7 @@ namespace sketch::SourceCode
 
 	constexpr bool IsGraph(TCHAR Char) { return Char >= TCHAR('!') && Char <= TCHAR('~'); }
 
-	constexpr int ConsumeNewLine(const sketch::FStringView& Code, int Position)
+	constexpr int ConsumeNewLine(const FSketchStringView& Code, int Position)
 	{
 		if (Code.IsValidIndex(Position + 1))[[likely]]
 		{
@@ -63,7 +63,7 @@ namespace sketch::SourceCode
 		return Code[Position] == TCHAR('\n') ? Position + 1 : INDEX_NONE;
 	}
 
-	constexpr int ConsumeLineBreak(const sketch::FStringView& Code, int Position)
+	constexpr int ConsumeLineBreak(const FSketchStringView& Code, int Position)
 	{
 		return Code[Position] == TCHAR('\\') ? ConsumeNewLine(Code, Position + 1) : INDEX_NONE;
 	}
@@ -82,7 +82,7 @@ namespace sketch::SourceCode::Comment
 		CT_MultiLine
 	};
 
-	constexpr ECommentType DetectType(const sketch::FStringView& Code, int Position)
+	constexpr ECommentType DetectType(const FSketchStringView& Code, int Position)
 	{
 		if (Code[Position] == TCHAR('/') && Code.IsValidIndex(Position + 1)) [[unlikely]]
 		{
@@ -93,7 +93,7 @@ namespace sketch::SourceCode::Comment
 	}
 
 	/** @return Index of the first character that doesn't belong to a comment, or Code.Len() if all remaining code is a comment */
-	constexpr int SingleLineEnding(const sketch::FStringView& Code, int Position, const auto& OnNewLine)
+	constexpr int SingleLineEnding(const FSketchStringView& Code, int Position, const auto& OnNewLine)
 	{
 		check(DetectType(Code, Position) == CT_SingleLine);
 
@@ -122,13 +122,13 @@ namespace sketch::SourceCode::Comment
 		return Code.Len();
 	}
 
-	constexpr int SingleLineEnding(const sketch::FStringView& Code, int Position)
+	constexpr int SingleLineEnding(const FSketchStringView& Code, int Position)
 	{
 		return SingleLineEnding(Code, Position, [](int) {});
 	}
 
 	/** @return Index of the first character that doesn't belong to a comment, Code.Len() if all remaining code is a comment, or INDEX_NONE  if comment is malformed */
-	constexpr int MultiLineEnding(const sketch::FStringView& Code, int Position, const auto& OnNewLine)
+	constexpr int MultiLineEnding(const FSketchStringView& Code, int Position, const auto& OnNewLine)
 	{
 		check(DetectType(Code,Position) == CT_MultiLine);
 
@@ -152,13 +152,13 @@ namespace sketch::SourceCode::Comment
 		return INDEX_NONE;
 	}
 
-	constexpr int MultiLineEnding(const sketch::FStringView& Code, int Position)
+	constexpr int MultiLineEnding(const FSketchStringView& Code, int Position)
 	{
 		return MultiLineEnding(Code, Position, [](int) {});
 	}
 
 	/** @return Index of the first character that doesn't belong to a comment, Code.Len() if all remaining code is a comment, or INDEX_NONE if comment is malformed */
-	constexpr int Skip(const sketch::FStringView& Code, int Position, const auto& OnNewLine)
+	constexpr int Skip(const FSketchStringView& Code, int Position, const auto& OnNewLine)
 	{
 		// Keep in mind one comment can be followed by another
 		int i;
@@ -179,9 +179,9 @@ namespace sketch::SourceCode::Comment
 		return i;
 	}
 
-	constexpr auto GSkip = [](const sketch::FStringView& Code, int Position, const auto& OnNewLine) { return Comment::Skip(Code, Position, OnNewLine); };
+	constexpr auto GSkip = [](const FSketchStringView& Code, int Position, const auto& OnNewLine) { return Comment::Skip(Code, Position, OnNewLine); };
 
-	constexpr int Filter(const sketch::FStringView& Code, int Position) { return Skip(Code, Position, [](int) {}); }
+	constexpr int Filter(const FSketchStringView& Code, int Position) { return Skip(Code, Position, [](int) {}); }
 }
 
 /*************************************************************************************************/
@@ -190,7 +190,7 @@ namespace sketch::SourceCode::Comment
 namespace sketch::SourceCode::Private
 {
 	template <bool bRoot = true>
-	constexpr int Combine(const sketch::FStringView& Code, int Position, const auto& Invoker, const auto& First, const auto&... Rest)
+	constexpr int Combine(const FSketchStringView& Code, int Position, const auto& Invoker, const auto& First, const auto&... Rest)
 	{
 		// Each time a filter filters something out - restart applying the whole filter stack from zero
 		// Including the very first one
@@ -257,14 +257,14 @@ namespace sketch::SourceCode::Private
 namespace sketch::SourceCode
 {
 	template <class T>
-	concept CSkip = requires { std::declval<T>()(sketch::FStringView(), 0, [](int) {}); };
+	concept CSkip = requires { std::declval<T>()(FSketchStringView(), 0, [](int) {}); };
 
-	constexpr int SkipAll(const sketch::FStringView& Code, int Position, const auto& OnNewLine, const CSkip auto& FirstSkip, const CSkip auto&... Skips)
+	constexpr int SkipAll(const FSketchStringView& Code, int Position, const auto& OnNewLine, const CSkip auto& FirstSkip, const CSkip auto&... Skips)
 	{
 		return Private::Combine(
 			Code,
 			Position,
-			[&OnNewLine](const sketch::FStringView& Code, int Position, const auto& Skip) constexpr { return Skip(Code, Position, OnNewLine); },
+			[&OnNewLine](const FSketchStringView& Code, int Position, const auto& Skip) constexpr { return Skip(Code, Position, OnNewLine); },
 			FirstSkip,
 			Skips...
 		);
@@ -277,16 +277,16 @@ namespace sketch::SourceCode
 	 * - INDEX_NONE when filter is applicable but something is broken
 	 */
 	template <class T>
-	concept CFilter = std::is_same_v<int, std::invoke_result_t<T, sketch::FStringView, int>>;
+	concept CFilter = std::is_same_v<int, std::invoke_result_t<T, FSketchStringView, int>>;
 
-	constexpr int NoFilter(const sketch::FStringView&, int Pos) { return Pos; };
+	constexpr int NoFilter(const FSketchStringView&, int Pos) { return Pos; };
 
-	constexpr int CombineFilters(const sketch::FStringView& Code, int Position, CFilter auto&& FirstFilter, CFilter auto&&... Filters)
+	constexpr int CombineFilters(const FSketchStringView& Code, int Position, CFilter auto&& FirstFilter, CFilter auto&&... Filters)
 	{
 		return Private::Combine(
 			Code,
 			Position,
-			[](const sketch::FStringView& InCode, int InPosition, const auto& Filter) constexpr { return Filter(InCode, InPosition); },
+			[](const FSketchStringView& InCode, int InPosition, const auto& Filter) constexpr { return Filter(InCode, InPosition); },
 			FirstFilter,
 			Filters...
 		);
@@ -294,12 +294,12 @@ namespace sketch::SourceCode
 
 	constexpr auto CombinedFilter(CFilter auto&& FirstFilter, CFilter auto&&... Filters)
 	{
-		return [First = MoveTemp(FirstFilter), ...Rest = MoveTemp(Filters)](const sketch::FStringView& Code, int Position) -> int
+		return [First = MoveTemp(FirstFilter), ...Rest = MoveTemp(Filters)](const FSketchStringView& Code, int Position) -> int
 		{
 			return Private::Combine(
 				Code,
 				Position,
-				[](const sketch::FStringView& InCode, int InPosition, const auto& Filter) constexpr { return Filter(InCode, InPosition); },
+				[](const FSketchStringView& InCode, int InPosition, const auto& Filter) constexpr { return Filter(InCode, InPosition); },
 				First,
 				Rest...
 			);
@@ -313,13 +313,13 @@ namespace sketch::SourceCode
 
 namespace sketch::SourceCode::String
 {
-	constexpr bool IsLiteralEdge(const sketch::FStringView& Code, int Position)
+	constexpr bool IsLiteralEdge(const FSketchStringView& Code, int Position)
 	{
 		return Code[Position] == TCHAR('"') && !(Code.IsValidIndex(Position - 1) && Code[Position - 1] == TCHAR('\\'));
 	}
 
 	/** @return Index of first character that doesn't belong to a string literal and is not a whitespace, or INDEX_NONE if string literal is broken */
-	constexpr int LiteralEnding(const sketch::FStringView& Code, int Position, const auto& OnNewLine)
+	constexpr int LiteralEnding(const FSketchStringView& Code, int Position, const auto& OnNewLine)
 	{
 		check(IsLiteralEdge(Code, Position));
 
@@ -372,26 +372,26 @@ namespace sketch::SourceCode::String
 		return bIsInLiteral ? INDEX_NONE : i;
 	}
 
-	constexpr int SkipLiteral(const sketch::FStringView& Code, int Position, const auto& OnNewLine)
+	constexpr int SkipLiteral(const FSketchStringView& Code, int Position, const auto& OnNewLine)
 	{
 		if (IsLiteralEdge(Code, Position))
 			return LiteralEnding(Code, Position, OnNewLine);
 		return Position;
 	}
 
-	constexpr auto GSkipLiteral = [](const sketch::FStringView& Code, int Position, const auto& OnNewLine) { return String::SkipLiteral(Code, Position, OnNewLine); };
+	constexpr auto GSkipLiteral = [](const FSketchStringView& Code, int Position, const auto& OnNewLine) { return String::SkipLiteral(Code, Position, OnNewLine); };
 
-	constexpr int LiteralFilter(const sketch::FStringView& Code, int Position) { return SkipLiteral(Code, Position, [](int) {}); }
+	constexpr int LiteralFilter(const FSketchStringView& Code, int Position) { return SkipLiteral(Code, Position, [](int) {}); }
 
 	template <ESearchCase::Type SearchCase = ESearchCase::CaseSensitive, CFilter FilterType = decltype(&NoFilter)>
 	constexpr int Find(
-		const sketch::FStringView& Code,
+		const FSketchStringView& Code,
 		int InitialPosition,
-		const sketch::FStringView& String,
+		const FSketchStringView& String,
 		const FilterType& CustomFilter = &NoFilter
 	)
 	{
-		const sketch::FStringView SearchedCode = Code.LeftChop(String.Len());
+		const FSketchStringView SearchedCode = Code.LeftChop(String.Len());
 		for (int i = InitialPosition; i <= Code.Len() - String.Len(); ++i)
 		{
 			i = SourceCode::CombineFilters(SearchedCode, i, &Comment::Filter, CustomFilter);
@@ -411,7 +411,7 @@ namespace sketch::SourceCode::String
 namespace sketch::SourceCode::Bracket
 {
 	constexpr int FindPaired(
-		const sketch::FStringView& Code,
+		const FSketchStringView& Code,
 		int OpeningBracketPosition,
 		TCHAR OpeningBracket,
 		TCHAR ClosingBracket,
@@ -449,7 +449,7 @@ namespace sketch::SourceCode::Bracket
 	}
 
 	constexpr int FindPaired(
-		const sketch::FStringView& Code,
+		const FSketchStringView& Code,
 		int OpeningBracketPosition,
 		TCHAR OpeningBracket,
 		TCHAR ClosingBracket)
@@ -458,7 +458,7 @@ namespace sketch::SourceCode::Bracket
 	}
 
 	template <TCHAR OpeningBracket, TCHAR ClosingBracket>
-	constexpr int Filter(const sketch::FStringView& Code, int Position)
+	constexpr int Filter(const FSketchStringView& Code, int Position)
 	{
 		if (Code[Position] == OpeningBracket)
 		{
@@ -468,11 +468,11 @@ namespace sketch::SourceCode::Bracket
 		return Position;
 	}
 
-	constexpr int SubscopeFilter(const sketch::FStringView& Code, int Position) { return Filter<TCHAR('{'), TCHAR('}')>(Code, Position); }
-	constexpr int ArgumentFilter(const sketch::FStringView& Code, int Position) { return Filter<TCHAR('('), TCHAR(')')>(Code, Position); }
-	constexpr int TemplateFilter(const sketch::FStringView& Code, int Position) { return Filter<TCHAR('<'), TCHAR('>')>(Code, Position); }
-	constexpr int SubscriptFilter(const sketch::FStringView& Code, int Position) { return Filter<TCHAR('['), TCHAR(']')>(Code, Position); }
-	constexpr int AnySubscopeFilter(const sketch::FStringView& Code, int Position) { return CombineFilters(Code, Position, &SubscopeFilter, &ArgumentFilter, &TemplateFilter, &SubscriptFilter); }
+	constexpr int SubscopeFilter(const FSketchStringView& Code, int Position) { return Filter<TCHAR('{'), TCHAR('}')>(Code, Position); }
+	constexpr int ArgumentFilter(const FSketchStringView& Code, int Position) { return Filter<TCHAR('('), TCHAR(')')>(Code, Position); }
+	constexpr int TemplateFilter(const FSketchStringView& Code, int Position) { return Filter<TCHAR('<'), TCHAR('>')>(Code, Position); }
+	constexpr int SubscriptFilter(const FSketchStringView& Code, int Position) { return Filter<TCHAR('['), TCHAR(']')>(Code, Position); }
+	constexpr int AnySubscopeFilter(const FSketchStringView& Code, int Position) { return CombineFilters(Code, Position, &SubscopeFilter, &ArgumentFilter, &TemplateFilter, &SubscriptFilter); }
 }
 
 /*************************************************************************************************/
@@ -484,7 +484,7 @@ namespace sketch::SourceCode
 	 * Finds first character that is not an empty space and is not a part of a comment
 	 * @return INDEX_NONE on source code errors
 	 */
-	constexpr int NoneCodeFilter(const sketch::FStringView& Code, int InitialPosition = 0)
+	constexpr int NoneCodeFilter(const FSketchStringView& Code, int InitialPosition = 0)
 	{
 		for (int i = InitialPosition; i < Code.Len(); ++i)
 		{
@@ -504,7 +504,7 @@ namespace sketch::SourceCode
 		return Code.Len();
 	}
 
-	constexpr int NameFilter(const sketch::FStringView& Code, int InitialPosition = 0)
+	constexpr int NameFilter(const FSketchStringView& Code, int InitialPosition = 0)
 	{
 		for (int i = InitialPosition; i < Code.Len(); ++i)
 		{
@@ -517,7 +517,7 @@ namespace sketch::SourceCode
 	 * Returns index of the first character after a complete punctuational expression.
 	 * That is, it doesn't concat characters that aren't normally combined, e.g '.' or '?'
 	 */
-	constexpr int OperatorFilter(const sketch::FStringView& Code, int InitialPosition = 0)
+	constexpr int OperatorFilter(const FSketchStringView& Code, int InitialPosition = 0)
 	{
 		auto IsAlwaysAlone = [](TCHAR Char)
 		{
@@ -548,7 +548,7 @@ namespace sketch::SourceCode
 		return Code.Len();
 	}
 
-	constexpr int WordFilter(const sketch::FStringView& Code, int InitialPosition = 0)
+	constexpr int WordFilter(const FSketchStringView& Code, int InitialPosition = 0)
 	{
 		return IsNameChar(Code[InitialPosition]) ? NameFilter(Code, InitialPosition) : OperatorFilter(Code, InitialPosition);
 	}
@@ -563,11 +563,11 @@ namespace sketch::SourceCode
 	{
 		int FirstOf = INDEX_NONE;
 		int FirstAfter = INDEX_NONE;
-		TDevelopmentOnly<sketch::FStringView{}> DebugView;
+		TDevelopmentOnly<FSketchStringView{}> DebugView;
 
-		static constexpr FLocalStringView Make(int FirstOf, int FirstAfter, const sketch::FStringView& Code) { return { FirstOf, FirstAfter, Code.Mid(FirstOf, FirstAfter - FirstOf) }; }
+		static constexpr FLocalStringView Make(int FirstOf, int FirstAfter, const FSketchStringView& Code) { return { FirstOf, FirstAfter, Code.Mid(FirstOf, FirstAfter - FirstOf) }; }
 		constexpr bool IsValid() const { return FirstOf != INDEX_NONE && FirstAfter != INDEX_NONE && FirstAfter > FirstOf; }
-		constexpr sketch::FStringView ToView(const sketch::FStringView& Code) const { return IsValid() ? sketch::FStringView{ &Code[0] + FirstOf, FirstAfter - FirstOf } : sketch::FStringView{}; }
+		constexpr FSketchStringView ToView(const FSketchStringView& Code) const { return IsValid() ? FSketchStringView{ &Code[0] + FirstOf, FirstAfter - FirstOf } : FSketchStringView{}; }
 	};
 
 	template <int InTag = -1, class... T>
@@ -601,9 +601,9 @@ namespace sketch::SourceCode
 		FLocalStringView Value;
 		EMatchResult MatchResult = MR_Skipped;
 		TDevelopmentOnly<(const ANSICHAR*)nullptr> DebugSource;
-		TDevelopmentOnly<sketch::FStringView{}> DebugName;
+		TDevelopmentOnly<FSketchStringView{}> DebugName;
 
-		constexpr sketch::FStringView View(const sketch::FStringView& Code) const { return Value.ToView(Code); }
+		constexpr FSketchStringView View(const FSketchStringView& Code) const { return Value.ToView(Code); }
 	};
 
 	template <int InTag, CMatch... T>
@@ -668,7 +668,7 @@ namespace sketch::SourceCode
 	};
 
 	template <class T>
-	concept CMatcher = CMatch<std::invoke_result_t<T, sketch::FStringView, int>>;
+	concept CMatcher = CMatch<std::invoke_result_t<T, FSketchStringView, int>>;
 
 	template <int InTag, CMatcher T>
 	struct TSegment
@@ -685,13 +685,13 @@ namespace sketch::SourceCode
 		static constexpr int Tag = InTag;
 
 		TDevelopmentOnly<(const ANSICHAR*)nullptr> DebugSource;
-		TDevelopmentOnly<sketch::FStringView{}> DebugName;
+		TDevelopmentOnly<FSketchStringView{}> DebugName;
 		TDevelopmentOnly<bool{ false }> bBreakOnEnter;
 		TDevelopmentOnly<bool{ false }> bBreakOnMatch;
 		TDevelopmentOnly<bool{ false }> bBreakOnFailure;
 
 		constexpr auto SetDebugSource(const ANSICHAR* InDebugSource) -> decltype(*this) { return DebugSource = InDebugSource, *this; }
-		constexpr auto SetDebugName(const sketch::FStringView& InDebugName) -> decltype(*this) { return DebugName = InDebugName, *this; }
+		constexpr auto SetDebugName(const FSketchStringView& InDebugName) -> decltype(*this) { return DebugName = InDebugName, *this; }
 		constexpr auto BreakOnEnter(bool Value = true) -> decltype(*this) { return bBreakOnEnter = Value, *this; }
 		constexpr auto BreakOnMatch(bool Value = true) -> decltype(*this) { return bBreakOnMatch = Value, *this; }
 		constexpr auto BreakOnFailure(bool Value = true) -> decltype(*this) { return bBreakOnFailure = Value, *this; }
@@ -746,11 +746,11 @@ namespace sketch::SourceCode
 namespace sketch::SourceCode::Private
 {
 	template <class... T>
-	using TMatchOutput = sketch::TTuple<decltype(std::declval<T>().Matcher(sketch::FStringView(), 0))...>;
+	using TMatchOutput = sketch::TTuple<decltype(std::declval<T>().Matcher(FSketchStringView(), 0))...>;
 
 	template <CSegment FFirstSegment, CSegment... T>
 	constexpr FMatchHeader& Match(
-		const sketch::FStringView& Code,
+		const FSketchStringView& Code,
 		int InitialPosition,
 		bool bAlreadyMatchedAnything, // Must always be "false" for initial calls
 		TMatchOutput<FFirstSegment, T...>& Output,
@@ -851,11 +851,11 @@ namespace sketch::SourceCode::Private
 namespace sketch::SourceCode
 {
 	template <class... T>
-	using TMatchTypeFromSegments = TMatch<-1, decltype(std::declval<T>().Matcher(sketch::FStringView(), 0))...>;
+	using TMatchTypeFromSegments = TMatch<-1, decltype(std::declval<T>().Matcher(FSketchStringView(), 0))...>;
 
 	template <CSegment FFirstSegment, CSegment... T>
 	constexpr TMatchTypeFromSegments<FFirstSegment, T...> Match(
-		const sketch::FStringView& Code,
+		const FSketchStringView& Code,
 		int InitialPosition,
 		const CFilter auto& CustomFilter,
 		const FFirstSegment& FirstSegment,
@@ -875,7 +875,7 @@ namespace sketch::SourceCode
 	struct TMatcher
 	{
 		constexpr TMatcher(
-			FStringView InCode,
+			FSketchStringView InCode,
 			int InPosition,
 			AdvancementFilterType&& InAdvancementFilter,
 			MatcherFilterType&& InMatcherFilter,
@@ -890,7 +890,7 @@ namespace sketch::SourceCode
 			operator++();
 		}
 
-		constexpr TMatcher(FStringView InCode, MatcherFilterType&& InMatcherFilter, SegmentTypes&&... InSegments)
+		constexpr TMatcher(FSketchStringView InCode, MatcherFilterType&& InMatcherFilter, SegmentTypes&&... InSegments)
 			: Code{ InCode }
 			, Position{ 0 }
 			, MatcherFilter{ MoveTemp(InMatcherFilter) }
@@ -900,7 +900,7 @@ namespace sketch::SourceCode
 			operator++();
 		}
 
-		constexpr TMatcher(FStringView InCode, SegmentTypes&&... InSegments)
+		constexpr TMatcher(FSketchStringView InCode, SegmentTypes&&... InSegments)
 			: Code{ InCode }
 			, Position{ 0 }
 			, MatcherFilter{ &NoFilter }
@@ -948,14 +948,14 @@ namespace sketch::SourceCode
 		bool Matched() const { return Match.template Get<Tag>().MatchResult == MR_Success; }
 
 		template <int Tag>
-		sketch::FStringView View() const { return Match.template Get<Tag>().View(Code); }
+		FSketchStringView View() const { return Match.template Get<Tag>().View(Code); }
 
 		template <int Tag>
 		FString String() const { return Match.template Get<Tag>().View(Code).ToString(); }
 
 
 
-		const sketch::FStringView Code;
+		const FSketchStringView Code;
 		TMatchTypeFromSegments<SegmentTypes...> Match;
 		int Position = -1;
 		MatcherFilterType MatcherFilter;
@@ -970,7 +970,7 @@ namespace sketch::SourceCode
 namespace sketch::SourceCode::Matcher
 {
 	template <int Tag>
-	constexpr TMatch<Tag> MakeMatch(const sketch::FStringView& Code, int InitialPosition, int Position)
+	constexpr TMatch<Tag> MakeMatch(const FSketchStringView& Code, int InitialPosition, int Position)
 	{
 		return Position != INDEX_NONE ? TMatch<Tag>{ { FLocalStringView::Make(InitialPosition, Position, Code) } } : TMatch<Tag>{};
 	}
@@ -978,7 +978,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag>
 	constexpr auto SegmentFromFilter(CFilter auto&& Filter, ESegmentType Type = ST_Required, const ANSICHAR* DebugSource = nullptr)
 	{
-		auto Handler = [F = ::MoveTempIfPossible(Filter)](const sketch::FStringView& Code, int Position) constexpr
+		auto Handler = [F = ::MoveTempIfPossible(Filter)](const FSketchStringView& Code, int Position) constexpr
 		{
 			return Matcher::MakeMatch<Tag>(Code, Position, F(Code, Position));
 		};
@@ -991,7 +991,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag = -1>
 	constexpr auto OneOf(ESegmentType Type, CSegment auto&&... Segments)
 	{
-		auto Handler = [S = sketch::MakeTuple(MoveTemp(Segments)...)](const sketch::FStringView& Code, int Position) constexpr
+		auto Handler = [S = sketch::MakeTuple(MoveTemp(Segments)...)](const FSketchStringView& Code, int Position) constexpr
 		{
 			Private::TMatchOutput<decltype(Segments)...> ResultComponents;
 			FLocalStringView ResultView;
@@ -1021,7 +1021,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag = -1>
 	constexpr auto Subsequence(ESegmentType Type, CFilter auto&& CustomFilter, CSegment auto&&... Segments)
 	{
-		auto Handler = [F = ::MoveTemp(CustomFilter), ...S = ::MoveTemp(Segments)](const sketch::FStringView& Code, int Position) constexpr
+		auto Handler = [F = ::MoveTemp(CustomFilter), ...S = ::MoveTemp(Segments)](const FSketchStringView& Code, int Position) constexpr
 		{
 			// Use regular matcher, but don't allow it increment initial position on failing matching the very first item
 			TMatchTypeFromSegments<decltype(S)...> Result;
@@ -1045,9 +1045,9 @@ namespace sketch::SourceCode::Matcher
 	constexpr auto Subsequence(ESegmentType Type, CSegment auto&&... Segments) { return Matcher::Subsequence<Tag>(Type, &NoFilter, MoveTemp(Segments)...); }
 
 	template <int Tag = -1, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive>
-	constexpr auto String(const sketch::FStringView& String, ESegmentType Type = ST_Required)
+	constexpr auto String(const FSketchStringView& String, ESegmentType Type = ST_Required)
 	{
-		auto Handler = [String](const sketch::FStringView& Code, int Position) constexpr -> TMatch<Tag>
+		auto Handler = [String](const FSketchStringView& Code, int Position) constexpr -> TMatch<Tag>
 		{
 			if (Code.RightChop(Position).StartsWith<SearchCase>(String))
 			{
@@ -1061,7 +1061,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag = -1>
 	constexpr auto Digit(ESegmentType Type = ST_Required)
 	{
-		auto Handler = [](const sketch::FStringView& Code, int Position) constexpr -> TMatch<Tag>
+		auto Handler = [](const FSketchStringView& Code, int Position) constexpr -> TMatch<Tag>
 		{
 			return MakeMatch<Tag>(Code, Position, Code[Position] >= TCHAR('0') && Code[Position] <= TCHAR('9') ? Position + 1 : Position);
 		};
@@ -1089,10 +1089,10 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag = -1>
 	constexpr auto ModuleApi(ESegmentType Type = ST_Optional)
 	{
-		auto Handler = [](const sketch::FStringView& Code, int Position)constexpr -> TMatch<Tag>
+		auto Handler = [](const FSketchStringView& Code, int Position)constexpr -> TMatch<Tag>
 		{
 			const int AfterWord = NameFilter(Code, Position);
-			sketch::FStringView Word = Code.Mid(Position, AfterWord - Position);
+			FSketchStringView Word = Code.Mid(Position, AfterWord - Position);
 			return MakeMatch<Tag>(Code, Position, Word.EndsWith(TEXT("_API")) ? AfterWord : Position);
 		};
 		return TSegment<Tag, decltype(Handler)>(MoveTemp(Handler), Type, __func__);
@@ -1210,7 +1210,7 @@ namespace sketch::SourceCode::Matcher
 
 namespace sketch::SourceCode
 {
-	SKETCH_API FProcessedString CleanCode(const sketch::FStringView& Code);
+	SKETCH_API FProcessedString CleanCode(const FSketchStringView& Code);
 
 
 
@@ -1221,5 +1221,5 @@ namespace sketch::SourceCode
 		FLocalStringView DefaultValue;
 	};
 
-	SKETCH_API TArray<FArgument> ParseArguments(const sketch::FStringView& Code);
+	SKETCH_API TArray<FArgument> ParseArguments(const FSketchStringView& Code);
 }
