@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "ConstexprStringView.h"
 #include "SourceCodeTypes.h"

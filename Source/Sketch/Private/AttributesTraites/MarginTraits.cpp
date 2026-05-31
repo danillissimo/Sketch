@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/MarginTraits.h"
 
 #include "Sketch.h"

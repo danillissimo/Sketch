@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "HeaderTool/SketchWidgetFactoryTools.h"
 
 #include "Widgets/SSketchWidget.h"

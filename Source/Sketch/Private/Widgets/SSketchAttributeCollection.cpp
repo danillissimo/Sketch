@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchAttributeCollection.h"
 
 #include "Widgets/SSketchAttribute.h"

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchWidgetEditor.h"
 
 #include "SketchCore.h"

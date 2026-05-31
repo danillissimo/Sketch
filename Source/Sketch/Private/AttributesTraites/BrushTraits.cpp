@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/BrushTraits.h"
 
 #include "Sketch.h"

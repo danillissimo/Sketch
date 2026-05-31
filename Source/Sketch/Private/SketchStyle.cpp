@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "SketchStyle.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Framework/Application/SlateApplication.h"

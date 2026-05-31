@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/IntegerTraits.h"
 
 #include "Widgets/Input/SSpinBox.h"

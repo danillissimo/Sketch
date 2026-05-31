@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/BooleanTraits.h"
 
 #include "Widgets/Input/SCheckBox.h"

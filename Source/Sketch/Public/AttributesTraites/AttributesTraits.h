@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "Delegates/Delegate.h"
 #include "Templates/SharedPointer.h"

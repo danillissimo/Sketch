@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/OptionalTraits.h"
 
 #include "Components/HorizontalBox.h"

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/AttributesTraits.h"
 
 #include "Widgets/Layout/SBox.h"

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SCompoundWidget.h"

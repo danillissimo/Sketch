@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchHeaderRow.h"
 
 #include <array>

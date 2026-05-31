@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "SketchModule.h"
 
 #include "Editor.h"

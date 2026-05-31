@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "SketchCommands.h"
 
 #include "SketchStyle.h"

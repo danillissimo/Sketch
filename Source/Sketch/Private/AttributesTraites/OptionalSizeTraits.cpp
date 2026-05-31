@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/OptionalSizeTraits.h"
 
 #include "Sketch.h"

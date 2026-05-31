@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchWidget.h"
 
 #include "Sketch.h"

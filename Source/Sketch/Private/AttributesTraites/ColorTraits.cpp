@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "AttributesTraites/ColorTraits.h"
 
 #include "Sketch.h"

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #ifndef WITH_SKETCH
 #error "WITH_SKETCH is not defined, fix Sketch.Build.cs"

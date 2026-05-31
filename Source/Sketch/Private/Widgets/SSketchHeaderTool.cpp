@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchHeaderTool.h"
 
 #include "Sketch.h"

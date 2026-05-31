@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "AttributesTraits.h"
 #include "Types/SlateVector2.h"

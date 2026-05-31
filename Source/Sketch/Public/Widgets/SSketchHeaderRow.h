@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "Widgets/Views/SHeaderRow.h"
 

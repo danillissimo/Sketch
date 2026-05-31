@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 using UnrealBuildTool;
 
 public class Sketch : ModuleRules

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STreeView.h"

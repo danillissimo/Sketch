@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "Misc/Attribute.h"
 #include "Misc/TVariant.h"

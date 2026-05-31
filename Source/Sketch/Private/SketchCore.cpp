@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "SketchCore.h"
 
 #include "Factories/BuiltinFactories.h"

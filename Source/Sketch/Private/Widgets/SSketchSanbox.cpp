@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/SSketchSanbox.h"
 
 #include "SketchCore.h"

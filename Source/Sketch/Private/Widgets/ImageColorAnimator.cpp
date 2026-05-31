@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "Widgets/ImageColorAnimator.h"
 
 #include "Types/SlateEnums.h"

@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "HeaderTool/SourceCodeUtility.h"
 
 #include "SketchStringLiteral.h"

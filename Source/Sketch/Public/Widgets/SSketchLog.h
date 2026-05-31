@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #pragma once
 #include "HeaderTool/SketchHeaderTool.h"
 #include "Widgets/SCompoundWidget.h"

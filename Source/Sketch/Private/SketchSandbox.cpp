@@ -1,3 +1,5 @@
+// Copyright 2026 danillissimo
+
 #include "SketchSandbox.h"
 
 auto& GetDeferredInitializers()
