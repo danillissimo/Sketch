@@ -611,7 +611,7 @@ namespace sketch::SourceCode
 	{
 		static constexpr int Tag = InTag;
 		[[SKETCH_NO_UNIQUE_ADDRESS]]
-		sketch::TTuple<T...> Components;
+		TSketchTuple<T...> Components;
 
 		template <int Tag, bool bRoot = true>
 		constexpr auto& Get()
@@ -619,7 +619,7 @@ namespace sketch::SourceCode
 			if constexpr (sizeof...(T) > 0)
 			{
 				auto& Result = Components.template TryGet<[]<class ItemType>() constexpr { return ItemType::Tag == Tag; }>();
-				using FFailureType = sketch::TTuple<>&;
+				using FFailureType = TSketchTuple<>&;
 				if constexpr (!std::is_same_v<decltype(Result), FFailureType>)
 				{
 					return Result;
@@ -628,7 +628,7 @@ namespace sketch::SourceCode
 				{
 					auto Filter = [&](auto&... Component) -> auto&
 					{
-						auto Results = sketch::Tie(Component.template Get<Tag, false>()...);
+						auto Results = SketchTie(Component.template Get<Tag, false>()...);
 						auto& ChildResult = Results.template TryGet<[]<class ItemType>() constexpr { return !std::is_same_v<ItemType, FFailureType>; }>();
 						constexpr bool bFailure = std::is_same_v<decltype(ChildResult), FFailureType>;
 						static_assert(!bRoot || !bFailure, "Unknown tag");
@@ -655,7 +655,7 @@ namespace sketch::SourceCode
 		constexpr const auto& Get() const { return const_cast<TMatch*>(this)->Get<Tag>(); }
 
 		template <CMatch... ComponentTypes>
-		static constexpr auto Make(FLocalStringView Value, sketch::TTuple<ComponentTypes...>&& Components) { return TMatch<InTag, ComponentTypes...>{ { Value, MR_Skipped, nullptr, {} }, ::MoveTemp(Components) }; }
+		static constexpr auto Make(FLocalStringView Value, TSketchTuple<ComponentTypes...>&& Components) { return TMatch<InTag, ComponentTypes...>{ { Value, MR_Skipped, nullptr, {} }, ::MoveTemp(Components) }; }
 	};
 
 
@@ -746,7 +746,7 @@ namespace sketch::SourceCode
 namespace sketch::SourceCode::Private
 {
 	template <class... T>
-	using TMatchOutput = sketch::TTuple<decltype(std::declval<T>().Matcher(FSketchStringView(), 0))...>;
+	using TMatchOutput = TSketchTuple<decltype(std::declval<T>().Matcher(FSketchStringView(), 0))...>;
 
 	template <CSegment FFirstSegment, CSegment... T>
 	constexpr FMatchHeader& Match(
@@ -960,7 +960,7 @@ namespace sketch::SourceCode
 		int Position = -1;
 		MatcherFilterType MatcherFilter;
 		AdvancementFilterType AdvancementFilter;
-		sketch::TTuple<SegmentTypes...> Segments;
+		TSketchTuple<SegmentTypes...> Segments;
 	};
 }
 
@@ -991,7 +991,7 @@ namespace sketch::SourceCode::Matcher
 	template <int Tag = -1>
 	constexpr auto OneOf(ESegmentType Type, CSegment auto&&... Segments)
 	{
-		auto Handler = [S = sketch::MakeTuple(MoveTemp(Segments)...)](const FSketchStringView& Code, int Position) constexpr
+		auto Handler = [S = MakeSketchTuple(MoveTemp(Segments)...)](const FSketchStringView& Code, int Position) constexpr
 		{
 			Private::TMatchOutput<decltype(Segments)...> ResultComponents;
 			FLocalStringView ResultView;
