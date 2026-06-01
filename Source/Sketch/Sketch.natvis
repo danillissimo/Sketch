@@ -9,7 +9,7 @@
     <DisplayString>{DebugView}</DisplayString>
   </Type>
   
-  <Type Name="sketch::FStringView">
+  <Type Name="FSketchStringView">
     <DisplayString Condition="Size == 0">Empty</DisplayString>
     <DisplayString Condition="Size &lt; 0">Invalid</DisplayString>
     <DisplayString>{DataPtr,[Size]su}</DisplayString>
@@ -24,12 +24,12 @@
   </Type>
 
   
-  <Type Name="sketch::TTuple&lt;*&gt;">
+  <Type Name="TSketchTuple&lt;*&gt;">
     <Expand>
       <Item Name="&gt;&gt;">this->Item</Item>
     </Expand>
   </Type>
-  <Type Name="sketch::TTuple&lt;*,*&gt;">
+  <Type Name="TSketchTuple&lt;*,*&gt;">
     <Expand>
       <Item Name="&gt;&gt;">this->Item</Item>
       <ExpandedItem>this->Next</ExpandedItem>
